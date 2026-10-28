@@ -69,6 +69,15 @@ async function file(path) { try { const j = await gh("/contents/" + path + "?ref
 async function rawJson(path) { const r = await gh("/contents/" + path + "?ref=main", { accept: "application/vnd.github.raw+json", raw: true }); return r.json(); }
 
 // ---------- Reels tab
+// TikTok drafts arrive without a caption: same text as Instagram (puzzle answer below the fold, max 2200).
+let CAPS = {};
+function ttCaption(text, first) { let c = String(text || ""); if (first) c += "\n\n.\n.\n.\nAnswer: " + first; return c.slice(0, 2200); }
+document.addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-copy]"); if (!b) return;
+  const t = CAPS[b.dataset.copy] || "";
+  try { await navigator.clipboard.writeText(t); } catch (x) { const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (y) {} ta.remove(); }
+  const old = b.textContent; b.textContent = "Copied ✓"; setTimeout(() => (b.textContent = old), 1500);
+});
 const blobs = {};
 async function assetUrl(rel, name) {
   const a = rel && rel.assets.find((x) => x.name === name); if (!a) return null;
@@ -79,20 +88,23 @@ async function loadDay() {
   const D = $("#date").value; $("#reels").innerHTML = '<p class="dim">Loading…</p>'; note("");
   try {
     const [man, st, rel] = await Promise.all([file("publisher/days/" + D + ".json"), file("publisher/state/" + D + ".json"), gh("/releases/tags/reels-" + D).catch(() => null)]);
+    const tts = await file("publisher/state/tiktok-" + D + ".json").catch(() => null), TT = (tts && tts.json.slots) || {};
+    CAPS = {};
     $("#dayinfo").textContent = D === manila() ? "today" : D === manila(1) ? "tomorrow" : "";
     if (!man) { $("#reels").innerHTML = `<p class="dim">No reels for ${D} yet. The nightly run adds tomorrow's reels around 9 PM.</p>`; return; }
     const S = (st && st.json.slots) || {};
     $("#reels").innerHTML = SLOTS.map((slot) => {
       const it = man.json.slots[slot]; if (!it) return `<div class="card"><div></div><div><b>${slot.slice(0, 2)}:${slot.slice(2)}</b> <span class="dim">no reel</span></div></div>`;
-      const s = S[slot] || {}, fb = s.fb || {}, ig = s.ig || {}, started = !!fb.videoId;
+      const s = S[slot] || {}, fb = s.fb || {}, ig = s.ig || {}, tt = TT[slot] || {}, started = !!fb.videoId;
+      CAPS[slot] = ttCaption(it.text, it.firstComment);
       const status = it.status === "vetoed" ? "vetoed" : it.status || "pending";
       return `<div class="card" data-slot="${slot}"><div class="media" id="m-${slot}"><div class="dim small">loading preview…</div></div><div>
         <div><b>${esc(it.time)}</b> · ${esc(it.title)} <span class="dim">(${esc(it.cut)}${it.seconds ? ", " + Math.round(it.seconds) + " s" : ""})</span></div>
         <div class="small dim">${esc(it.white)}${it.black ? " vs " + esc(it.black) : ""}${it.year ? " · " + esc(it.year) : ""}${it.swapped ? " · swapped in" : ""}</div>
-        <div style="margin:6px 0"><span class="pill ${status}">${status}</span>${fb.posted ? `<span class="pill posted">Facebook ✓</span>` : ""}${ig.mediaId ? `<span class="pill posted">Instagram ✓</span>` : ""}</div>
+        <div style="margin:6px 0"><span class="pill ${status}">${status}</span>${fb.posted ? `<span class="pill posted">Facebook ✓</span>` : ""}${ig.mediaId ? `<span class="pill posted">Instagram ✓</span>` : ""}${tt.publishId ? `<span class="pill posted">TikTok draft ✓</span>` : ""}</div>
         <pre class="cap">${esc(it.text)}${it.firstComment ? "\n\nFirst comment: " + esc(it.firstComment) : ""}</pre>
         <div class="small">${fb.link ? `<a href="${esc(fb.link)}" target="_blank" rel="noopener">Facebook</a> ` : ""}${ig.link ? `<a href="${esc(ig.link)}" target="_blank" rel="noopener">Instagram</a> ` : ""}</div>
-        <div style="margin-top:8px">${started ? `<span class="small dim">Already on Facebook: cannot be vetoed here.</span>` : status === "vetoed" ? `<button class="btn undo" data-act="undo" data-slot="${slot}">Undo veto</button>` : `<button class="btn veto" data-act="veto" data-slot="${slot}">Veto</button>`}</div>
+        <div style="margin-top:8px"><button class="btn" data-copy="${slot}">Copy TikTok caption</button> ${started ? `<span class="small dim">Already on Facebook: cannot be vetoed here.</span>` : status === "vetoed" ? `<button class="btn undo" data-act="undo" data-slot="${slot}">Undo veto</button>` : `<button class="btn veto" data-act="veto" data-slot="${slot}">Veto</button>`}</div>
       </div></div>`;
     }).join("");
     for (const slot of SLOTS) { const it = man.json.slots[slot]; if (!it) continue; (async () => {
