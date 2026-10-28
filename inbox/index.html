@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Reel Inbox</title>
+<!-- PnoyChess Reel Inbox (offline publisher, step 5). This page holds no data and no keys: it reads the private repo
+     mboylesm-wq/pnoychess-reel-studio with a GitHub access key that Mark pastes once per browser (kept only in that browser). -->
+<style>
+:root{--bg:#fbf8f2;--card:#fff;--text:#1d1a16;--dim:#6b6358;--gold:#b8862b;--line:#e6dfd2;--ok:#2f7a4f;--bad:#b4402b;--warn:#a8742a}
+@media (prefers-color-scheme:dark){:root{--bg:#14110e;--card:#1d1915;--text:#f2ece2;--dim:#a99f90;--gold:#e0b04a;--line:#2c2620;--ok:#5bb782;--bad:#e07a5c;--warn:#d9a44f}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:860px;margin:0 auto;padding:20px 16px 64px}
+h1{font-size:1.6rem;margin:0}h2{font-size:1.1rem;margin:22px 0 8px}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+.dim{color:var(--dim)}.small{font-size:.85rem}
+nav{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px}
+nav button,.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;padding:6px 14px;cursor:pointer}
+nav button.on{background:var(--gold);border-color:var(--gold);color:#fff}
+.btn.veto{border-color:var(--bad);color:var(--bad)}.btn.undo{border-color:var(--ok);color:var(--ok)}
+.btn:disabled{opacity:.5;cursor:default}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;display:grid;grid-template-columns:150px 1fr;gap:12px}
+@media (max-width:560px){.card{grid-template-columns:1fr}}
+.media{width:150px;max-width:100%}.media img,.media video{width:100%;border-radius:6px;background:#000;display:block}
+.pill{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:1px 8px;border-radius:999px;border:1px solid currentColor;margin-right:6px}
+.approved{color:var(--ok)}.pending{color:var(--warn)}.vetoed{color:var(--bad)}.posted{color:var(--ok)}
+pre.cap{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;max-height:140px;overflow:auto;margin:8px 0}
+table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--dim);font-weight:600}
+.wrap{overflow-x:auto}
+input[type=password],input[type=date]{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)}
+input[type=password]{width:100%;max-width:520px}
+.msg{padding:8px 12px;border-radius:8px;border:1px solid var(--line);margin:10px 0}.msg.err{border-color:var(--bad);color:var(--bad)}
+a{color:var(--gold)}
+.ok{color:var(--ok)}.bad{color:var(--bad)}
+.stat{display:inline-block;min-width:120px;margin:6px 14px 6px 0}.stat b{display:block;font-size:1.5rem}
+</style></head><body><main>
+<div class="top"><div><h1>♞ Reel Inbox</h1><div class="dim small">PnoyChess · offline publisher · no Claude usage</div></div>
+<div id="who" class="small dim"></div></div>
+<div id="login" hidden>
+  <h2>Connect to GitHub</h2>
+  <p>Paste your GitHub access key for <b>pnoychess-reel-studio</b>. It stays in this browser only and is sent only to GitHub. Never paste it anywhere else.</p>
+  <p><input id="tok" type="password" autocomplete="off" placeholder="github_pat_…"> <button class="btn" id="save">Connect</button></p>
+  <p class="small dim">How to make the key: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Repository access: only <b>pnoychess-reel-studio</b>. Permissions: <b>Contents: Read and write</b>, <b>Actions: Read-only</b>. Expiration: 1 year.</p>
+</div>
+<div id="app" hidden>
+  <nav id="tabs"><button data-t="day" class="on">Reels</button><button data-t="up">Upcoming</button><button data-t="stats">Stats</button><button data-t="health">Health</button><button data-t="key">Key</button></nav>
+  <div id="note"></div>
+  <section id="t-day"><div class="top"><div><input type="date" id="date"> <span id="dayinfo" class="dim small"></span></div><button class="btn" id="reload">Refresh</button></div><div id="reels"></div></section>
+  <section id="t-up" hidden></section>
+  <section id="t-stats" hidden></section>
+  <section id="t-health" hidden></section>
+  <section id="t-key" hidden><h2>Access key</h2><p>Saved in this browser. Remove it on a shared device.</p><button class="btn veto" id="forget">Remove key from this browser</button></section>
+</div>
+<script>
+const REPO = "mboylesm-wq/pnoychess-reel-studio", API = "https://api.github.com/repos/" + REPO, SLOTS = ["1200", "1700", "2000"];
+const $ = (s) => document.querySelector(s), esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const store = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
+let TOKEN = store.get("pnoy.inbox.key"), CFG = { preApprovedThrough: "2026-11-22" };
+const manila = (offDays = 0) => new Date(Date.now() + 8 * 3600e3 + offDays * 864e5).toISOString().slice(0, 10);
+const note = (html, err) => { $("#note").innerHTML = html ? `<div class="msg ${err ? "err" : ""}">${html}</div>` : ""; };
+async function gh(path, opt = {}) {
+  const r = await fetch(path.startsWith("http") ? path : API + path, { ...opt, headers: { Authorization: "Bearer " + TOKEN, Accept: opt.accept || "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...(opt.headers || {}) } });
+  if (r.status === 401) { throw new Error("GitHub refused the key (expired or wrong). Open the Key tab and paste a new one."); }
+  if (!r.ok) { const e = new Error("GitHub " + r.status + " on " + path); e.status = r.status; throw e; }
+  return opt.raw ? r : r.json();
+}
+const b64dec = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, "")), (c) => c.charCodeAt(0)));
+const b64enc = (s) => { const b = new TextEncoder().encode(s); let x = ""; for (const c of b) x += String.fromCharCode(c); return btoa(x); };
+async function file(path) { try { const j = await gh("/contents/" + path + "?ref=main"); return { sha: j.sha, json: JSON.parse(b64dec(j.content)) }; } catch (e) { if (e.status === 404) return null; throw e; } }
+async function rawJson(path) { const r = await gh("/contents/" + path + "?ref=main", { accept: "application/vnd.github.raw+json", raw: true }); return r.json(); }
+
+// ---------- Reels tab
+const blobs = {};
+async function assetUrl(rel, name) {
+  const a = rel && rel.assets.find((x) => x.name === name); if (!a) return null;
+  if (blobs[a.id]) return blobs[a.id];
+  try { const r = await gh(a.url, { accept: "application/octet-stream", raw: true }); return (blobs[a.id] = URL.createObjectURL(await r.blob())); } catch (e) { return null; }
+}
+async function loadDay() {
+  const D = $("#date").value; $("#reels").innerHTML = '<p class="dim">Loading…</p>'; note("");
+  try {
+    const [man, st, rel] = await Promise.all([file("publisher/days/" + D + ".json"), file("publisher/state/" + D + ".json"), gh("/releases/tags/reels-" + D).catch(() => null)]);
+    $("#dayinfo").textContent = D === manila() ? "today" : D === manila(1) ? "tomorrow" : "";
+    if (!man) { $("#reels").innerHTML = `<p class="dim">No reels for ${D} yet. The nightly run adds tomorrow's reels around 9 PM.</p>`; return; }
+    const S = (st && st.json.slots) || {};
+    $("#reels").innerHTML = SLOTS.map((slot) => {
+      const it = man.json.slots[slot]; if (!it) return `<div class="card"><div></div><div><b>${slot.slice(0, 2)}:${slot.slice(2)}</b> <span class="dim">no reel</span></div></div>`;
+      const s = S[slot] || {}, fb = s.fb || {}, ig = s.ig || {}, started = !!fb.videoId;
+      const status = it.status === "vetoed" ? "vetoed" : it.status || "pending";
+      return `<div class="card" data-slot="${slot}"><div class="media" id="m-${slot}"><div class="dim small">loading preview…</div></div><div>
+        <div><b>${esc(it.time)}</b> · ${esc(it.title)} <span class="dim">(${esc(it.cut)}${it.seconds ? ", " + Math.round(it.seconds) + " s" : ""})</span></div>
+        <div class="small dim">${esc(it.white)}${it.black ? " vs " + esc(it.black) : ""}${it.year ? " · " + esc(it.year) : ""}${it.swapped ? " · swapped in" : ""}</div>
+        <div style="margin:6px 0"><span class="pill ${status}">${status}</span>${fb.posted ? `<span class="pill posted">Facebook ✓</span>` : ""}${ig.mediaId ? `<span class="pill posted">Instagram ✓</span>` : ""}</div>
+        <pre class="cap">${esc(it.text)}${it.firstComment ? "\n\nFirst comment: " + esc(it.firstComment) : ""}</pre>
+        <div class="small">${fb.link ? `<a href="${esc(fb.link)}" target="_blank" rel="noopener">Facebook</a> ` : ""}${ig.link ? `<a href="${esc(ig.link)}" target="_blank" rel="noopener">Instagram</a> ` : ""}</div>
+        <div style="margin-top:8px">${started ? `<span class="small dim">Already on Facebook: cannot be vetoed here.</span>` : status === "vetoed" ? `<button class="btn undo" data-act="undo" data-slot="${slot}">Undo veto</button>` : `<button class="btn veto" data-act="veto" data-slot="${slot}">Veto</button>`}</div>
+      </div></div>`;
+    }).join("");
+    for (const slot of SLOTS) { const it = man.json.slots[slot]; if (!it) continue; (async () => {
+      const box = $("#m-" + slot); if (!box) return;
+      const [v, c] = await Promise.all([assetUrl(rel, it.video), assetUrl(rel, it.cover)]);
+      box.innerHTML = v ? `<video controls preload="metadata" playsinline ${c ? `poster="${c}"` : ""} src="${v}"></video>` : c ? `<img alt="cover" src="${c}">` : rel ? `<a class="small" href="${esc(rel.html_url)}" target="_blank" rel="noopener">Open video on GitHub</a>` : `<div class="small dim">video not on GitHub yet</div>`;
+    })(); }
+  } catch (e) { $("#reels").innerHTML = ""; note(esc(e.message), true); }
+}
+async function setStatus(slot, act) {
+  const D = $("#date").value, btns = document.querySelectorAll("[data-act]"); btns.forEach((b) => (b.disabled = true));
+  try {
+    const st = await file("publisher/state/" + D + ".json");
+    if (st && st.json.slots && st.json.slots[slot] && st.json.slots[slot].fb && st.json.slots[slot].fb.videoId) throw new Error("This reel is already on Facebook.");
+    const f = await file("publisher/days/" + D + ".json"); const it = f.json.slots[slot];
+    if (act === "veto") { it.vetoedFrom = it.status || "pending"; it.status = "vetoed"; it.vetoedAt = new Date().toISOString(); }
+    else { it.status = it.vetoedFrom || (D <= CFG.preApprovedThrough ? "approved" : "pending"); delete it.vetoedFrom; delete it.vetoedAt; }
+    await gh("/contents/publisher/days/" + D + ".json", { method: "PUT", body: JSON.stringify({ message: `inbox: ${act} ${D} ${slot}`, content: b64enc(JSON.stringify(f.json, null, 1) + "\n"), sha: f.sha, branch: "main" }) });
+    await loadDay();
+    note(act === "veto" ? `Vetoed ${D} ${slot}: it will not be posted.` : `Veto undone for ${D} ${slot}.`);
+  } catch (e) { note(esc(e.message) + (e.status === 409 ? " (someone changed it at the same time; press Refresh and try again)" : ""), true); btns.forEach((b) => (b.disabled = false)); }
+}
+
+// ---------- other tabs
+async function loadUp() {
+  const el = $("#t-up"); el.innerHTML = '<p class="dim">Loading…</p>';
+  try { const q = await rawJson("queue.json"), today = manila();
+    const rows = q.reels.filter((r) => r.date >= today).slice(0, 90);
+    el.innerHTML = `<h2>Upcoming (${rows.length} reels)</h2><p class="small dim">The plan. The nightly run can swap a reel that was already posted, vetoed or failed.</p><div class="wrap"><table><tr><th>Date</th><th>Time</th><th>Reel</th><th>Type</th></tr>${rows.map((r) => `<tr><td>${esc(r.date)}</td><td>${esc(r.time)}</td><td>${esc(r.title)}<div class="small dim">${esc(r.white)}${r.black ? " vs " + esc(r.black) : ""}${r.year ? " · " + esc(r.year) : ""}</div></td><td>${esc(r.cut)}</td></tr>`).join("")}</table></div>`;
+  } catch (e) { el.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+async function loadStats() {
+  const el = $("#t-stats"); el.innerHTML = '<p class="dim">Loading…</p>';
+  try {
+    const h = await rawJson("posted-history.json"), posted = h.posted || {}, dates = [];
+    const byCut = {}; for (const v of Object.values(posted)) for (const [cut, d] of Object.entries(v)) { byCut[cut] = (byCut[cut] || 0) + 1; dates.push(d); }
+    const since = (n) => dates.filter((d) => d >= manila(-n)).length;
+    let ig = 0, fb = 0; try { const list = await gh("/contents/publisher/state"); for (const f of list.filter((x) => /\d{4}-\d\d-\d\d\.json$/.test(x.name)).slice(-30)) { const s = (await file("publisher/state/" + f.name)).json; for (const v of Object.values(s.slots || {})) { if (v.fb && v.fb.posted) fb++; if (v.ig && v.ig.mediaId) ig++; } } } catch (e) {}
+    el.innerHTML = `<h2>Posted</h2><div><span class="stat"><b>${Object.keys(posted).length}</b>games posted</span><span class="stat"><b>${since(7)}</b>last 7 days</span><span class="stat"><b>${since(30)}</b>last 30 days</span></div>
+      <h2>By type</h2><div class="wrap"><table><tr><th>Type</th><th>Reels</th></tr>${Object.entries(byCut).sort((a, b) => b[1] - a[1]).map(([c, n]) => `<tr><td>${esc(c)}</td><td>${n}</td></tr>`).join("")}</table></div>
+      <h2>Offline publisher (GitHub)</h2><p>Facebook ${fb} · Instagram ${ig} <span class="small dim">(posts made by the GitHub publisher; earlier posts were made by the Claude tasks)</span></p>
+      <p class="small dim">Source: posted-history.json (updated by the nightly run).</p>`;
+  } catch (e) { el.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+async function loadHealth() {
+  const el = $("#t-health"); el.innerHTML = '<p class="dim">Loading…</p>';
+  try { const r = await gh("/actions/runs?per_page=20");
+    el.innerHTML = `<h2>Last runs</h2><div class="wrap"><table><tr><th>When (Manila)</th><th>Job</th><th>Result</th></tr>${r.workflow_runs.map((x) => {
+      const t = new Date(Date.parse(x.created_at) + 8 * 3600e3).toISOString().replace("T", " ").slice(5, 16), res = x.status !== "completed" ? "running" : x.conclusion;
+      return `<tr><td>${t}</td><td>${esc(x.name)} <span class="small dim">${x.event === "schedule" ? "scheduled" : "manual"}</span></td><td><a class="${res === "success" ? "ok" : res === "running" ? "" : "bad"}" href="${esc(x.html_url)}" target="_blank" rel="noopener">${esc(res)}</a></td></tr>`; }).join("")}</table></div>
+      <p class="small dim">A red run also emails you from GitHub. The log of each run says what was posted or why not.</p>`;
+  } catch (e) { el.innerHTML = `<div class="msg err">${esc(e.message)}${e.status === 403 ? " — the key needs Actions: Read-only." : ""}</div>`; }
+}
+
+// ---------- wiring
+const loaders = { day: loadDay, up: loadUp, stats: loadStats, health: loadHealth, key: () => {} };
+function tab(t) { document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === t)); for (const k of Object.keys(loaders)) $("#t-" + k).hidden = k !== t; note(""); loaders[t](); }
+$("#tabs").onclick = (e) => { if (e.target.dataset.t) tab(e.target.dataset.t); };
+$("#reels").onclick = (e) => { const b = e.target.closest("[data-act]"); if (!b) return; if (b.dataset.act === "veto" && !confirmVeto(b.dataset.slot)) return; setStatus(b.dataset.slot, b.dataset.act); };
+function confirmVeto(slot) { const b = document.querySelector(`[data-act="veto"][data-slot="${slot}"]`); if (b.dataset.sure) return true; b.dataset.sure = 1; b.textContent = "Tap again to veto"; setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = "Veto"; } }, 4000); return false; }
+$("#date").onchange = loadDay; $("#reload").onclick = loadDay;
+$("#save").onclick = async () => { TOKEN = $("#tok").value.trim(); if (!TOKEN) return; try { await gh(""); store.set("pnoy.inbox.key", TOKEN); $("#tok").value = ""; start(); } catch (e) { alertBox(e.message); } };
+$("#forget").onclick = () => { store.set("pnoy.inbox.key", null); TOKEN = null; location.reload(); };
+function alertBox(m) { $("#login").insertAdjacentHTML("beforeend", `<div class="msg err">${esc(m)}</div>`); }
+async function start() {
+  $("#login").hidden = true; $("#app").hidden = false;
+  try { CFG = await rawJson("publisher/config.json"); $("#who").textContent = "Publisher: " + (CFG.mode === "live" ? "LIVE" : "dry-run") + " · maker: " + (CFG.maker || "compare"); } catch (e) { if (/refused/.test(e.message)) { store.set("pnoy.inbox.key", null); $("#app").hidden = true; $("#login").hidden = false; alertBox(e.message); return; } }
+  $("#date").value = new Date(Date.now() + 8 * 3600e3).getUTCHours() >= 21 ? manila(1) : manila(); tab("day");
+}
+if (TOKEN) start(); else $("#login").hidden = false;
+</script></main></body></html>
