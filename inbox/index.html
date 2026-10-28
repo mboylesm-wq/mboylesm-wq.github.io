@@ -98,7 +98,10 @@ async function loadDay() {
     for (const slot of SLOTS) { const it = man.json.slots[slot]; if (!it) continue; (async () => {
       const box = $("#m-" + slot); if (!box) return;
       const [v, c] = await Promise.all([assetUrl(rel, it.video), assetUrl(rel, it.cover)]);
-      box.innerHTML = v ? `<video controls preload="metadata" playsinline ${c ? `poster="${c}"` : ""} src="${v}"></video>` : c ? `<img alt="cover" src="${c}">` : rel ? `<a class="small" href="${esc(rel.html_url)}" target="_blank" rel="noopener">Open video on GitHub</a>` : `<div class="small dim">video not on GitHub yet</div>`;
+      // Release files often cannot be loaded by a web page (browser security), so the cover preview comes from the repo.
+      let p = c; if (!p) { try { const r = await gh("/contents/publisher/previews/" + D + "_" + slot + ".jpg?ref=main", { accept: "application/vnd.github.raw", raw: true }); p = URL.createObjectURL(await r.blob()); } catch (e) {} }
+      const link = rel ? `<a class="small" href="${esc(rel.html_url)}" target="_blank" rel="noopener">Watch on GitHub</a>` : `<div class="small dim">video not on GitHub yet</div>`;
+      box.innerHTML = v ? `<video controls preload="metadata" playsinline ${p ? `poster="${p}"` : ""} src="${v}"></video>` : (p ? `<img alt="cover" src="${p}">` : "") + link;
     })(); }
   } catch (e) { $("#reels").innerHTML = ""; note(esc(e.message), true); }
 }
