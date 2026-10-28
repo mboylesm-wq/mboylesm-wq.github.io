@@ -21,8 +21,7 @@ footer{margin-top:48px;color:var(--dim);font-size:.9rem;border-top:1px solid var
 <p>PnoyChess Poster is the channel owner's own publishing tool. Connecting lets it:</p>
 <ul>
 <li><b>user.info.basic</b> - confirm which TikTok account was connected;</li>
-<li><b>video.upload</b> - send PnoyChess's own videos to that account as drafts;</li>
-<li><b>video.publish</b> - publish PnoyChess's own videos to that account.</li>
+<li><b>video.upload</b> - send PnoyChess's own videos to that account as drafts, which the owner reviews and posts in the TikTok app.</li>
 </ul>
 <p>No data about other TikTok users is read or stored. You can revoke access at any time in TikTok under Settings and privacy, Security and permissions, Apps and services. See the <a href="/privacy.html">privacy policy</a> and <a href="/terms.html">terms of service</a>.</p>
 <p><button id="go" type="button" disabled>Connect TikTok</button></p>
@@ -41,7 +40,7 @@ footer{margin-top:48px;color:var(--dim);font-size:.9rem;border-top:1px solid var
   btn.addEventListener("click",function(){
     var u="https://www.tiktok.com/v2/auth/authorize/"
       +"?client_key="+encodeURIComponent(ck)
-      +"&scope="+encodeURIComponent("user.info.basic,video.upload,video.publish")
+      +"&scope="+encodeURIComponent("user.info.basic,video.upload")
       +"&response_type=code"
       +"&redirect_uri="+encodeURIComponent("https://mboylesm-wq.github.io/callback.html")
       +"&state="+encodeURIComponent(st);
