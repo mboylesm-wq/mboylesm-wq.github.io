@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>TikTok connected - PnoyChess</title>
+<style>
+:root{--bg:#fbf8f2;--text:#1d1a16;--dim:#6b6358;--gold:#b8862b;--line:#e6dfd2}
+@media (prefers-color-scheme:dark){:root{--bg:#14110e;--text:#f2ece2;--dim:#a99f90;--gold:#e0b04a;--line:#2c2620}}
+body{margin:0;background:var(--bg);color:var(--text);font:17px/1.6 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+main{max-width:760px;margin:0 auto;padding:40px 16px 64px}
+h1{font-size:2rem;line-height:1.2;margin:0 0 4px}
+.sub{color:var(--dim);margin:0 0 24px} a{color:var(--gold)}
+nav{display:flex;gap:18px;border-bottom:1px solid var(--line);padding-bottom:12px;margin-bottom:28px;font-weight:600}
+nav a{text-decoration:none} .k{color:var(--gold)}
+textarea{width:100%;box-sizing:border-box;font:14px/1.4 ui-monospace,Menlo,Consolas,monospace;background:transparent;color:var(--text);border:1px solid var(--line);border-radius:8px;padding:10px;height:96px}
+button{font:inherit;font-weight:700;background:var(--gold);color:#14110e;border:0;border-radius:8px;padding:10px 20px;cursor:pointer;margin-top:10px}
+.note{color:var(--dim);font-size:.95rem}
+footer{margin-top:48px;color:var(--dim);font-size:.9rem;border-top:1px solid var(--line);padding-top:12px}
+</style></head><body><main>
+<nav><a href="/">PnoyChess</a><a href="/privacy.html">Privacy policy</a><a href="/terms.html">Terms of service</a></nav>
+<h1><span class="k">♞</span> <span id="title">TikTok authorization</span></h1>
+<p class="sub" id="sub"></p>
+<div id="ok" hidden>
+  <p>Copy the code below and paste it into the PnoyChess Poster setup script in your terminal. It works once and expires in a few minutes. Do not share it.</p>
+  <textarea id="code" readonly></textarea><br>
+  <button id="copy" type="button">Copy code</button>
+  <p class="note" id="copied"></p>
+</div>
+<div id="bad" hidden><p id="err"></p></div>
+<footer>PnoyChess · Philippines · Last updated 28 October 2026</footer></main>
+<script>
+(function(){
+  var p=new URLSearchParams(location.search);
+  var code=p.get("code"), err=p.get("error"), desc=p.get("error_description"), st=p.get("state")||"";
+  var t=document.getElementById("title"), sub=document.getElementById("sub");
+  if(code){
+    t.textContent="TikTok connected";
+    sub.textContent="PnoyChess Poster was authorized for the PnoyChess TikTok account.";
+    document.getElementById("code").value=code;
+    document.getElementById("ok").hidden=false;
+    document.getElementById("copy").addEventListener("click",function(){
+      var ta=document.getElementById("code");
+      var done=function(){document.getElementById("copied").textContent="Copied.";};
+      if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(code).then(done,function(){ta.select();document.execCommand("copy");done();});}
+      else{ta.select();document.execCommand("copy");done();}
+    });
+    history.replaceState(null,"",location.pathname);
+  }else{
+    t.textContent="Not connected";
+    sub.textContent="TikTok did not return an authorization code.";
+    document.getElementById("bad").hidden=false;
+    document.getElementById("err").textContent=err?("TikTok said: "+err+(desc?(" - "+desc):"")):"Open the Connect page from the PnoyChess Poster setup script to start again.";
+  }
+})();
+</script>
+</body></html>
