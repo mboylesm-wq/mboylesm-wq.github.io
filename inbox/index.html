@@ -42,9 +42,10 @@ a{color:var(--gold)}
   <p class="small dim">How to make the key: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Repository access: only <b>pnoychess-reel-studio</b>. Permissions: <b>Contents: Read and write</b>, <b>Actions: Read-only</b>. Expiration: 1 year.</p>
 </div>
 <div id="app" hidden>
-  <nav id="tabs"><button data-t="day" class="on">Reels</button><button data-t="up">Upcoming</button><button data-t="stats">Stats</button><button data-t="health">Health</button><button data-t="key">Key</button></nav>
+  <nav id="tabs"><button data-t="day" class="on">Reels</button><button data-t="posted">Posted</button><button data-t="up">Upcoming</button><button data-t="stats">Stats</button><button data-t="health">Health</button><button data-t="key">Key</button></nav>
   <div id="note"></div>
   <section id="t-day"><div class="top"><div><input type="date" id="date"> <span id="dayinfo" class="dim small"></span></div><button class="btn" id="reload">Refresh</button></div><div id="reels"></div></section>
+  <section id="t-posted" hidden></section>
   <section id="t-up" hidden></section>
   <section id="t-stats" hidden></section>
   <section id="t-health" hidden></section>
@@ -89,21 +90,22 @@ async function loadDay() {
   try {
     const [man, st, rel] = await Promise.all([file("publisher/days/" + D + ".json"), file("publisher/state/" + D + ".json"), gh("/releases/tags/reels-" + D).catch(() => null)]);
     const tts = await file("publisher/state/tiktok-" + D + ".json").catch(() => null), TT = (tts && tts.json.slots) || {};
+    const yts = await file("publisher/state/youtube-" + D + ".json").catch(() => null), YT = (yts && yts.json.slots) || {};
     CAPS = {};
     $("#dayinfo").textContent = D === manila() ? "today" : D === manila(1) ? "tomorrow" : "";
     if (!man) { $("#reels").innerHTML = `<p class="dim">No reels for ${D} yet. The nightly run adds tomorrow's reels around 9 PM.</p>`; return; }
     const S = (st && st.json.slots) || {};
     $("#reels").innerHTML = SLOTS.map((slot) => {
       const it = man.json.slots[slot]; if (!it) return `<div class="card"><div></div><div><b>${slot.slice(0, 2)}:${slot.slice(2)}</b> <span class="dim">no reel</span></div></div>`;
-      const s = S[slot] || {}, fb = s.fb || {}, ig = s.ig || {}, tt = TT[slot] || {}, started = !!fb.videoId;
+      const s = S[slot] || {}, fb = s.fb || {}, ig = s.ig || {}, tt = TT[slot] || {}, yt = YT[slot] || {}, started = !!fb.videoId;
       CAPS[slot] = ttCaption(it.text, it.firstComment);
       const status = it.status === "vetoed" ? "vetoed" : it.status || "pending";
       return `<div class="card" data-slot="${slot}"><div class="media" id="m-${slot}"><div class="dim small">loading preview…</div></div><div>
         <div><b>${esc(it.time)}</b> · ${esc(it.title)} <span class="dim">(${esc(it.cut)}${it.seconds ? ", " + Math.round(it.seconds) + " s" : ""})</span></div>
         <div class="small dim">${esc(it.white)}${it.black ? " vs " + esc(it.black) : ""}${it.year ? " · " + esc(it.year) : ""}${it.swapped ? " · swapped in" : ""}</div>
-        <div style="margin:6px 0"><span class="pill ${status}">${status}</span>${fb.posted ? `<span class="pill posted">Facebook ✓</span>` : ""}${ig.mediaId ? `<span class="pill posted">Instagram ✓</span>` : ""}${tt.publishId ? `<span class="pill posted">TikTok draft ✓</span>` : ""}</div>
+        <div style="margin:6px 0"><span class="pill ${status}">${status}</span>${fb.posted ? `<span class="pill posted">Facebook ✓</span>` : ""}${ig.mediaId ? `<span class="pill posted">Instagram ✓</span>` : ""}${tt.publishId ? `<span class="pill posted">TikTok draft ✓</span>` : ""}${yt.videoId ? `<span class="pill posted">YouTube ✓</span>` : ""}</div>
         <pre class="cap">${esc(it.text)}${it.firstComment ? "\n\nFirst comment: " + esc(it.firstComment) : ""}</pre>
-        <div class="small">${fb.link ? `<a href="${esc(fb.link)}" target="_blank" rel="noopener">Facebook</a> ` : ""}${ig.link ? `<a href="${esc(ig.link)}" target="_blank" rel="noopener">Instagram</a> ` : ""}</div>
+        <div class="small">${fb.link ? `<a href="${esc(fb.link)}" target="_blank" rel="noopener">Facebook</a> ` : ""}${ig.link ? `<a href="${esc(ig.link)}" target="_blank" rel="noopener">Instagram</a> ` : ""}${yt.videoId ? `<a href="https://youtube.com/shorts/${esc(yt.videoId)}" target="_blank" rel="noopener">YouTube</a> ` : ""}</div>
         <div style="margin-top:8px"><button class="btn" data-copy="${slot}">Copy TikTok caption</button> ${started ? `<span class="small dim">Already on Facebook: cannot be vetoed here.</span>` : status === "vetoed" ? `<button class="btn undo" data-act="undo" data-slot="${slot}">Undo veto</button>` : `<button class="btn veto" data-act="veto" data-slot="${slot}">Veto</button>`}</div>
       </div></div>`;
     }).join("");
@@ -132,6 +134,23 @@ async function setStatus(slot, act) {
 }
 
 // ---------- other tabs
+// Posted board: publisher/POSTED.md, rewritten by "Post reels" and "Make reels". Cells like [✅](url) become links.
+function mdCell(c) {
+  const m = c.trim().match(/^\[(.+?)\]\((https:\/\/[^)\s]+)\)$/);
+  if (m) return `<a class="ok" href="${esc(m[2])}" target="_blank" rel="noopener">${esc(m[1])}</a>`;
+  const t = c.trim(), cls = t === "❌" || t === "vetoed" ? "bad" : t.startsWith("⚠️") ? "bad" : "";
+  return `<span class="${cls}">${esc(t)}</span>`;
+}
+async function loadPosted() {
+  const el = $("#t-posted"); el.innerHTML = '<p class="dim">Loading…</p>';
+  try {
+    const r = await gh("/contents/publisher/POSTED.md?ref=main", { accept: "application/vnd.github.raw", raw: true }), md = await r.text();
+    const lines = md.split("\n"), rows = lines.filter((l) => /^\| \d{4}-\d\d-\d\d /.test(l)).map((l) => l.slice(1, -1).split("|"));
+    const upd = (lines.find((l) => l.startsWith("Updated")) || "").replace(/ Tap ✅.*/, "");
+    const legend = lines.find((l) => l.startsWith("✅ posted")) || "";
+    el.innerHTML = `<h2>Where each reel is up</h2><p class="small dim">${esc(upd)}</p><div class="wrap"><table><tr><th>Date</th><th>Time</th><th>Reel</th><th>Facebook</th><th>Instagram</th><th>TikTok</th><th>YouTube</th></tr>${rows.map((c) => `<tr><td>${esc(c[0].trim())}</td><td>${esc(c[1].trim())}</td><td>${esc(c[2].trim())}</td>${c.slice(3).map((x) => `<td>${mdCell(x)}</td>`).join("")}</tr>`).join("")}</table></div><p class="small dim">${esc(legend.replace(/`/g, ""))}</p><p class="small dim">Reels posted by the Claude tasks before 29 Oct 2026 are in the claude.ai Reel Inbox.</p>`;
+  } catch (e) { el.innerHTML = `<div class="msg err">${e.status === 404 ? "No Posted board yet: it appears after the next posting run." : esc(e.message)}</div>`; }
+}
 async function loadUp() {
   const el = $("#t-up"); el.innerHTML = '<p class="dim">Loading…</p>';
   try { const q = await rawJson("queue.json"), today = manila();
@@ -163,7 +182,7 @@ async function loadHealth() {
 }
 
 // ---------- wiring
-const loaders = { day: loadDay, up: loadUp, stats: loadStats, health: loadHealth, key: () => {} };
+const loaders = { day: loadDay, posted: loadPosted, up: loadUp, stats: loadStats, health: loadHealth, key: () => {} };
 function tab(t) { document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === t)); for (const k of Object.keys(loaders)) $("#t-" + k).hidden = k !== t; note(""); loaders[t](); }
 $("#tabs").onclick = (e) => { if (e.target.dataset.t) tab(e.target.dataset.t); };
 $("#reels").onclick = (e) => { const b = e.target.closest("[data-act]"); if (!b) return; if (b.dataset.act === "veto" && !confirmVeto(b.dataset.slot)) return; setStatus(b.dataset.slot, b.dataset.act); };
