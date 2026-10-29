@@ -40,7 +40,7 @@ footer{margin-top:48px;color:var(--dim);font-size:.9rem;border-top:1px solid var
   btn.addEventListener("click",function(){
     var u="https://www.tiktok.com/v2/auth/authorize/"
       +"?client_key="+encodeURIComponent(ck)
-      +"&scope="+encodeURIComponent("user.info.basic,video.upload")
+      +"&scope="+encodeURIComponent("user.info.basic,video.upload,video.publish")
       +"&response_type=code"
       +"&redirect_uri="+encodeURIComponent("https://mboylesm-wq.github.io/callback.html")
       +"&state="+encodeURIComponent(st);
