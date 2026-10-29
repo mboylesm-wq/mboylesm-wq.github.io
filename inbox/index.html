@@ -200,7 +200,7 @@ async function loadTikTok() {
         let body;
         if (it.status === "vetoed") body = `<span class="pill vetoed">vetoed</span>`;
         else if (sent) body = `<span class="pill posted">${TT[slot].route === "direct" ? "posted to TikTok" : "sent as draft"}</span>${TT[slot].link ? ` <a href="${esc(TT[slot].link)}" target="_blank" rel="noopener">Open</a>` : ""}`;
-        else if (D === today && slot <= now) body = `<span class="dim small">Slot time passed.</span>`;
+        else if (D < today) body = `<span class="dim small">Day passed.</span>`; // today's passed slots stay approvable: the next run posts them right away
         else body = (it.tiktok ? `<span class="pill approved">approved ${esc(String(it.tiktok.approvedAt).slice(0, 10))} · ${esc(PRIV[it.tiktok.privacy] || it.tiktok.privacy)}</span>` : `<span class="pill pending">not approved</span>`) + ttForm(k, it, cr, it.tiktok);
         cards += `<div class="card tt" data-k="${k}"><div id="tp-${k}"></div><div>${when}<div class="small dim">${esc(it.cut)}${it.seconds ? ", " + Math.round(it.seconds) + " s" : ""}</div>${body}</div></div>`;
       }
