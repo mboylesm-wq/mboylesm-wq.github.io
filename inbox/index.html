@@ -36,6 +36,8 @@ a{color:var(--gold)}
 .tt select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)}
 .tt label{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0}.tt label.off{opacity:.45}
 .tt .row{margin:8px 0}.bar{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.badge{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-left:6px;vertical-align:middle}.badge.warn{background:var(--warn)}
+details.renew summary{cursor:pointer;color:var(--gold);font-weight:600}details.renew ol{margin:6px 0 0;padding-left:20px}
 .stat{display:inline-block;min-width:120px;margin:6px 14px 6px 0}.stat b{display:block;font-size:1.5rem}
 </style></head><body><main>
 <div class="top"><div><h1>♞ Reel Inbox</h1><div class="dim small">PnoyChess · offline publisher · no Claude usage</div></div>
@@ -47,7 +49,7 @@ a{color:var(--gold)}
   <p class="small dim">How to make the key: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Repository access: only <b>pnoychess-reel-studio</b>. Permissions: <b>Contents: Read and write</b>, <b>Actions: Read-only</b>. Expiration: 1 year.</p>
 </div>
 <div id="app" hidden>
-  <nav id="tabs"><button data-t="day" class="on">Reels</button><button data-t="tiktok">TikTok</button><button data-t="posted">Posted</button><button data-t="up">Upcoming</button><button data-t="stats">Stats</button><button data-t="health">Health</button><button data-t="key">Key</button></nav>
+  <nav id="tabs"><button data-t="day" class="on">Reels</button><button data-t="tiktok">TikTok</button><button data-t="posted">Posted</button><button data-t="up">Upcoming</button><button data-t="stats">Stats</button><button data-t="health">Health</button><button data-t="keys">Keys</button><button data-t="key">This browser</button></nav>
   <div id="note"></div>
   <section id="t-day"><div class="top"><div><input type="date" id="date"> <span id="dayinfo" class="dim small"></span></div><button class="btn" id="reload">Refresh</button></div><div id="reels"></div></section>
   <section id="t-tiktok" hidden></section>
@@ -55,6 +57,7 @@ a{color:var(--gold)}
   <section id="t-up" hidden></section>
   <section id="t-stats" hidden></section>
   <section id="t-health" hidden></section>
+  <section id="t-keys" hidden></section>
   <section id="t-key" hidden><h2>Access key</h2><p>Saved in this browser. Remove it on a shared device.</p><button class="btn veto" id="forget">Remove key from this browser</button></section>
 </div>
 <script>
@@ -256,6 +259,25 @@ $("#t-tiktok").addEventListener("click", async (e) => {
   } catch (x) { note(esc(x.message) + (x.status === 409 ? " (changed at the same time; press the tab again and retry)" : ""), true); btns.forEach((y) => (y.disabled = false)); }
 });
 
+
+// Keys tab: publisher/state/keys.json, written once a day by the publisher's key check. Shows status, expiry and
+// how to renew. No key value is ever on this page; renewing happens in GitHub, Meta, TikTok or cron-job.org.
+const KS = { ok: ["ok", "OK"], warn: ["pending", "Check soon"], bad: ["vetoed", "Action needed"] };
+async function loadKeys() {
+  const el = $("#t-keys"); el.innerHTML = '<p class="dim">Loading…</p>';
+  try {
+    const k = await rawJson("publisher/state/keys.json");
+    const when = new Date(Date.parse(k.checkedAt) + 8 * 3600e3).toISOString().slice(0, 16).replace("T", " ");
+    el.innerHTML = `<h2>Keys and connections</h2>
+      <p class="small">Checked ${esc(when)} Manila: <b class="${k.summary === "all good" ? "ok" : "bad"}">${esc(k.summary)}</b>. Checked live once a day. If something breaks or expires within 30 days, GitHub emails you (issue "Keys: action needed").</p>
+      <div class="wrap"><table><tr><th>Key</th><th>Status</th><th>Expires</th><th>Details</th></tr>${k.items.map((x) => `<tr><td>${esc(x.name)}<div class="small dim">${esc(x.where)}</div></td><td><span class="pill ${KS[x.status][0]}">${KS[x.status][1]}</span></td><td class="small">${esc(x.expires)}</td><td class="small">${esc(x.detail)}${x.renewSteps && x.renewSteps.length ? `<details class="renew"><summary>How to renew</summary><ol>${x.renewSteps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>${x.renewUrl ? `<a href="${esc(x.renewUrl)}" target="_blank" rel="noopener">Open renewal page</a>` : ""}</details>` : ""}</td></tr>`).join("")}</table></div>
+      <p class="small dim">Key values live only in KeePass and in the place each row names. Never paste a key into this page or a chat.</p>`;
+  } catch (e) { el.innerHTML = `<div class="msg">${e.status === 404 ? "No key check yet: it appears after the next morning posting run." : esc(e.message)}</div>`; }
+}
+async function keysBadge() {
+  try { const k = await rawJson("publisher/state/keys.json"); const b = document.querySelector('#tabs [data-t="keys"]'); if (b && k.summary !== "all good") b.insertAdjacentHTML("beforeend", `<span class="badge ${k.summary === "check soon" ? "warn" : ""}"></span>`); } catch (e) {}
+}
+
 // ---------- other tabs
 // Posted board: publisher/POSTED.md, rewritten by "Post reels" and "Make reels". Cells like [✅](url) become links.
 function mdCell(c) {
@@ -305,7 +327,7 @@ async function loadHealth() {
 }
 
 // ---------- wiring
-const loaders = { day: loadDay, tiktok: loadTikTok, posted: loadPosted, up: loadUp, stats: loadStats, health: loadHealth, key: () => {} };
+const loaders = { day: loadDay, tiktok: loadTikTok, posted: loadPosted, up: loadUp, stats: loadStats, health: loadHealth, keys: loadKeys, key: () => {} };
 function tab(t) { document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === t)); for (const k of Object.keys(loaders)) $("#t-" + k).hidden = k !== t; note(""); loaders[t](); }
 $("#tabs").onclick = (e) => { if (e.target.dataset.t) tab(e.target.dataset.t); };
 $("#reels").onclick = (e) => { const b = e.target.closest("[data-act]"); if (!b) return; if (b.dataset.act === "veto" && !confirmVeto(b.dataset.slot)) return; setStatus(b.dataset.slot, b.dataset.act); };
@@ -317,7 +339,7 @@ function alertBox(m) { $("#login").insertAdjacentHTML("beforeend", `<div class="
 async function start() {
   $("#login").hidden = true; $("#app").hidden = false;
   try { CFG = await rawJson("publisher/config.json"); $("#who").textContent = "Publisher: " + (CFG.mode === "live" ? "LIVE" : "dry-run") + " · maker: " + (CFG.maker || "compare"); } catch (e) { if (/refused/.test(e.message)) { store.set("pnoy.inbox.key", null); $("#app").hidden = true; $("#login").hidden = false; alertBox(e.message); return; } }
-  $("#date").value = new Date(Date.now() + 8 * 3600e3).getUTCHours() >= 21 ? manila(1) : manila(); tab("day");
+  $("#date").value = new Date(Date.now() + 8 * 3600e3).getUTCHours() >= 21 ? manila(1) : manila(); tab("day"); keysBadge();
 }
 if (TOKEN) start(); else $("#login").hidden = false;
 </script></main></body></html>
