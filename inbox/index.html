@@ -31,6 +31,11 @@ input[type=password]{width:100%;max-width:520px}
 .msg{padding:8px 12px;border-radius:8px;border:1px solid var(--line);margin:10px 0}.msg.err{border-color:var(--bad);color:var(--bad)}
 a{color:var(--gold)}
 .ok{color:var(--ok)}.bad{color:var(--bad)}
+.tt{display:grid;grid-template-columns:110px 1fr;gap:12px}.tt img{width:100%;border-radius:6px}@media (max-width:560px){.tt{grid-template-columns:1fr}.tt img{width:110px}}
+.tt textarea{width:100%;min-height:110px;font:13px/1.45 ui-monospace,Menlo,monospace;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text)}
+.tt select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)}
+.tt label{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0}.tt label.off{opacity:.45}
+.tt .row{margin:8px 0}.bar{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
 .stat{display:inline-block;min-width:120px;margin:6px 14px 6px 0}.stat b{display:block;font-size:1.5rem}
 </style></head><body><main>
 <div class="top"><div><h1>♞ Reel Inbox</h1><div class="dim small">PnoyChess · offline publisher · no Claude usage</div></div>
@@ -42,9 +47,10 @@ a{color:var(--gold)}
   <p class="small dim">How to make the key: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Repository access: only <b>pnoychess-reel-studio</b>. Permissions: <b>Contents: Read and write</b>, <b>Actions: Read-only</b>. Expiration: 1 year.</p>
 </div>
 <div id="app" hidden>
-  <nav id="tabs"><button data-t="day" class="on">Reels</button><button data-t="posted">Posted</button><button data-t="up">Upcoming</button><button data-t="stats">Stats</button><button data-t="health">Health</button><button data-t="key">Key</button></nav>
+  <nav id="tabs"><button data-t="day" class="on">Reels</button><button data-t="tiktok">TikTok</button><button data-t="posted">Posted</button><button data-t="up">Upcoming</button><button data-t="stats">Stats</button><button data-t="health">Health</button><button data-t="key">Key</button></nav>
   <div id="note"></div>
   <section id="t-day"><div class="top"><div><input type="date" id="date"> <span id="dayinfo" class="dim small"></span></div><button class="btn" id="reload">Refresh</button></div><div id="reels"></div></section>
+  <section id="t-tiktok" hidden></section>
   <section id="t-posted" hidden></section>
   <section id="t-up" hidden></section>
   <section id="t-stats" hidden></section>
@@ -133,6 +139,123 @@ async function setStatus(slot, act) {
   } catch (e) { note(esc(e.message) + (e.status === 409 ? " (someone changed it at the same time; press Refresh and try again)" : ""), true); btns.forEach((b) => (b.disabled = false)); }
 }
 
+
+// ---------- TikTok tab: Mark's approval for Direct Post (TikTok Content Sharing Guidelines).
+// Privacy has no default, Comment/Duet/Stitch start unticked, commercial content starts off, caption is editable,
+// nothing is sent until Mark taps Approve. GitHub posts approved reels at their slot time.
+const PRIV = { PUBLIC_TO_EVERYONE: "Everyone", MUTUAL_FOLLOW_FRIENDS: "Friends", FOLLOWER_OF_CREATOR: "Followers", SELF_ONLY: "Only me" };
+let TTF = {}; // key "D_slot" -> { D, slot, it, sha }
+function ttForm(k, it, cr, a) {
+  const opts = (cr.privacy_level_options || []).map((o) => `<option value="${esc(o)}" ${a && a.privacy === o ? "selected" : ""}>${esc(PRIV[o] || o)}</option>`).join("");
+  const box = (id, label, dis, on) => `<label class="${dis ? "off" : ""}" title="${dis ? "Turned off in your TikTok settings" : ""}"><input type="checkbox" data-f="${id}" ${on && !dis ? "checked" : ""} ${dis ? "disabled" : ""}> ${label}</label>`;
+  const c = (a && a.commercial) || {};
+  const tooLong = cr.max_video_post_duration_sec && it.seconds > cr.max_video_post_duration_sec;
+  return `<div class="row"><b>Who can view this video</b><br><select data-f="privacy"><option value="">Choose…</option>${opts}</select></div>
+    <div class="row"><b>Allow users to</b><br>${box("allowComment", "Comment", cr.comment_disabled, a && a.allowComment)}${box("allowDuet", "Duet", cr.duet_disabled, a && a.allowDuet)}${box("allowStitch", "Stitch", cr.stitch_disabled, a && a.allowStitch)}</div>
+    <div class="row"><label><input type="checkbox" data-f="cOn" ${c.on ? "checked" : ""}> <b>Disclose video content</b></label>
+      <div data-c="opts" ${c.on ? "" : "hidden"} class="small"><label><input type="checkbox" data-f="cYour" ${c.yourBrand ? "checked" : ""}> Your brand (you are promoting yourself or your business)</label><br><label><input type="checkbox" data-f="cBranded" ${c.branded ? "checked" : ""}> Branded content (you are promoting another brand or a third party)</label><div data-c="label" class="dim"></div></div></div>
+    <div class="row"><b>Caption</b><textarea data-f="title" maxlength="2200">${esc(a ? a.title : ttCaption(it.text, it.firstComment))}</textarea></div>
+    <div class="row small dim" data-c="decl"></div>
+    ${tooLong ? `<div class="msg err">This video (${Math.round(it.seconds)} s) is longer than your account allows (${cr.max_video_post_duration_sec} s).</div>` : ""}
+    <div class="row"><button class="btn undo" data-tt="approve" data-k="${k}">${a ? "Save changes" : "Approve for TikTok"}</button> ${a ? `<button class="btn veto" data-tt="withdraw" data-k="${k}">Withdraw approval</button>` : ""} <button class="btn" data-tt="copyall" data-k="${k}">Use these choices for all reels below</button> <span data-c="err" class="small bad"></span></div>`;
+}
+function ttRefresh(card) {
+  const g = (f) => card.querySelector(`[data-f="${f}"]`);
+  const on = g("cOn").checked, your = g("cYour").checked, br = g("cBranded").checked, priv = g("privacy");
+  card.querySelector('[data-c="opts"]').hidden = !on;
+  const so = priv.querySelector('option[value="SELF_ONLY"]'); if (so) { so.disabled = on && br; if (so.disabled && priv.value === "SELF_ONLY") priv.value = ""; so.title = so.disabled ? "Branded content visibility cannot be set to private" : ""; }
+  card.querySelector('[data-c="label"]').textContent = on && br ? "Your video will be labeled “Paid partnership”." : on && your ? "Your video will be labeled “Promotional content”." : "";
+  const pol = '<a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">Music Usage Confirmation</a>';
+  const bcp = '<a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener">Branded Content Policy</a>';
+  card.querySelector('[data-c="decl"]').innerHTML = `By approving, you agree to TikTok's ${on && br ? bcp + " and " : ""}${pol}. After it posts, it may take a few minutes to appear on your profile.`;
+}
+function ttRead(card) {
+  const g = (f) => card.querySelector(`[data-f="${f}"]`);
+  const on = g("cOn").checked, a = { privacy: g("privacy").value, allowComment: g("allowComment").checked, allowDuet: g("allowDuet").checked, allowStitch: g("allowStitch").checked, title: g("title").value, commercial: { on, yourBrand: on && g("cYour").checked, branded: on && g("cBranded").checked } };
+  if (!a.privacy) return { err: "Choose who can view this video." };
+  if (on && !a.commercial.yourBrand && !a.commercial.branded) return { err: "You need to indicate if your content promotes yourself, a third party, or both." };
+  if (!a.title.trim()) return { err: "The caption is empty." };
+  return { a };
+}
+async function loadTikTok() {
+  const el = $("#t-tiktok"); el.innerHTML = '<p class="dim">Loading…</p>'; TTF = {};
+  try {
+    const cr = await rawJson("publisher/state/tiktok-creator.json").catch(() => null);
+    const direct = CFG.tiktokRoute === "direct";
+    const head = `<h2>TikTok: approve reels to post directly</h2>
+      <p class="small">${direct ? "Approved reels post to TikTok at their time with your settings and caption. Reels you don't approve still arrive as drafts." : "<b>Waiting for TikTok's app review.</b> Approvals are saved now and used once Direct Post is switched on; until then every reel arrives as a draft (Reels tab: Copy TikTok caption)."}</p>`;
+    if (!cr) { el.innerHTML = head + `<div class="msg">TikTok account details are not loaded yet. Reconnect TikTok with posting permission (GitHub → Actions → "TikTok connect": link, then finish), then run it once more with action <b>creator-info</b>.</div>`; return; }
+    const list = await gh("/contents/publisher/days?ref=main"), today = manila();
+    const dates = list.map((f) => f.name.slice(0, 10)).filter((d) => /^\d{4}-\d\d-\d\d$/.test(d) && d >= today).sort().slice(0, 8);
+    const now = new Date(Date.now() + 8 * 3600e3).toISOString().slice(11, 16).replace(":", "");
+    let cards = "";
+    for (const D of dates) {
+      const [f, tts] = await Promise.all([file("publisher/days/" + D + ".json"), file("publisher/state/tiktok-" + D + ".json").catch(() => null)]);
+      const TT = (tts && tts.json.slots) || {};
+      for (const slot of SLOTS) {
+        const it = f && f.json.slots[slot]; if (!it) continue;
+        const k = D + "_" + slot, sent = TT[slot] && (TT[slot].publishId || TT[slot].startedAt);
+        TTF[k] = { D, slot };
+        const when = `<b>${D === today ? "Today" : D}</b> ${esc(it.time)} · ${esc(it.title)}`;
+        let body;
+        if (it.status === "vetoed") body = `<span class="pill vetoed">vetoed</span>`;
+        else if (sent) body = `<span class="pill posted">${TT[slot].route === "direct" ? "posted to TikTok" : "sent as draft"}</span>${TT[slot].link ? ` <a href="${esc(TT[slot].link)}" target="_blank" rel="noopener">Open</a>` : ""}`;
+        else if (D === today && slot <= now) body = `<span class="dim small">Slot time passed.</span>`;
+        else body = (it.tiktok ? `<span class="pill approved">approved ${esc(String(it.tiktok.approvedAt).slice(0, 10))} · ${esc(PRIV[it.tiktok.privacy] || it.tiktok.privacy)}</span>` : `<span class="pill pending">not approved</span>`) + ttForm(k, it, cr, it.tiktok);
+        cards += `<div class="card tt" data-k="${k}"><div id="tp-${k}"></div><div>${when}<div class="small dim">${esc(it.cut)}${it.seconds ? ", " + Math.round(it.seconds) + " s" : ""}</div>${body}</div></div>`;
+      }
+    }
+    el.innerHTML = head + `<p class="small">Posting to <b>${esc(cr.nickname)}</b> <span class="dim">@${esc(cr.username)}</span></p>` + (cards || `<p class="dim">No upcoming reels yet.</p>`) +
+      (cards.includes('data-tt="approve"') ? `<div class="bar"><button class="btn undo" id="ttAll">Approve all filled-in reels</button><span id="ttMsg" class="small"></span></div>` : "");
+    el.querySelectorAll(".card.tt").forEach((c) => { if (c.querySelector('[data-f="cOn"]')) ttRefresh(c); });
+    for (const k of Object.keys(TTF)) { (async () => { const box = $("#tp-" + k); if (!box) return; try { const r = await gh("/contents/publisher/previews/" + k + ".jpg?ref=main", { accept: "application/vnd.github.raw", raw: true }); box.innerHTML = `<img alt="preview" src="${URL.createObjectURL(await r.blob())}">`; } catch (e) {} })(); }
+  } catch (e) { el.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
+}
+async function ttSave(keys, withdraw) {
+  const byDate = {}, errs = [];
+  for (const k of keys) {
+    const card = document.querySelector(`.card.tt[data-k="${k}"]`);
+    if (withdraw) { (byDate[TTF[k].D] = byDate[TTF[k].D] || []).push([TTF[k].slot, null]); continue; }
+    const r = ttRead(card); const e = card.querySelector('[data-c="err"]'); e.textContent = r.err || "";
+    if (r.err) { errs.push(k); continue; }
+    (byDate[TTF[k].D] = byDate[TTF[k].D] || []).push([TTF[k].slot, { ...r.a, approvedAt: new Date().toISOString(), approvedBy: "Reel Inbox" }]);
+  }
+  let n = 0;
+  if (!Object.keys(byDate).length) return { n, errs };
+  for (const [D, items] of Object.entries(byDate)) {
+    const f = await file("publisher/days/" + D + ".json"), st = await file("publisher/state/tiktok-" + D + ".json").catch(() => null);
+    for (const [slot, a] of items) {
+      const s = st && st.json.slots && st.json.slots[slot]; if (s && (s.publishId || s.startedAt)) continue; // already sent: never changed
+      const it = f.json.slots[slot]; if (!it || it.status === "vetoed") continue;
+      if (a) it.tiktok = a; else delete it.tiktok; n++;
+    }
+    await gh("/contents/publisher/days/" + D + ".json", { method: "PUT", body: JSON.stringify({ message: `inbox: TikTok ${withdraw ? "approval withdrawn" : "approved"} ${D} ${items.map((x) => x[0]).join(",")}`, content: b64enc(JSON.stringify(f.json, null, 1) + "\n"), sha: f.sha, branch: "main" }) });
+  }
+  return { n, errs };
+}
+$("#t-tiktok").addEventListener("change", (e) => { const c = e.target.closest(".card.tt"); if (c && c.querySelector('[data-f="cOn"]')) ttRefresh(c); });
+$("#t-tiktok").addEventListener("click", async (e) => {
+  const b = e.target.closest("[data-tt], #ttAll"); if (!b) return;
+  if (b.dataset.tt === "copyall") {
+    const src = document.querySelector(`.card.tt[data-k="${b.dataset.k}"]`), g = (c, f) => c.querySelector(`[data-f="${f}"]`);
+    let after = false;
+    document.querySelectorAll(".card.tt").forEach((c) => { if (c === src) { after = true; return; } if (!after || !g(c, "privacy")) return;
+      for (const f of ["allowComment", "allowDuet", "allowStitch", "cOn", "cYour", "cBranded"]) { const x = g(c, f); if (!x.disabled) x.checked = g(src, f).checked; }
+      const p = g(c, "privacy"); if ([...p.options].some((o) => o.value === g(src, "privacy").value && !o.disabled)) p.value = g(src, "privacy").value; ttRefresh(c); });
+    b.textContent = "Copied to the reels below ✓"; return;
+  }
+  const btns = document.querySelectorAll("#t-tiktok button"); btns.forEach((x) => (x.disabled = true));
+  try {
+    const keys = b.id === "ttAll" ? [...document.querySelectorAll('.card.tt [data-tt="approve"]')].map((x) => x.dataset.k) : [b.dataset.k];
+    const r = await ttSave(keys, b.dataset.tt === "withdraw");
+    if (r.errs.length) { // keep what Mark typed on the reels that still need a choice; mark the saved ones
+      btns.forEach((y) => (y.disabled = false));
+      for (const k of keys) if (!r.errs.includes(k)) { const p = document.querySelector(`.card.tt[data-k="${k}"] .pill`); if (p) { p.className = "pill approved"; p.textContent = "approved just now"; } }
+    } else await loadTikTok();
+    note(b.dataset.tt === "withdraw" ? "TikTok approval withdrawn: that reel will arrive as a draft." : `Approved ${r.n} reel${r.n === 1 ? "" : "s"} for TikTok.` + (r.errs.length ? ` ${r.errs.length} still need a choice (marked in red).` : ""));
+  } catch (x) { note(esc(x.message) + (x.status === 409 ? " (changed at the same time; press the tab again and retry)" : ""), true); btns.forEach((y) => (y.disabled = false)); }
+});
+
 // ---------- other tabs
 // Posted board: publisher/POSTED.md, rewritten by "Post reels" and "Make reels". Cells like [✅](url) become links.
 function mdCell(c) {
@@ -182,7 +305,7 @@ async function loadHealth() {
 }
 
 // ---------- wiring
-const loaders = { day: loadDay, posted: loadPosted, up: loadUp, stats: loadStats, health: loadHealth, key: () => {} };
+const loaders = { day: loadDay, tiktok: loadTikTok, posted: loadPosted, up: loadUp, stats: loadStats, health: loadHealth, key: () => {} };
 function tab(t) { document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === t)); for (const k of Object.keys(loaders)) $("#t-" + k).hidden = k !== t; note(""); loaders[t](); }
 $("#tabs").onclick = (e) => { if (e.target.dataset.t) tab(e.target.dataset.t); };
 $("#reels").onclick = (e) => { const b = e.target.closest("[data-act]"); if (!b) return; if (b.dataset.act === "veto" && !confirmVeto(b.dataset.slot)) return; setStatus(b.dataset.slot, b.dataset.act); };
