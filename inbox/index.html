@@ -183,7 +183,7 @@ async function loadTikTok() {
     const cr = await rawJson("publisher/state/tiktok-creator.json").catch(() => null);
     const direct = CFG.tiktokRoute === "direct";
     const head = `<h2>TikTok: approve reels to post directly</h2>
-      <p class="small">${direct ? "Approved reels post to TikTok at their time with your settings and caption. Reels you don't approve still arrive as drafts." : "<b>Waiting for TikTok's app review.</b> Approvals are saved now and used once Direct Post is switched on; until then every reel arrives as a draft (Reels tab: Copy TikTok caption)."}</p>`;
+      <p class="small">${direct ? "Approved reels post to TikTok at their time with your settings and caption. " + (CFG.tiktokDrafts === false ? "Reels you don't approve are not posted to TikTok." : "Reels you don't approve still arrive as drafts.") + "" : "<b>Waiting for TikTok's app review.</b> Approvals are saved now and used once Direct Post is switched on; until then every reel arrives as a draft (Reels tab: Copy TikTok caption)."}</p>`;
     if (!cr) { el.innerHTML = head + `<div class="msg">TikTok account details are not loaded yet. Reconnect TikTok with posting permission (GitHub → Actions → "TikTok connect": link, then finish), then run it once more with action <b>creator-info</b>.</div>`; return; }
     const list = await gh("/contents/publisher/days?ref=main"), today = manila();
     const dates = list.map((f) => f.name.slice(0, 10)).filter((d) => /^\d{4}-\d\d-\d\d$/.test(d) && d >= today).sort().slice(0, 8);
