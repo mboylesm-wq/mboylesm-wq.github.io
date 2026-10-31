@@ -227,7 +227,9 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
       const r = await call(`/contents/db/files/${id}${ref}`, { accept: "application/vnd.github.raw" });
       return r.ok ? new Response(await r.blob(), { status: 200 }) : new Response("", { status: r.status });
     }
-    return { db, assets, blob, refresh, refreshAll, call };
+    // starts a workflow (Approve → youtube.yml); the key needs Actions: Read and write
+    const dispatch = async (workflow, inputs) => { if (!/^[a-z0-9-]+\.yml$/.test(workflow)) throw new Error("not a workflow: " + workflow); await json(`/actions/workflows/${workflow}/dispatches`, { method: "POST", body: { ref: branch, inputs } }); };
+    return { db, assets, blob, dispatch, refresh, refreshAll, call };
   }
 
   const api = { makeBackend, toB64, fromB64 };
@@ -273,8 +275,8 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
   new MutationObserver((ms) => ms.forEach((m) => (m.type === "attributes" ? scan(m.target) : m.addedNodes.forEach(scan)))).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
   if (document.body) scan(document.body);
   const downloads = { async save({ filename, data }) { const b = data instanceof Blob ? data : new Blob([data], { type: "text/plain" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); } };
-  const have = { db: backend.db, assets: backend.assets, downloads };
-  window.claude = { github: true, use: (name) => (have[name] ? Promise.resolve(have[name]) : Promise.reject(new Error(name + " needs Claude"))) };
+  const have = { db: backend.db, assets: backend.assets, downloads, actions: { dispatch: backend.dispatch } };
+  window.claude = { github: true, repo: REPO, use: (name) => (have[name] ? Promise.resolve(have[name]) : Promise.reject(new Error(name + " needs Claude"))) };
   setInterval(() => { if (document.visibilityState === "visible") backend.refreshAll(); }, POLL);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") backend.refreshAll(); });
   const out = () => panel(`<span style="color:#aaa">Docu Studio on GitHub · saving to <b>${REPO}</b> · writing new scripts needs Claude</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = () => { localStorage.removeItem(KEY); location.reload(); }; });
@@ -401,6 +403,9 @@ const PART = 19 * 1024 * 1024;
 const MUSIC = [["km-long-note-four", "Long Note Four (mystery, documentary)"], ["chopin-nocturne-9-2", "Chopin, Nocturne Op. 9 No. 2 (calm)"], ["km-clean-soul", "Clean Soul (calm)"], ["satie-gymnopedie-1", "Erik Satie, Gymnopédie No. 1 (calm)"], ["km-fluidscape", "Fluidscape (calm)"], ["km-gymnopedie-no-1", "Gymnopedie No 1 (calm)"], ["km-lightless-dawn", "Lightless Dawn (calm)"], ["km-ancient-rite", "Ancient Rite (epic)"], ["km-crusade", "Crusade (epic)"], ["km-echoes-of-time", "Echoes of Time (epic)"], ["km-five-armies", "Five Armies (epic)"], ["km-impact-prelude", "Impact Prelude (epic)"], ["km-prelude-and-action", "Prelude and Action (epic)"], ["km-rising-tide", "Rising Tide (epic)"], ["km-sovereign", "Sovereign (epic)"], ["km-ascending-the-vale", "Ascending the Vale (hopeful)"], ["km-dreams-become-real", "Dreams Become Real (hopeful)"], ["km-healing", "Healing (hopeful)"], ["km-inspired", "Inspired (hopeful)"], ["bach-air", "J.S. Bach, Air (Orchestral Suite No. 3) (hopeful)"], ["km-comfortable-mystery", "Comfortable Mystery (mystery)"], ["km-crypto", "Crypto (mystery)"], ["km-investigations", "Investigations (mystery)"], ["km-unanswered-questions", "Unanswered Questions (mystery)"], ["km-thinking-music", "Thinking Music (playful)"], ["km-bossa-antigua", "Bossa Antigua (retro)"], ["km-covert-affair", "Covert Affair (retro)"], ["km-dark-times", "Dark Times (sad)"], ["km-heartbreaking", "Heartbreaking (sad)"], ["km-long-note-two", "Long Note Two (sad)"], ["km-ossuary-6-air", "Ossuary 6 - Air (sad)"], ["km-darkest-child", "Darkest Child (tension)"], ["km-gathering-darkness", "Gathering Darkness (tension)"], ["grieg-mountain-king", "Grieg, In the Hall of the Mountain King (tension)"], ["km-hidden-agenda", "Hidden Agenda (tension)"], ["km-impact-allegretto", "Impact Allegretto (tension)"], ["km-impact-moderato", "Impact Moderato (tension)"], ["km-interloper", "Interloper (tension)"], ["mussorgsky-bald-mountain", "Mussorgsky, Night on Bald Mountain (tension)"], ["km-spy-glass", "Spy Glass (tension)"], ["km-volatile-reaction", "Volatile Reaction (tension)"], ["km-despair-and-triumph", "Despair and Triumph (triumphant)"], ["tchaikovsky-1812", "Tchaikovsky, 1812 Overture (triumphant)"], ["grandmaster", "Grandmaster (code-made)"], ["calm-study", "Calm Study (code-made)"]];
 const STATUS = { writing: ["Writing", "warn"], draft: ["Draft", ""], waiting: ["Waiting for render", "warn"], rendering: ["Rendering", "warn"], review: ["Ready for your review", "warn"], approved: ["Approved: uploading", "warn"], pc: ["Ready for your PC", "warn"], done: ["Done", "ok"], failed: ["Failed", "bad"] };
 const BUSY = ["waiting", "rendering", "writing", "approved"]; // a cloud run or Claude is working on it
+// Docu Studio on GitHub (studio/github.js): this PC renders, GitHub uploads; Claude's cloud worker never sees these projects
+const GH = () => !!(window.claude && window.claude.github);
+const PC_WAIT = "Waiting for your PC: double-click render-pc.cmd";
 // video formats: each shapes the outline differently, so the channel's videos do not all follow one template
 const FORMATS = {
   story: ["Story documentary", "a true story told in order with rising stakes, from the beginning to the decisive moment and what it changed"],
@@ -414,8 +419,8 @@ const FORMATS = {
 const S = { view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, projects: [], music: [], cur: null, busy: false };
 (async () => {
   const c = window.claude; if (!c) { say("Open this page in Claude to use it."); return render(); }
-  const [db, sample, assets, downloads, perms] = await Promise.all(["db", "sample", "assets", "downloads", "permissions"].map((n) => c.use(n).catch(() => null)));
-  Object.assign(S, { db, sample, assets, downloads, perms });
+  const [db, sample, assets, downloads, perms, actions] = await Promise.all(["db", "sample", "assets", "downloads", "permissions", "actions"].map((n) => c.use(n).catch(() => null)));
+  Object.assign(S, { db, sample, assets, downloads, perms, actions });
   if (!db) say("Sign in to Claude to save projects.");
   if (db) {
     db.collection("projects").onSnapshot((snap) => { S.projects = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur; render(); }, () => {});
@@ -688,7 +693,14 @@ function projectEditor(p) {
       aiVoice ? el("div", { class: "note", text: "Test voice: a free stock AI voice reads the script so you can judge the visuals. Record your own voice (or connect ElevenLabs) before publishing." })
         : voiceDone ? el("div", { class: "note", text: `Uploaded: ${p.narration.name} (${(p.narration.size / 1e6).toFixed(1)} MB)` }) : (S.assets ? null : el("div", { class: "note", text: "Uploading needs edit access to this page." })))),
     el("div", { class: "step" + (["waiting", "rendering", "review", "approved", "pc", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Render" }),
-      el("div", { class: "note", text: "The cloud finds licensed photos, times your words, renders the video in 1080p and makes the description, subtitles and thumbnails. Then it waits for you: nothing goes to YouTube until you approve it below. Render now puts this video first in line: the cloud worker starts it at its next run. Prepare for my PC does the same voice and photo work, then stops so your PC can render it, much faster and with no time limit." }),
+      GH() ? el("div", { class: "note", text: "Your PC makes it: the ElevenLabs voice (saved to GitHub at once), licensed photos and 3D depth maps on GitHub, then the 1080p render (about 6 minutes), description, subtitles and thumbnails. Press Render, then double-click render-pc.cmd in C:\\PnoyChess\\docu. Nothing goes to YouTube until you approve it below, unless you tick Approve automatically." })
+        : el("div", { class: "note", text: "The cloud finds licensed photos, times your words, renders the video in 1080p and makes the description, subtitles and thumbnails. Then it waits for you: nothing goes to YouTube until you approve it below. Render now puts this video first in line: the cloud worker starts it at its next run. Prepare for my PC does the same voice and photo work, then stops so your PC can render it, much faster and with no time limit." }),
+      GH() ? el("div", { class: "row" },
+        el("button", { class: "btn primary", type: "button", disabled: !(factsDone && voiceDone) || BUSY.includes(p.status), text: ["review", "done", "failed"].includes(p.status) ? "Render again on my PC" : "Render on my PC",
+          onclick: () => save(p, { status: "waiting", rush: true, renderOn: "pc", note: PC_WAIT, requestedAt: new Date().toISOString() }).then(() => { say("Ready for your PC: double-click render-pc.cmd in C:\\PnoyChess\\docu."); render(); }) }),
+        el("label", { class: "row", title: "After the render, it goes to YouTube as Private without waiting for you, unless the quality check found something" },
+          el("input", { type: "checkbox", checked: !!p.autoApprove, onchange: (e) => save(p, { autoApprove: e.target.checked }) }), "Approve automatically"),
+        p.note ? el("span", { class: "note", text: p.note }) : null) :
       el("div", { class: "row" }, ...[[true, "Render now", "btn primary"], [false, ["review", "done"].includes(p.status) ? "Render again (queue)" : "Add to queue", "btn"]].map(([rush, text, cls]) =>
         el("button", { class: cls, type: "button", disabled: !(factsDone && voiceDone) || BUSY.includes(p.status), text,
           onclick: () => save(p, { status: "waiting", rush, renderOn: null, note: rush ? "First in line" : "", requestedAt: new Date().toISOString() }).then(() => { say(rush ? "First in line: the next cloud worker run starts it." : "Queued. A cloud worker run picks it up."); render(); }) })),
@@ -698,7 +710,7 @@ function projectEditor(p) {
       p.status === "pc" ? pcBox(p) : null)),
     el("div", { class: "step" + (["approved", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Watch it, change the music if you like, approve" }), resultBox(p))),
     el("div", { class: "step" + (p.status === "done" && p.result && p.result.youtube ? " done" : "") }, el("div", {}, el("h3", { text: "On YouTube (Private), you publish" }),
-      el("div", { class: "note", text: p.status === "approved" ? "Approved. The next cloud worker run uploads it to YouTube as Private with your title and thumbnail." : p.result && p.result.youtube ? "Uploaded as Private. Check it in YouTube Studio and publish it when you are happy." : "After you approve, the video goes to YouTube as Private: only you can see it until you publish it in YouTube Studio." }))));
+      el("div", { class: "note", text: p.status === "approved" ? (GH() ? "Approved. GitHub is uploading it to YouTube as Private with your title and thumbnail (a few minutes)." : "Approved. The next cloud worker run uploads it to YouTube as Private with your title and thumbnail.") : p.result && p.result.youtube ? "Uploaded as Private. Check it in YouTube Studio and publish it when you are happy." : "After you approve, the video goes to YouTube as Private: only you can see it until you publish it in YouTube Studio." }))));
   // script
   const script = el("section", { class: "panel" }, el("h2", { text: "Script and scenes" }), el("div", { class: "note", text: "Edit the narration freely. Visuals are JSON: photos use a search, which the cloud turns into a licensed photo with a credit." }));
   let ch = null, chNo = -1;
@@ -887,15 +899,24 @@ function reviewControls(p) {
   const thsel = (r.thumbs || []).length ? el("select", { "aria-label": "YouTube thumbnail", disabled: approved, onchange: (e) => save(p, { ytThumb: +e.target.value }) }, ...r.thumbs.map((_, i) => el("option", { value: i, selected: (p.ytThumb || 0) === i, text: "Thumbnail " + (i + 1) }))) : null;
   return el("div", { class: "panel", style: "background:var(--bg);border-color:var(--gold)" },
     el("h3", { text: approved ? "Approved" : "Your decision" }),
-    el("div", { class: "note", text: approved ? "The next cloud worker run uploads it to YouTube as Private. Cancel if you changed your mind." : stale ? "You changed the script after this render, so this video still has the old version. Press Re-render to approve the new one." : "Watch the preview below. Nothing goes to YouTube until you approve. To try other music, change it in the Music section, then press Re-render." }),
+    el("div", { class: "note", text: approved ? (GH() ? "GitHub is uploading it to YouTube as Private. Cancel only stops it if the upload has not started yet." : "The next cloud worker run uploads it to YouTube as Private. Cancel if you changed your mind.") : stale ? "You changed the script after this render, so this video still has the old version. Press Re-render to approve the new one." : "Watch the preview below. Nothing goes to YouTube until you approve. To try other music, change it in the Music section, then press Re-render." }),
     el("div", { class: "grid2" }, el("label", {}, "YouTube title", tsel), thsel ? el("label", {}, "YouTube thumbnail", thsel) : null),
     approved ? null : thumbControls(p),
     el("div", { class: "row" },
       approved ? el("button", { class: "btn", type: "button", text: "Cancel approval", onclick: () => save(p, { status: "review", note: "" }).then(render) })
-        : el("button", { class: "btn primary", type: "button", disabled: !(r.parts || []).length || r.freed || p.thumbsRequest === "waiting" || !factsReady(p) || stale, title: stale ? "The script changed after this render: Re-render first" : !factsReady(p) ? "Finish Check the facts first" : p.thumbsRequest === "waiting" ? "Wait for the new thumbnails" : "", text: "Approve for YouTube (Private)",
-          onclick: () => save(p, { status: "approved", approvedAt: new Date().toISOString(), ytTitle: p.ytTitle || titles[0], ytThumb: p.ytThumb || 0, note: "Approved: goes to YouTube (Private) at the next worker run" }).then(() => { say("Approved. The next cloud worker run uploads it as Private."); render(); }) }),
-      approved ? null : el("button", { class: "btn", type: "button", disabled: !factsReady(p), text: "Re-render with my changes",
-        onclick: () => save(p, { status: "waiting", rush: true, renderOn: null, requestedAt: new Date().toISOString(), note: "Re-render requested" }).then(() => { say("Re-render queued, first in line. The voice is reused, so it costs no voice credits."); render(); }) })));
+        : el("button", { class: "btn primary", type: "button", disabled: !(GH() ? r.release : (r.parts || []).length) || r.freed || p.thumbsRequest === "waiting" || !factsReady(p) || stale, title: stale ? "The script changed after this render: Re-render first" : !factsReady(p) ? "Finish Check the facts first" : p.thumbsRequest === "waiting" ? "Wait for the new thumbnails" : "", text: "Approve for YouTube (Private)",
+          onclick: () => approve(p, titles) }),
+      approved ? null : el("button", { class: "btn", type: "button", disabled: !factsReady(p), text: GH() ? "Re-render on my PC" : "Re-render with my changes",
+        onclick: () => save(p, { status: "waiting", rush: true, renderOn: GH() ? "pc" : null, requestedAt: new Date().toISOString(), note: GH() ? PC_WAIT : "Re-render requested" }).then(() => { say(GH() ? "Ready for your PC: double-click render-pc.cmd. The voice is reused, so it costs no voice credits." : "Re-render queued, first in line. The voice is reused, so it costs no voice credits."); render(); }) })));
+}
+// on GitHub, Approve starts the upload job at once (youtube.yml), which reports back here; in Claude the worker picks it up
+async function approve(p, titles) {
+  const patch = { status: "approved", approvedAt: new Date().toISOString(), ytTitle: p.ytTitle || titles[0], ytThumb: p.ytThumb || 0, note: GH() ? "Approved: GitHub is uploading it to YouTube (Private)" : "Approved: goes to YouTube (Private) at the next worker run" };
+  await save(p, patch); if (p.status !== "approved") return render();
+  if (!GH()) { say("Approved. The next cloud worker run uploads it as Private."); return render(); }
+  try { if (!S.actions) throw new Error("this page cannot start GitHub jobs"); await S.actions.dispatch("youtube.yml", { id: p.id }); say("Approved. GitHub is uploading it as Private; the link appears here when it is done."); }
+  catch (e) { await save(p, { status: "review", note: "Could not start the YouTube upload: " + (e.message || e) + ". Check that your GitHub key has Actions: Read and write" }); say("Could not start the upload."); }
+  render();
 }
 
 // wrong person or words on the thumbnails: pick the photos and text, and the next cloud run remakes only the
@@ -911,7 +932,7 @@ function thumbControls(p) {
     el("div", { style: "display:grid;gap:8px;padding-top:8px" },
       el("div", { class: "grid2" }, el("label", {}, "Main photo", p1), el("label", {}, "Second photo (versus design)", p2)),
       el("label", {}, "Big words", text),
-      el("div", { class: "row" }, el("button", { class: "btn", type: "button", disabled: busy || !photos.length, text: busy ? "Remaking at the next cloud run…" : "Remake thumbnails",
+      el("div", { class: "row" }, el("button", { class: "btn", type: "button", disabled: busy || !photos.length || GH(), title: GH() ? "Not on the GitHub page yet: use the Claude page for this" : "", text: busy ? "Remaking at the next cloud run…" : "Remake thumbnails",
         onclick: () => { th.people = [p1.value, p2.value].filter(Boolean); th.text = text.value.trim() || th.text; delete th.texts;
           save(p, { plan: p.plan, thumbsRequest: "waiting" }).then(() => { say("Thumbnails will be remade at the next cloud worker run (a few minutes; the video stays as it is)."); render(); }); } }),
         el("span", { class: "note", text: "Only the thumbnails are remade; the video does not render again." }))));
@@ -1073,7 +1094,10 @@ function resultBox(p) {
       el("a", { class: "btn primary", href: r.youtube.studio || r.youtube.url, target: "_blank", rel: "noopener", text: "Check it in YouTube Studio" }),
       el("a", { class: "btn", href: r.youtube.url, target: "_blank", rel: "noopener", text: "Watch" }),
       (r.youtube.notes || []).length ? el("span", { class: "note", text: r.youtube.notes.join(" · ") }) : null) : null,
-    (r.notes || []).length ? el("div", { class: "note", text: "From the cloud: " + r.notes.join(" · ") }) : null,
+    (r.notes || []).length ? el("div", { class: "note", text: (GH() ? "Notes: " : "From the cloud: ") + r.notes.join(" · ") }) : null,
+    r.release ? el("div", { class: "row" },
+      el("a", { class: "btn primary", href: `https://github.com/${window.claude.repo || "mboylesm-wq/pnoychess-docu"}/releases/tag/${encodeURIComponent(r.release.tag)}`, target: "_blank", rel: "noopener", text: "Watch or download on GitHub" }),
+      r.pcFile ? el("span", { class: "note", text: "On your PC: " + r.pcFile }) : null) : null,
     ["review", "approved"].includes(p.status) ? reviewControls(p) : null,
     el("div", { class: "row" },
       !hasParts ? null : el("button", { class: "btn", type: "button", text: "Watch preview", onclick: async () => { try { say("Loading preview…"); const b = await joined(r.previewParts, "video/mp4"); vid.textContent = ""; vid.append(el("video", { src: URL.createObjectURL(b), controls: true, playsinline: true })); say(""); } catch (e) { say("Preview failed: " + e.message); } } }),
@@ -1114,7 +1138,7 @@ function shortsBox(p) {
     el("div", { class: "note", text: list.length ? `${list.length} Shorts from this video. Watch each, download it, and upload it in YouTube Studio as a Short with its caption: they bring viewers to the full video.`
       : "5–8 vertical clips cut from this video (the cold open and one beat per chapter). They use the saved voice, so no ElevenLabs credits; about 20–40 minutes of cloud time." }),
     holder,
-    el("div", { class: "row" }, el("button", { class: "btn" + (list.length ? "" : " primary"), type: "button", disabled: waiting || !S.db || BUSY.includes(p.status), text: waiting ? "Making Shorts at the next cloud run…" : list.length ? "Make the Shorts again" : "Make Shorts",
+    el("div", { class: "row" }, el("button", { class: "btn" + (list.length ? "" : " primary"), type: "button", disabled: waiting || !S.db || BUSY.includes(p.status) || GH(), title: GH() ? "Not on the GitHub page yet: use the Claude page for this" : "", text: waiting ? "Making Shorts at the next cloud run…" : list.length ? "Make the Shorts again" : "Make Shorts",
       onclick: async () => {
         // remaking: the old clips leave storage first (the new set replaces them)
         if (list.length && S.assets) for (const s of list) await S.assets.delete(s.asset).catch(() => {});
@@ -1148,7 +1172,7 @@ function viewMusic() {
 Give instruments, tempo, how it develops; it sits under narration; no artist names or existing songs. Reply with only the prompt text.`, { modelTier: "quick" });
           brief.value = String(r.text || "").trim(); say("Brief written. Edit it if you like, then press Make it."); }
         catch (e) { say("Could not write the brief: " + errText(e)); } finally { S.busy = false; } } }),
-      el("button", { class: "btn primary", type: "button", disabled: !S.db, text: "Make it", onclick: async () => {
+      el("button", { class: "btn primary", type: "button", disabled: !S.db || GH(), title: GH() ? "Not on the GitHub page yet: use the Claude page for this" : "", text: "Make it", onclick: async () => {
         if (!brief.value.trim()) return say("Write a brief first (or let Claude write it).");
         const id = "t-" + Date.now().toString(36);
         try { await S.db.doc("music/" + id).set({ status: "waiting", title: title.value.trim() || mood.value + " track", mood: mood.value, seconds: +len.value, prompt: brief.value.trim(), requestedAt: new Date().toISOString() });
