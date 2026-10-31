@@ -422,11 +422,21 @@ function paintProgress(e, p) {
   e.textContent = g.step + (g.pct != null ? " " + g.pct + "%" : "") + " ? updated " + ago(g.at) + " ago" + (quiet ? ". Nothing from your PC for a while: it may have stopped or lost the internet. Press Stop, then Render again." : "");
   e.style.color = quiet ? "var(--warn)" : "";
 }
-const progressLine = (p) => { const e = el("div", { class: "note", id: "progress-line", "aria-live": "polite" }); paintProgress(e, p); return e; };
-setInterval(() => { const e = document.getElementById("progress-line"); if (e && S.cur) paintProgress(e, S.cur); }, 15000);
+const progressLine = (p, id = "progress-line") => { const e = el("div", { class: "note", id: id || null, "data-progress": p.id, "aria-live": "polite" }); paintProgress(e, p); return e; };
+setInterval(() => document.querySelectorAll("[data-progress]").forEach((e) => { const p = S.projects.find((x) => x.id === e.dataset.progress); if (p) paintProgress(e, p); }), 15000);
+// what a project needs before it can be rendered (the same two rules as the Render step), and how the PC queue runs: the video rendering
+// now first, then rushed ones, then by when each was asked for (tools/docu.mjs next)
+const voiceReady = (p) => !!(p.narration && (p.narration.kind === "ai-stock" || p.narration.kind === "elevenlabs" || (p.narration.parts && p.narration.parts.length)));
+const canRender = (p) => !!(p.plan && p.plan.scenes && p.plan.scenes.length && factsReady(p) && voiceReady(p));
+const QUALITY = { standard: ["Standard", "smaller files, about 3.5 Mbps"], high: ["High", "about 6-7 Mbps, sharper on YouTube (recommended)"], max: ["Maximum", "about 10+ Mbps, the biggest files and slowest uploads"] };
+const pcQueue = () => S.projects.filter((p) => GH() && (p.status === "rendering" || (p.status === "waiting" && p.renderOn === "pc")))
+  .sort((a, b) => (a.status === "rendering" ? 0 : 1) - (b.status === "rendering" ? 0 : 1) || (b.rush ? 1 : 0) - (a.rush ? 1 : 0) || String(a.requestedAt).localeCompare(String(b.requestedAt)));
+const queueNote = (p) => { const q = pcQueue(), i = q.findIndex((x) => x.id === p.id); return i < 0 ? "" : p.status === "rendering" ? "rendering now" : "in line: " + (i + 1) + " of " + q.length; };
+// queue a render behind the others (the Render step's own button puts a video first in line)
+const queueRender = (p) => save(p, { status: "waiting", stopRequested: null, rush: false, renderOn: GH() ? "pc" : null, note: GH() ? PC_WAIT : "Queued", requestedAt: new Date().toISOString() });
 // Stop: a video waiting or rendering goes back to Review (it has a render) or Draft at once, so Render works again even when the
 // PC is off or hung; on GitHub a running PC worker sees stopRequested (or the new status) and kills the render within ~10 s
-const stopButton = (p) => (["waiting", "rendering"].includes(p.status) ? el("button", { class: "btn", type: "button", id: "stop-btn", text: "Stop",
+const stopButton = (p, id = "stop-btn") => (["waiting", "rendering"].includes(p.status) ? el("button", { class: "btn", type: "button", id: id || null, text: "Stop",
   title: "Stop this video and unlock the Render button",
   onclick: () => { const back = p.result && (p.result.release || (p.result.parts || []).length) ? "review" : "draft", live = p.status === "rendering";
     save(p, { status: back, rush: false, progress: null, stopRequested: live && GH() ? true : null, note: live && GH() ? "Stopping: your PC stops within about 30 seconds" : "Stopped. Press Render when you are ready" })
@@ -725,6 +735,9 @@ function projectEditor(p) {
           onclick: () => save(p, { status: "waiting", stopRequested: null, rush: true, renderOn: "pc", note: PC_WAIT, requestedAt: new Date().toISOString() }).then(() => { say("Ready for your PC: double-click render-pc.cmd in C:\\PnoyChess\\docu."); render(); }) }),
         el("label", { class: "row", title: "After the render, it goes to YouTube as Private without waiting for you, unless the quality check found something" },
           el("input", { type: "checkbox", checked: !!p.autoApprove, onchange: (e) => save(p, { autoApprove: e.target.checked }) }), "Approve automatically"),
+        el("label", { class: "row", title: "How sharp the video file is. Higher is bigger and uploads slower; 1080p in all three" }, "Quality",
+          el("select", { id: "quality", "aria-label": "Video quality", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { quality: e.target.value }) },
+            ...Object.entries(QUALITY).map(([k, [name, what]]) => el("option", { value: k, selected: (p.quality || "high") === k, text: name + ": " + what })))),
         stopButton(p),
         p.note ? el("span", { class: "note", text: p.note }) : null) :
       el("div", { class: "row" }, ...[[true, "Render now", "btn primary"], [false, ["review", "done"].includes(p.status) ? "Render again (queue)" : "Add to queue", "btn"]].map(([rush, text, cls]) =>
@@ -1233,10 +1246,22 @@ function viewProjects() {
   if (S.cur) return projectEditor(S.cur);
   const box = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Projects" }), el("button", { class: "btn primary", type: "button", text: "New documentary", onclick: () => { S.view = "write"; S.cur = null; render(); } })));
   if (!S.projects.length) { box.append(el("div", { class: "empty", text: S.db ? "No projects yet. Pick a topic in Trends or start one in Write." : "Projects appear here once you are signed in." })); return box; }
+  const drafts = S.projects.filter((p) => p.status === "draft" && canRender(p)), q = pcQueue();
+  box.append(el("div", { class: "row" },
+    el("button", { class: "btn", type: "button", id: "render-all", disabled: !drafts.length, title: "Queue every draft that has its facts checked and its voice, one after another",
+      text: "Render all ready" + (drafts.length ? " (" + drafts.length + ")" : ""),
+      onclick: async () => { for (const p of drafts) await queueRender(p); say(drafts.length + " video(s) queued." + (GH() ? " Double-click render-pc.cmd: they render one after another." : "")); render(); } }),
+    q.length ? el("span", { class: "note", id: "queue-note", text: "Queue: " + q.length + " video" + (q.length > 1 ? "s" : "") + (q[0].status === "rendering" ? ", one rendering now." : ". Double-click render-pc.cmd to start.") }) : null));
   const list = el("div");
-  S.projects.forEach((p) => list.append(el("div", { class: "proj" },
-    el("div", {}, el("div", { class: "t", text: p.title }), el("div", { class: "note", text: `${p.minutes} min · ${(p.plan && p.plan.scenes || []).length} scenes · updated ${new Date(p.updatedAt).toLocaleString()}` })),
-    el("div", { class: "row" }, statusPill(p), el("button", { class: "btn", type: "button", text: "Open", onclick: () => { S.cur = p; S.view = "write"; render(); } }), deleteControl(p)))));
+  S.projects.forEach((p) => { const live = ["waiting", "rendering"].includes(p.status), rel = GH() && p.result && p.result.release && p.result.release.tag, qn = queueNote(p);
+    const again = !live && !BUSY.includes(p.status) && canRender(p) && ["draft", "review", "done", "failed"].includes(p.status);
+    list.append(el("div", { class: "proj" },
+      el("div", {}, el("div", { class: "t", text: p.title }), el("div", { class: "note", text: p.minutes + " min · " + (p.plan && p.plan.scenes || []).length + " scenes · updated " + new Date(p.updatedAt).toLocaleString() + (qn ? " · " + qn : "") }), progressLine(p, null)),
+      el("div", { class: "row" }, statusPill(p),
+        live ? stopButton(p, null) : null,
+        again ? el("button", { class: "btn", type: "button", text: ["draft", "failed"].includes(p.status) ? "Render" : "Render again", title: "Queue it behind the others", onclick: () => queueRender(p).then(() => { say("Queued."); render(); }) }) : null,
+        rel ? el("a", { class: "btn", href: "https://github.com/" + window.claude.repo + "/releases/tag/" + rel, target: "_blank", rel: "noopener", text: "Video" }) : null,
+        el("button", { class: "btn", type: "button", text: "Open", onclick: () => { S.cur = p; S.view = "write"; render(); } }), deleteControl(p)))); });
   box.append(list); return box;
 }
 render();
