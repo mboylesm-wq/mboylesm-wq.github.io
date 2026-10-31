@@ -200,11 +200,16 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
     // ---- files (recordings, music): one commit per file through the Git Data API, which takes up to 100 MB
     async function commitFile(path, blobSha, message) {
       for (let i = 0; ; i++) {
-        const head = (await json(`/git/ref/heads/${branch}`)).body.object.sha, tree = (await json(`/git/commits/${head}`)).body.tree.sha;
-        const t = (await json("/git/trees", { method: "POST", body: { base_tree: tree, tree: [{ path, mode: "100644", type: "blob", sha: blobSha }] } })).body.sha;
-        const c = (await json("/git/commits", { method: "POST", body: { message, tree: t, parents: [head] } })).body.sha;
-        try { await json(`/git/refs/heads/${branch}`, { method: "PATCH", body: { sha: c, force: false } }); return; }
-        catch (e) { if (e.status !== 422 || i >= 4) throw e; } // someone pushed meanwhile: on top of theirs
+        try {
+          const head = (await json(`/git/ref/heads/${branch}`)).body.object.sha, tree = (await json(`/git/commits/${head}`)).body.tree.sha;
+          const t = (await json("/git/trees", { method: "POST", body: { base_tree: tree, tree: [{ path, mode: "100644", type: "blob", sha: blobSha }] } })).body.sha;
+          const c = (await json("/git/commits", { method: "POST", body: { message, tree: t, parents: [head] } })).body.sha;
+          await json(`/git/refs/heads/${branch}`, { method: "PATCH", body: { sha: c, force: false } }); return;
+        } catch (e) {
+          // 422: someone pushed meanwhile (on top of theirs), or GitHub does not show the blob or tree it just made yet
+          if (e.status !== 422 || i >= 5) throw e;
+          await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+        }
       }
     }
     const assets = {
