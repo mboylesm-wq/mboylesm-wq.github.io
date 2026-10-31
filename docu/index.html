@@ -183,6 +183,8 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
       doc(key) {
         const { coll, id, path } = docPath(key);
         return {
+          // the document as GitHub has it now (null if there is none): the worker watches for a Stop this way
+          get: async () => { const cur = await readDoc(path); return cur ? cur.data : null; },
           set: (data) => serial(path, () => retry(async () => { const cur = await readDoc(path); const d = clone(data); remember(coll, id, await writeDoc(path, d, cur && cur.sha, `save ${key}`), d); })),
           // the fields given replace those fields; the rest stay as GitHub has them now
           update: (patch) => serial(path, () => retry(async () => {
@@ -411,6 +413,24 @@ const BUSY = ["waiting", "rendering", "writing", "approved"]; // a cloud run or 
 // Docu Studio on GitHub (studio/github.js): this PC renders, GitHub uploads; Claude's cloud worker never sees these projects
 const GH = () => !!(window.claude && window.claude.github);
 const PC_WAIT = "Waiting for your PC: double-click render-pc.cmd";
+// the PC worker reports where it is (progress: { step, pct, at }) about every minute; no report for this long means it stopped
+const STALE_MIN = 6;
+const ago = (iso) => { const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)); return s < 90 ? s + " s" : Math.round(s / 60) + " min"; };
+function paintProgress(e, p) {
+  const g = p && p.status === "rendering" && p.progress; e.hidden = !g; if (!g) return;
+  const age = (Date.now() - Date.parse(g.at)) / 60000, quiet = age > STALE_MIN;
+  e.textContent = g.step + (g.pct != null ? " " + g.pct + "%" : "") + " ? updated " + ago(g.at) + " ago" + (quiet ? ". Nothing from your PC for a while: it may have stopped or lost the internet. Press Stop, then Render again." : "");
+  e.style.color = quiet ? "var(--warn)" : "";
+}
+const progressLine = (p) => { const e = el("div", { class: "note", id: "progress-line", "aria-live": "polite" }); paintProgress(e, p); return e; };
+setInterval(() => { const e = document.getElementById("progress-line"); if (e && S.cur) paintProgress(e, S.cur); }, 15000);
+// Stop: a video waiting or rendering goes back to Review (it has a render) or Draft at once, so Render works again even when the
+// PC is off or hung; on GitHub a running PC worker sees stopRequested (or the new status) and kills the render within ~10 s
+const stopButton = (p) => (["waiting", "rendering"].includes(p.status) ? el("button", { class: "btn", type: "button", id: "stop-btn", text: "Stop",
+  title: "Stop this video and unlock the Render button",
+  onclick: () => { const back = p.result && (p.result.release || (p.result.parts || []).length) ? "review" : "draft", live = p.status === "rendering";
+    save(p, { status: back, rush: false, progress: null, stopRequested: live && GH() ? true : null, note: live && GH() ? "Stopping: your PC stops within about 30 seconds" : "Stopped. Press Render when you are ready" })
+      .then(() => { say(live && !GH() ? "Stopped here. A cloud run already in progress may still finish." : "Stopped."); render(); }); } }) : null);
 // video formats: each shapes the outline differently, so the channel's videos do not all follow one template
 const FORMATS = {
   story: ["Story documentary", "a true story told in order with rising stakes, from the beginning to the decisive moment and what it changed"],
@@ -702,16 +722,19 @@ function projectEditor(p) {
         : el("div", { class: "note", text: "The cloud finds licensed photos, times your words, renders the video in 1080p and makes the description, subtitles and thumbnails. Then it waits for you: nothing goes to YouTube until you approve it below. Render now puts this video first in line: the cloud worker starts it at its next run. Prepare for my PC does the same voice and photo work, then stops so your PC can render it, much faster and with no time limit." }),
       GH() ? el("div", { class: "row" },
         el("button", { class: "btn primary", type: "button", disabled: !(factsDone && voiceDone) || BUSY.includes(p.status), text: ["review", "done", "failed"].includes(p.status) ? "Render again on my PC" : "Render on my PC",
-          onclick: () => save(p, { status: "waiting", rush: true, renderOn: "pc", note: PC_WAIT, requestedAt: new Date().toISOString() }).then(() => { say("Ready for your PC: double-click render-pc.cmd in C:\\PnoyChess\\docu."); render(); }) }),
+          onclick: () => save(p, { status: "waiting", stopRequested: null, rush: true, renderOn: "pc", note: PC_WAIT, requestedAt: new Date().toISOString() }).then(() => { say("Ready for your PC: double-click render-pc.cmd in C:\\PnoyChess\\docu."); render(); }) }),
         el("label", { class: "row", title: "After the render, it goes to YouTube as Private without waiting for you, unless the quality check found something" },
           el("input", { type: "checkbox", checked: !!p.autoApprove, onchange: (e) => save(p, { autoApprove: e.target.checked }) }), "Approve automatically"),
+        stopButton(p),
         p.note ? el("span", { class: "note", text: p.note }) : null) :
       el("div", { class: "row" }, ...[[true, "Render now", "btn primary"], [false, ["review", "done"].includes(p.status) ? "Render again (queue)" : "Add to queue", "btn"]].map(([rush, text, cls]) =>
         el("button", { class: cls, type: "button", disabled: !(factsDone && voiceDone) || BUSY.includes(p.status), text,
-          onclick: () => save(p, { status: "waiting", rush, renderOn: null, note: rush ? "First in line" : "", requestedAt: new Date().toISOString() }).then(() => { say(rush ? "First in line: the next cloud worker run starts it." : "Queued. A cloud worker run picks it up."); render(); }) })),
+          onclick: () => save(p, { status: "waiting", stopRequested: null, rush, renderOn: null, note: rush ? "First in line" : "", requestedAt: new Date().toISOString() }).then(() => { say(rush ? "First in line: the next cloud worker run starts it." : "Queued. A cloud worker run picks it up."); render(); }) })),
         el("button", { class: "btn", type: "button", disabled: !(factsDone && voiceDone) || BUSY.includes(p.status), text: "Prepare for my PC",
-          onclick: () => save(p, { status: "waiting", rush: true, renderOn: "pc", note: "Preparing for your PC", requestedAt: new Date().toISOString() }).then(() => { say("The next cloud worker run prepares the voice and photos, then this video is ready for your PC."); render(); }) }),
+          onclick: () => save(p, { status: "waiting", stopRequested: null, rush: true, renderOn: "pc", note: "Preparing for your PC", requestedAt: new Date().toISOString() }).then(() => { say("The next cloud worker run prepares the voice and photos, then this video is ready for your PC."); render(); }) }),
+        stopButton(p),
         p.note ? el("span", { class: "note", text: p.note }) : null),
+      GH() ? progressLine(p) : null,
       p.status === "pc" ? pcBox(p) : null)),
     el("div", { class: "step" + (["approved", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Watch it, change the music if you like, approve" }), resultBox(p))),
     el("div", { class: "step" + (p.status === "done" && p.result && p.result.youtube ? " done" : "") }, el("div", {}, el("h3", { text: "On YouTube (Private), you publish" }),
@@ -912,7 +935,7 @@ function reviewControls(p) {
         : el("button", { class: "btn primary", type: "button", disabled: !(GH() ? r.release : (r.parts || []).length) || r.freed || p.thumbsRequest === "waiting" || !factsReady(p) || stale, title: stale ? "The script changed after this render: Re-render first" : !factsReady(p) ? "Finish Check the facts first" : p.thumbsRequest === "waiting" ? "Wait for the new thumbnails" : "", text: "Approve for YouTube (Private)",
           onclick: () => approve(p, titles) }),
       approved ? null : el("button", { class: "btn", type: "button", disabled: !factsReady(p), text: GH() ? "Re-render on my PC" : "Re-render with my changes",
-        onclick: () => save(p, { status: "waiting", rush: true, renderOn: GH() ? "pc" : null, requestedAt: new Date().toISOString(), note: GH() ? PC_WAIT : "Re-render requested" }).then(() => { say(GH() ? "Ready for your PC: double-click render-pc.cmd. The voice is reused, so it costs no voice credits." : "Re-render queued, first in line. The voice is reused, so it costs no voice credits."); render(); }) })));
+        onclick: () => save(p, { status: "waiting", stopRequested: null, rush: true, renderOn: GH() ? "pc" : null, requestedAt: new Date().toISOString(), note: GH() ? PC_WAIT : "Re-render requested" }).then(() => { say(GH() ? "Ready for your PC: double-click render-pc.cmd. The voice is reused, so it costs no voice credits." : "Re-render queued, first in line. The voice is reused, so it costs no voice credits."); render(); }) })));
 }
 // on GitHub, Approve starts the upload job at once (youtube.yml), which reports back here; in Claude the worker picks it up
 async function approve(p, titles) {
