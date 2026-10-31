@@ -1,0 +1,1191 @@
+<title>Docu Studio (GitHub)</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one working column; a top bar with three views (Trends, Write, Projects). Same warm-dark + gold world as the videos. */
+:root {
+  --bg: #f6f2ea; --panel: #fffdf8; --line: #ded5c4; --fg: #1d1a16; --dim: #6c6457; --gold: #a8741a; --gold-bg: #f4e6c8;
+  --ok: #2f7a45; --warn: #a3620b; --bad: #b23b2a;
+  --display: "Spectral", Georgia, serif; --body: "IBM Plex Sans", system-ui, sans-serif; --mono: "IBM Plex Mono", ui-monospace, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #12100d; --panel: #1b1814; --line: #332d25; --fg: #efe8dc; --dim: #a39886; --gold: #e0b04a; --gold-bg: #3a2e17; --ok: #6cc289; --warn: #e5a64a; --bad: #ef7c69; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #12100d; --panel: #1b1814; --line: #332d25; --fg: #efe8dc; --dim: #a39886; --gold: #e0b04a; --gold-bg: #3a2e17; --ok: #6cc289; --warn: #e5a64a; --bad: #ef7c69; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--body); }
+.wrap { max-width: 980px; margin: 0 auto; padding-block: 18px 60px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 18px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; }
+h1 { font: 700 30px/1.1 var(--display); margin: 0; letter-spacing: -0.01em; }
+h1 small { font: 500 13px var(--body); color: var(--dim); letter-spacing: 0.06em; text-transform: uppercase; margin-left: 8px; }
+h2 { font: 700 22px/1.2 var(--display); margin: 0; text-wrap: balance; }
+h3 { font: 600 15px var(--body); margin: 0; }
+nav { display: flex; gap: 6px; flex-wrap: wrap; }
+nav button, .btn { font: 600 14px var(--body); border: 1px solid var(--line); background: var(--panel); color: var(--fg); padding: 8px 14px; border-radius: 8px; cursor: pointer; }
+nav button[aria-current="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.btn.primary { background: var(--gold); border-color: var(--gold); color: #fff; }
+:root:not([data-theme="light"]) .btn.primary { color: #1b1408; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+.btn.danger { background: var(--bad); border-color: var(--bad); color: #fff; }
+.btn:focus-visible, nav button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 18px; display: grid; gap: 12px; min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+label { display: grid; gap: 4px; font-size: 13px; color: var(--dim); font-weight: 500; }
+input, select, textarea { font: 15px var(--body); color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; width: 100%; box-sizing: border-box; }
+textarea { min-height: 70px; resize: vertical; line-height: 1.5; }
+textarea.code { font: 12.5px/1.45 var(--mono); min-height: 60px; }
+.dim { color: var(--dim); }
+.note { font-size: 13px; color: var(--dim); }
+.pill { font: 600 12px var(--body); letter-spacing: 0.04em; text-transform: uppercase; padding: 3px 9px; border-radius: 99px; background: var(--gold-bg); color: var(--gold); white-space: nowrap; }
+.pill.ok { background: transparent; color: var(--ok); border: 1px solid var(--ok); }
+.pill.bad { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+.pill.warn { background: transparent; color: var(--warn); border: 1px solid var(--warn); }
+.topic { display: grid; gap: 6px; padding: 14px 0; border-top: 1px solid var(--line); }
+.topic:first-of-type { border-top: 0; }
+.topic a { color: var(--gold); }
+.chapter { display: grid; gap: 10px; }
+.chapter > h3 { font: 700 18px var(--display); color: var(--gold); }
+.scene { display: grid; grid-template-columns: 1fr; gap: 6px; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.scene .meta { display: flex; justify-content: space-between; gap: 8px; font: 12px var(--mono); color: var(--dim); flex-wrap: wrap; }
+.read { font: 19px/1.7 var(--display); max-width: 65ch; white-space: pre-wrap; }
+.read b { color: var(--gold); }
+.proj { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding: 12px 0; border-top: 1px solid var(--line); }
+.proj:first-child { border-top: 0; }
+.proj .t { font: 600 16px var(--body); }
+.steps { display: grid; gap: 10px; counter-reset: step; }
+.claims { list-style: none; margin: 8px 0 0; padding: 0; }
+.claim { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.step { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
+.step::before { counter-increment: step; content: counter(step); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 600 13px var(--body); background: var(--gold-bg); color: var(--gold); }
+.step.done::before { content: "✓"; background: var(--ok); color: var(--bg); }
+.step > div { display: grid; gap: 8px; min-width: 0; }
+video { width: 100%; max-width: 100%; border-radius: 10px; background: #000; }
+.bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; } .bar > i { display: block; height: 100%; background: var(--gold); width: 0; }
+.empty { padding: 26px; text-align: center; color: var(--dim); border: 1px dashed var(--line); border-radius: 12px; }
+.thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+.thumbs figure { margin: 0; display: grid; gap: 6px; }
+.thumbs img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
+pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-height: 220px; overflow: auto; background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--line); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Docu Studio <small>PnoyChess long-form</small></h1>
+    <nav aria-label="Views">
+      <button type="button" id="nav-trends" data-view="trends">Trends</button>
+      <button type="button" id="nav-write" data-view="write">Write</button>
+      <button type="button" id="nav-projects" data-view="projects">Projects</button>
+      <button type="button" id="nav-music" data-view="music">Music</button>
+    </nav>
+  </header>
+  <div id="status" class="note" role="status"></div>
+  <main id="view"></main>
+</div>
+
+<script>
+// Docu Studio on GitHub Pages: the same studio/index.html, with GitHub in place of Claude's database and storage.
+// tools/build-site.mjs puts this script in front of the page (site/index.html), so the page finds a window.claude
+// that keeps every document as db/<collection>/<id>.json and every upload as db/files/<id> in the pnoychess-docu
+// repo. Writing needs Claude and is simply not offered here (the page already works without it).
+// The access key is a fine-grained GitHub token for that one repo, kept only in this browser (as the reel Inbox does).
+// makeBackend() has no browser parts, so tests/run.mjs tests it against tests/fake-github.mjs.
+(function () {
+  const REPO = "mboylesm-wq/pnoychess-docu", BRANCH = "main", KEY = "docu.github.key", POLL = 30000;
+  const SAFE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/;
+
+  const toB64 = (bytes) => { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); };
+  const fromB64 = (b64) => Uint8Array.from(atob(String(b64).replace(/\s/g, "")), (c) => c.charCodeAt(0));
+  const textB64 = (t) => toB64(new TextEncoder().encode(t));
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+
+  function makeBackend({ fetch, token, repo = REPO, branch = BRANCH, api = "https://api.github.com", onAuthError = () => {} }) {
+    const base = `${api}/repos/${repo}`;
+    async function call(path, { method = "GET", body, accept = "application/vnd.github+json", etag } = {}) {
+      const headers = { Authorization: "Bearer " + token, Accept: accept, "X-GitHub-Api-Version": "2022-11-28" };
+      if (body !== undefined) headers["Content-Type"] = "application/json";
+      if (etag) headers["If-None-Match"] = etag;
+      const r = await fetch(base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), cache: "no-store" });
+      if (r.status === 401) onAuthError();
+      return r;
+    }
+    async function json(path, opts) {
+      const r = await call(path, opts);
+      if (r.status === 304) return { notModified: true };
+      if (!r.ok) { const e = new Error(`GitHub ${r.status}: ${(await r.text()).slice(0, 200)}`); e.status = r.status; throw e; }
+      return r.status === 204 ? null : { body: await r.json(), etag: r.headers.get("etag") };
+    }
+    const docPath = (key) => { const [coll, id, extra] = String(key).split("/"); if (!/^[a-z]+$/.test(coll || "") || !SAFE.test(id || "") || extra !== undefined) throw new Error("not a document: " + key); return { coll, id, path: `db/${coll}/${id}.json` }; };
+    const ref = `?ref=${encodeURIComponent(branch)}`;
+
+    // ---- documents: a read before every write, so a save never overwrites what someone else saved meanwhile
+    async function readDoc(path) {
+      let got; try { got = (await json(`/contents/${path}${ref}`)).body; } catch (e) { if (e.status === 404) return null; throw e; }
+      if (got.content) return { sha: got.sha, data: JSON.parse(new TextDecoder().decode(fromB64(got.content))) };
+      const raw = await call(`/contents/${path}${ref}`, { accept: "application/vnd.github.raw" }); // over 1 MB
+      if (!raw.ok) throw new Error(`GitHub ${raw.status} reading ${path}`);
+      return { sha: got.sha, data: JSON.parse(await raw.text()) };
+    }
+    async function writeDoc(path, data, sha, what) {
+      const body = { message: `studio: ${what}`, content: textB64(JSON.stringify(data, null, 1) + "\n"), branch, ...(sha ? { sha } : {}) };
+      return (await json(`/contents/${path}`, { method: "PUT", body })).body.content.sha;
+    }
+    // GitHub refuses a write whose sha is stale (409) or missing (422): read again and redo it
+    const stale = (e) => e && (e.status === 409 || e.status === 422);
+    const queues = new Map(), serial = (k, fn) => { const p = (queues.get(k) || Promise.resolve()).then(fn, fn); queues.set(k, p.catch(() => {})); return p; };
+    async function retry(fn) { for (let i = 0; ; i++) { try { return await fn(); } catch (e) { if (!stale(e) || i >= 4) throw e; } } }
+
+    // ---- collections: the folder listing, polled, and each changed file read once by its sha
+    const colls = new Map();
+    const collOf = (name) => { if (!colls.has(name)) colls.set(name, { files: new Map(), gone: new Map(), etag: null, subs: new Set(), loaded: false }); return colls.get(name); };
+    const snapshot = (c, q) => {
+      let docs = [...c.files].map(([id, f]) => ({ id, data: () => clone(f.data), _d: f.data }));
+      if (q.order) { const [f, dir] = q.order; docs.sort((a, b) => String(a._d[f] ?? "").localeCompare(String(b._d[f] ?? "")) * (dir === "desc" ? -1 : 1)); }
+      if (q.max) docs = docs.slice(0, q.max);
+      return { docs: docs.map(({ id, data }) => ({ id, data })) };
+    };
+    const notify = (name) => { const c = collOf(name); c.subs.forEach((s) => { try { s.fn(snapshot(c, s.q)); } catch (e) { /* a listener's own error */ } }); };
+    async function refresh(name) {
+      const c = collOf(name);
+      const list1 = async (etag) => { try { return await json(`/contents/db/${name}${ref}`, { etag }); } catch (e) { if (e.status !== 404) throw e; return { body: [], etag: null }; } };
+      let list = await list1(c.etag);
+      if (list.notModified && c.loaded) return;
+      if (list.notModified) list = await list1(null); // nothing shown yet: a 304 has no folder to show
+      if (!Array.isArray(list.body)) throw new Error(`GitHub sent no listing for db/${name}`);
+      const seen = new Set(), now = Date.now(); let pinned = false;
+      for (const f of list.body) {
+        if (f.type !== "file" || !f.name.endsWith(".json")) continue;
+        const id = f.name.slice(0, -5), cur = c.files.get(id); seen.add(id);
+        if (cur && cur.sha === f.sha) continue;
+        // GitHub's listing can lag a few seconds behind a write: this page's own saves and deletes win for a minute
+        if ((cur && cur.own && now - cur.own < 60000) || (c.gone.has(id) && now - c.gone.get(id) < 60000)) { pinned = true; continue; }
+        const blob = (await json(`/git/blobs/${f.sha}`)).body;
+        try { c.files.set(id, { sha: f.sha, data: JSON.parse(new TextDecoder().decode(fromB64(blob.content))) }); } catch (e) { /* not JSON: skipped */ }
+      }
+      for (const id of [...c.files.keys()]) { const f = c.files.get(id); if (seen.has(id)) continue; if (f.own && now - f.own < 60000) { pinned = true; continue; } c.files.delete(id); }
+      // only a listing read in full counts as seen: a skipped entry or a failed read is looked at again next poll
+      c.etag = pinned ? null : list.etag;
+      c.loaded = true; notify(name);
+    }
+    const refreshAll = () => Promise.all([...colls].filter(([, c]) => c.subs.size).map(([n]) => refresh(n).catch(() => {})));
+    const remember = (coll, id, sha, data) => { const c = collOf(coll); if (data) { c.files.set(id, { sha, data, own: Date.now() }); c.gone.delete(id); } else { c.files.delete(id); c.gone.set(id, Date.now()); } c.etag = null; notify(coll); };
+
+    const query = (name, q = {}) => ({
+      orderBy: (f, dir = "asc") => query(name, { ...q, order: [f, dir] }),
+      limit: (n) => query(name, { ...q, max: n }),
+      onSnapshot(fn, err) {
+        const c = collOf(name), s = { fn, q }; c.subs.add(s);
+        if (c.loaded) setTimeout(() => fn(snapshot(c, q))); else refresh(name).catch((e) => err && err(e));
+        return () => c.subs.delete(s);
+      },
+    });
+    const db = {
+      collection: (name) => { if (!/^[a-z]+$/.test(name)) throw new Error("not a collection: " + name); return query(name); },
+      doc(key) {
+        const { coll, id, path } = docPath(key);
+        return {
+          set: (data) => serial(path, () => retry(async () => { const cur = await readDoc(path); const d = clone(data); remember(coll, id, await writeDoc(path, d, cur && cur.sha, `save ${key}`), d); })),
+          // the fields given replace those fields; the rest stay as GitHub has them now
+          update: (patch) => serial(path, () => retry(async () => {
+            const cur = await readDoc(path); if (!cur) { const e = new Error("no such document: " + key); e.code = "not-found"; throw e; }
+            const d = { ...cur.data, ...clone(patch) }; remember(coll, id, await writeDoc(path, d, cur.sha, `save ${key} (${Object.keys(patch).join(", ")})`), d);
+          })),
+          delete: () => serial(path, () => retry(async () => {
+            const cur = await readDoc(path); if (cur) await json(`/contents/${path}`, { method: "DELETE", body: { message: `studio: delete ${key}`, sha: cur.sha, branch } });
+            remember(coll, id, null, null);
+          })),
+        };
+      },
+    };
+
+    // ---- files (recordings, music): one commit per file through the Git Data API, which takes up to 100 MB
+    async function commitFile(path, blobSha, message) {
+      for (let i = 0; ; i++) {
+        const head = (await json(`/git/ref/heads/${branch}`)).body.object.sha, tree = (await json(`/git/commits/${head}`)).body.tree.sha;
+        const t = (await json("/git/trees", { method: "POST", body: { base_tree: tree, tree: [{ path, mode: "100644", type: "blob", sha: blobSha }] } })).body.sha;
+        const c = (await json("/git/commits", { method: "POST", body: { message, tree: t, parents: [head] } })).body.sha;
+        try { await json(`/git/refs/heads/${branch}`, { method: "PATCH", body: { sha: c, force: false } }); return; }
+        catch (e) { if (e.status !== 422 || i >= 4) throw e; } // someone pushed meanwhile: on top of theirs
+      }
+    }
+    const assets = {
+      async upload(blob) {
+        const id = "f" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+        const sha = (await json("/git/blobs", { method: "POST", body: { content: toB64(new Uint8Array(await blob.arrayBuffer())), encoding: "base64" } })).body.sha;
+        await commitFile(`db/files/${id}`, sha, `studio: upload ${id}`);
+        return { id };
+      },
+      async delete(id) {
+        if (!SAFE.test(String(id))) throw new Error("not a file: " + id);
+        const path = `db/files/${id}`;
+        let cur; try { cur = (await json(`/contents/${path}${ref}`)).body; } catch (e) { if (e.status === 404) return; throw e; }
+        await json(`/contents/${path}`, { method: "DELETE", body: { message: `studio: delete ${id}`, sha: cur.sha, branch } });
+      },
+    };
+    // what the page reads as fetch("/_blob/<id>")
+    async function blob(id) {
+      if (!SAFE.test(String(id))) return new Response("", { status: 404 });
+      const r = await call(`/contents/db/files/${id}${ref}`, { accept: "application/vnd.github.raw" });
+      return r.ok ? new Response(await r.blob(), { status: 200 }) : new Response("", { status: r.status });
+    }
+    return { db, assets, blob, refresh, refreshAll, call };
+  }
+
+  const api = { makeBackend, toB64, fromB64 };
+  if (typeof window === "undefined" || !window.document) { globalThis.DocuGitHub = api; return; }
+  window.DocuGitHub = api;
+  if (window.claude) return; // opened inside Claude: Claude's own database stays in charge
+
+  // a test server may point the page at a fake GitHub, never a published page (the key would go there)
+  const local = /^(127\.0\.0\.1|localhost)$/.test(location.hostname), q = new URLSearchParams(location.search);
+  const apiBase = local && q.get("api") ? new URL(q.get("api"), location.href).href.replace(/\/$/, "") : "https://api.github.com";
+  let token = null; try { token = localStorage.getItem(KEY); } catch (e) {}
+
+  const panel = (html) => { const show = () => { const d = document.createElement("div"); d.id = "gh-panel"; d.style.cssText = "max-width:720px;margin:12px auto;padding:14px 16px;border:1px solid #c9a227;border-radius:10px;background:#1b1b1b;color:#eee;font:14px system-ui,sans-serif"; d.innerHTML = html; document.body.prepend(d); return d; };
+    return document.body ? Promise.resolve(show()) : new Promise((ok) => document.addEventListener("DOMContentLoaded", () => ok(show()))); };
+  const signIn = (why) => panel(`<b>Docu Studio on GitHub</b><p style="margin:6px 0">${why || "Paste your GitHub access key to open your projects."} It is kept only in this browser.</p>
+<p style="margin:6px 0;color:#aaa;font-size:13px">Make it once: GitHub → Settings → Developer settings → Fine-grained tokens → Generate new token. Repository access: only <b>pnoychess-docu</b>. Permissions: Contents <b>Read and write</b>, Actions <b>Read and write</b>.</p>
+<input id="gh-key" type="password" autocomplete="off" placeholder="github_pat_…" style="width:100%;padding:8px;margin:4px 0;box-sizing:border-box"> <button id="gh-save" type="button">Open my projects</button> <span id="gh-msg"></span>`).then((d) => {
+    d.querySelector("#gh-save").onclick = async () => {
+      const k = d.querySelector("#gh-key").value.trim(), msg = d.querySelector("#gh-msg"); if (!k) return;
+      msg.textContent = " Checking…";
+      try { const r = await fetch(`${apiBase}/repos/${REPO}`, { headers: { Authorization: "Bearer " + k, Accept: "application/vnd.github+json" } }); const j = r.ok ? await r.json() : null;
+        if (!j) throw new Error(r.status === 401 ? "GitHub did not accept this key" : r.status === 404 ? "this key cannot see pnoychess-docu" : "GitHub said " + r.status);
+        if (!j.permissions || !j.permissions.push) throw new Error("this key can read but not save (Contents: Read and write)");
+        localStorage.setItem(KEY, k); location.reload();
+      } catch (e) { msg.textContent = " " + e.message; }
+    };
+  });
+
+  if (!token) { signIn(); window.claude = { use: () => Promise.reject(new Error("not signed in")) }; return; }
+  let warned = false;
+  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, onAuthError: () => { if (warned) return; warned = true; try { localStorage.removeItem(KEY); } catch (e) {} signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = (input, init) => { const u = typeof input === "string" ? input : input && input.url; const m = /^\/_blob\/([^/?#]+)$/.exec(u || ""); return m ? backend.blob(decodeURIComponent(m[1])) : realFetch(input, init); };
+  // <img src="/_blob/…"> never goes through fetch: load it with the key and show it from memory
+  const shown = new Map();
+  const swap = (img) => {
+    const m = /^\/_blob\/([^/?#]+)$/.exec(img.getAttribute("src") || ""); if (!m) return;
+    const id = decodeURIComponent(m[1]); img.removeAttribute("src"); img.dataset.blob = id;
+    if (!shown.has(id)) shown.set(id, backend.blob(id).then((r) => (r.ok ? r.blob() : Promise.reject(new Error("missing")))).then((b) => URL.createObjectURL(b)).catch((e) => { shown.delete(id); throw e; }));
+    shown.get(id).then((u) => { if (img.dataset.blob === id) img.src = u; }, () => { img.alt = (img.alt || "Picture") + " (could not load)"; });
+  };
+  const scan = (n) => { if (n.nodeType !== 1) return; if (n.matches("img[src^='/_blob/']")) swap(n); n.querySelectorAll("img[src^='/_blob/']").forEach(swap); };
+  new MutationObserver((ms) => ms.forEach((m) => (m.type === "attributes" ? scan(m.target) : m.addedNodes.forEach(scan)))).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
+  if (document.body) scan(document.body);
+  const downloads = { async save({ filename, data }) { const b = data instanceof Blob ? data : new Blob([data], { type: "text/plain" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); } };
+  const have = { db: backend.db, assets: backend.assets, downloads };
+  window.claude = { github: true, use: (name) => (have[name] ? Promise.resolve(have[name]) : Promise.reject(new Error(name + " needs Claude"))) };
+  setInterval(() => { if (document.visibilityState === "visible") backend.refreshAll(); }, POLL);
+  document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") backend.refreshAll(); });
+  const out = () => panel(`<span style="color:#aaa">Docu Studio on GitHub · saving to <b>${REPO}</b> · writing new scripts needs Claude</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = () => { localStorage.removeItem(KEY); location.reload(); }; });
+  out();
+})();
+
+</script>
+<script>
+"use strict";
+// ---------- every prompt sent to Claude: change the wording here, nowhere else ----------
+// version: add 1 whenever the wording changes and say why in CHANGELOG.md. They are functions because they use
+// FORMATS and MOODS further down; `npm test` runs them through tests/page-harness.html.
+const PROMPTS = {
+  version: 4,
+  // the house style, sent with the outline and every chapter
+  rules: `You write narration for "PnoyChess", a Filipino chess YouTube channel making documentaries in English.
+Style: stakes in the first 15 seconds, no channel intro; short spoken sentences; a new visual every 1-2 sentences; never three photos in a row; explain chess so beginners follow.
+Story: one central question is opened in the cold open and answered clearly at the end; every chapter answers a small question from before and opens a new one, ending with a reason to keep watching. Never tease what the video does not deliver.
+Voice: the narrator is Mark, a Filipino chess player and the voice of PnoyChess. In every chapter, one scene is his own take in the first person ("I think…", "Look at this move…", "For us in the Philippines…"): his view, a quick analysis, or why it matters to players; clearly an opinion, any facts in it still sourced. Mark those scenes "take": true. This personal commentary is what makes the channel original, not a template. A take scene gets a real picture like any other scene (a photo of the person or place, a board or a map); never a title card or any on-screen label saying "My take".
+Accuracy: only facts you are confident are true and can source; never invent quotes, numbers or dates; if unsure, leave it out. Never copy text from books or websites.`,
+  // the visuals Claude may pick: the outline gets the core ones, a chapter both
+  visCore: `Visual JSON per scene (pick one):
+photo {"type":"photo","search":"<Wikimedia Commons search: person or place + year>","motion":"zoomIn|zoomOut|panLeft|panRight|punchIn","label":"<short place/date tag, optional>"} real people and places, most scenes
+words {"type":"words"} the scene's own narration as huge kinetic text: punchlines of 4-14 words only
+geo {"type":"geo","title":"...","highlight":["<Natural Earth country name>"],"points":[{"name":"Baguio","lon":120.60,"lat":16.41,"note":"..."}]} every new place, real coordinates
+title {"type":"title","title":"...","subtitle":"..."}
+counter {"type":"counter","value":27,"label":"...","prefix":"","suffix":""}`,
+  visMore: `timeline {"type":"timeline","title":"...","items":[{"year":"1974","text":"..."}],"highlight":0}
+bars {"type":"bars","title":"...","unit":"","items":[{"label":"...","value":4}],"highlight":0}
+quote {"type":"quote","text":"<real quote only>","author":"...","source":"<where/when>"}
+compare {"type":"compare","title":"...","left":{"name":"...","search":"<photo search>","lines":["..."]},"right":{"name":"...","search":"...","lines":["..."]}}
+board {"type":"board","title":"...","moves":["e4","e5"],"arrows":[{"from":"e2","to":"e4","afterMove":0}],"players":{"white":"...","black":"..."},"eval":true} only moves you are certain of, SAN from the start position, at most 16; "annotations":{"<move index>":"!!"} only where sources say so
+race {"type":"race","title":"First to six wins","left":{"name":"...","wins":[<game numbers>]},"right":{"name":"...","wins":[...]},"upto":<game>} real game numbers only
+video {"type":"video","search":"<2-4 plain English words for stock footage: the place or mood, e.g. Singapore skyline night, Toronto street, crowded tournament hall>","fallback":{"type":"photo","search":"..."}} modern atmosphere b-roll (licensed clips): about one per chapter, especially when the story arrives in a new city; every clip search different; never a specific person or event
+archival {"type":"video","archival":true,"search":"<2-4 plain English words for real old film: place or subject + decade, e.g. Moscow street 1950s, Soviet Union 1960s, Amsterdam 1930s, chess tournament 1950s>","fallback":{"type":"photo","search":"..."}} real newsreel or old film of the era: about two per chapter for anything before 1990, none for stories after 2000; every search different; it shows the time and place, so the narration never claims it shows a specific person or event
+end {"type":"end"} the final scene only: a one-line thank-you and "follow PnoyChess"
+Optional per scene: "ambience":"hall|crowd|wind|city|night|rain|none" (quiet background from that scene on).`,
+  // the outline and cold open (the first call of a new script)
+  outline: (opt, target) => `${PROMPTS.rules}
+
+${PROMPTS.visCore}
+
+Plan a ${opt.minutes}-minute documentary (about ${target} narrated words) on: ${opt.topic}${opt.angle ? "\nAngle: " + opt.angle : ""}
+Format: ${(FORMATS[opt.format] || FORMATS.story)[0]}: ${(FORMATS[opt.format] || FORMATS.story)[1]}. Shape the chapters to this format.
+${(opt.sources || []).length ? "Starting sources: " + opt.sources.map((s) => s.title + " " + s.url).join("; ") : ""}
+Reply with only JSON: {"title":"<YouTube title, max 60 chars>","titles":["<3 strong alternative titles, max 60 chars, curiosity without lies>"],"question":"<the one central question the cold open opens and the ending answers>","thumbnail":{"text":"<1-3 huge punchy words that add to the title, never words from the title>","small":"<place + year tag, e.g. BAGUIO 1978>","person":"<full name of the one person the story is about, or empty>"},"coldOpen":[{"text":"<8-25 words>","visual":{...}}],"next":"<end card line 'Next: ...' teasing a related story>","chapters":[{"title":"<short>","words":<target words>,"mood":"<${Object.keys(MOODS).join("|")}>","beats":["<what this chapter covers, fact by fact>"],"opens":"<the small question this chapter leaves open>"}],"sources":[{"title":"<source name>","url":"<real URL, prefer Wikipedia/FIDE/official>"}]}
+coldOpen: 2-6 quick scenes (40-70 words in all) opening the video before the PnoyChess sting: the most dramatic moment, no greeting, the last scene asks the central question. The FIRST scene is the strongest real picture: a photo of the person or the decisive moment, a board with the key move, or a map; never kinetic words or a title card first, and a photo or clip there gets a "fallback" (a geo or board visual) in case no licensed picture exists.
+Use 4-6 chapters; chapter words must add up to about ${target}.`,
+  // one chapter; opt.current + opt.note when rewriting it
+  chapter: ({ p, chs, ch, i, words, prevText, opt, last }) => `${PROMPTS.rules}
+
+${PROMPTS.visCore}
+${PROMPTS.visMore}
+
+Documentary: ${p.title}${p.outline && p.outline.format && FORMATS[p.outline.format] ? " (" + FORMATS[p.outline.format][0] + ": " + FORMATS[p.outline.format][1] + ")" : ""}. Chapters: ${chs.map((c, k) => (k + 1) + ". " + c.title).join(" | ")}.
+${p.outline && p.outline.question ? `Central question of the film: "${p.outline.question}".` : ""}
+${prevText ? (i === 0 ? "The cold open before this chapter: " : "The previous chapter ended with: ") + "\"" + prevText.slice(-400) + "\"" : ""}
+${i > 0 && chs[i - 1].opens ? `Answer early in this chapter the question the previous one left open: "${chs[i - 1].opens}".` : ""}
+Write chapter ${i + 1}, "${ch.title}", about ${words} words of narration${(ch.beats || []).length ? ", covering: " + ch.beats.join("; ") : ""}.
+${opt.current ? "Current version (rewrite it: keep the facts, make it better" + (opt.note ? "; " + opt.note : "") + "):\n\"" + opt.current.slice(0, 4000) + "\"" : ""}
+${last ? "This is the last chapter: answer the central question clearly, tease a related next story, then finish with one short end scene." : ch.opens ? `End the chapter by opening this question: "${ch.opens}".` : ""}
+Include exactly one scene that is Mark's own take in the first person, marked "take": true.
+Split it into scenes of 12-30 words (about 4-10 seconds each), each with one visual. Mark 1-3 key words in the chapter with **double asterisks**.
+Reply with only a JSON array: [{"text":"<narration>","visual":{...},"lowerThird":{"name":"...","role":"..."} (only when a person is first introduced),"take":true (only on Mark's take)}]`,
+  // the composer: film-wide theme + a timed arc per section (the cloud turns them into Eleven Music composition plans)
+  score: (p, sections) => `You are the composer of the original score for "${p.title}", a PnoyChess chess documentary on YouTube (narrated in English, prestige true-story style). The score is made by an AI music model from your plan, instrumental only, mixed under the narration.
+1. "theme": the film's musical identity, shared by every section so the score feels like one film: "motif" (one sentence: the recurring idea, e.g. a lone piano figure that returns, and the core palette), "styles" (4-8 short English style tags: instruments, genre, texture), "avoid" (2-6 tags).
+2. For each section below: "mood" (${Object.keys(MOODS).join("|")}), "prompt" (35-60 words: instruments, tempo in BPM, harmony, how it develops), "styles" (3-8 tags for this section), "avoid" (0-4 tags), and "arc": 2-5 steps that each start on a scene id of that section (the first on its first scene): "text" is a section label in square brackets plus a short direction in curly braces, e.g. "[Build]\\n{low strings rise, pulse quickens}", and "styles" (1-4 tags for that step). Put builds before the big reveal, a peak on the decisive moment, near-silence or a hit right before a [punchline] scene, and a resolve at the end. Neighbouring sections contrast; the opening hooks; the last section resolves and backs the end card.
+Rules: instrumental only, leave room for the voice (no busy melody in the speech range), no artist or composer names, no existing songs, English tags.
+Sections (about ${sections.map((s) => s.secs).join("/")} seconds each):
+${sections.map((s) => `## from "${s.from}": ${s.title} (~${s.secs} s)\n${s.scenes.join("\n")}`).join("\n")}
+Reply with only JSON: {"theme":{"motif":"...","styles":[...],"avoid":[...]},"sections":[{"from":"<section from>","mood":"...","prompt":"...","styles":[...],"avoid":[...],"arc":[{"at":"<scene id>","text":"[...]\\n{...}","styles":[...]}]}]}`,
+  // the fact checker only finds the facts and where to check them: Mark decides each one
+  claims: (p, scenes) => `You are the fact checker of "${p.title}", a PnoyChess chess documentary. Mark, the narrator, will check every claim you list against its source.
+List every fact a viewer could check in the scenes below, on-screen data and words included (chapter titles, name captions, photo tags, map notes): results, scores, dates, ages, numbers, places, titles, who did what, quotes, chess moves. "_film" is the YouTube titles, the thumbnail words and the end-card line. One fact per claim, in one plain sentence. Skip pure opinion, but a fact inside an opinion still counts. Do not judge whether a fact is true, and do not add facts that are not in the scenes.
+"risk" is "high" for numbers, scores, dates, quotes and anything negative about a real person, otherwise "standard".
+"source" is the URL from this list that should confirm the claim, or "" when none does. Never write any other URL.
+Sources:
+${(p.sources || []).map((s) => "- " + (s.title || s.url) + ": " + s.url).join("\n") || "(none)"}
+Scenes:
+${scenes.map((s) => `## ${s.id}\n${factText(s)}`).join("\n")}
+Reply with only a JSON array: [{"scene":"<scene id>","text":"<the fact>","risk":"high|standard","source":"<URL or empty>"}]`,
+};
+
+// tools/facts.mjs explains the gate; this block is word for word the same there (`npm test` compares them)
+// facts-gate start
+const FACT_VISUALS = ["counter", "bars", "timeline", "quote", "race", "compare", "board"];
+// the same text in the same order however it was saved (a database may give an object's keys back in another order)
+const canon = (v) => Array.isArray(v) ? "[" + v.map(canon).join(",") + "]" : v && typeof v === "object" ? "{" + Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => JSON.stringify(k) + ":" + canon(v[k])).join(",") + "}" : JSON.stringify(v === undefined ? null : v);
+const fnv = (t) => { let h = 2166136261; for (const c of t) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
+// words on screen that can state a fact: chapter titles, name captions, photo tags, title cards, map notes
+const shownText = (s) => { const v = s.visual || {}, lt = s.lowerThird || {};
+  return [s.chapter, [lt.name, lt.role].filter(Boolean).join(", "), v.label, v.type === "title" ? [v.title, v.subtitle].filter(Boolean).join(" / ") : "",
+    v.type === "geo" ? [v.title, ...(v.highlight || []), ...(v.points || []).map((x) => [x.name, x.note].filter(Boolean).join(": "))].filter(Boolean).join("; ") : ""].filter(Boolean).join("\n"); };
+const factText = (s) => [String(s.text || "").replace(/\*\*/g, "").trim(), s.visual && FACT_VISUALS.includes(s.visual.type) ? canon(s.visual) : "", shownText(s), s.film || ""].filter(Boolean).join("\n");
+const factKey = (s) => fnv(factText(s));
+// the scenes, plus "_film": the titles, the thumbnail words and the end-card line
+const factScenes = (p) => { const pl = (p && p.plan) || {}, t = pl.thumbnail || {};
+  return [...(pl.scenes || []), { id: "_film", text: "", film: [...new Set([p && p.title, pl.title, ...((p && p.titles) || [])].filter(Boolean)), t.text, t.small, pl.next].filter(Boolean).join("\n") }]; };
+const claimDone = (c) => (c.status === "supported" && /^https?:\/\/\S+$/.test(String(c.source || "").trim())) || (c.status === "waived" && !!String(c.note || "").trim());
+const factGate = (p) => {
+  const required = !!p.claimsRequired || Array.isArray(p.claims), scenes = factScenes(p).filter(factText), scan = p.factScan || {};
+  const changed = scenes.filter((s) => scan[s.id] !== factKey(s)).map((s) => s.id);
+  const live = (p.claims || []).filter((c) => scenes.some((s) => s.id === c.scene) && !changed.includes(c.scene)), open = live.filter((c) => !claimDone(c));
+  return { required, changed, total: live.length, open: open.length, ok: !required || (!changed.length && !open.length) };
+};
+const factGateText = (g) => g.ok ? (g.required ? `all ${g.total} claims checked` : "older project: no claims list") : [g.changed.length ? `${g.changed.length} scene(s) not listed yet` : "", g.open ? `${g.open} of ${g.total} claims still open` : ""].filter(Boolean).join(", ");
+// what the video says and shows (all but the thumbnails, which are remade on their own): Approve uploads a render only
+// while the script is still the one it was rendered from
+const scriptKey = (p) => { const { thumbnail, ...shown } = (p && p.plan) || {}; return fnv(canon(shown)); };
+// facts-gate end
+// older projects keep their checkbox
+const factsReady = (p) => { const g = factGate(p); return g.required ? g.ok : !!p.factsChecked; };
+
+// ---------- tiny helpers ----------
+const $ = (s, r = document) => r.querySelector(s);
+const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs || {})) { if (v == null || v === false) continue; if (k === "class") e.className = v; else if (k === "text") e.textContent = v; else if (k.startsWith("on")) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v === true ? "" : v); } kids.flat().forEach((k) => k != null && e.append(k.nodeType ? k : document.createTextNode(String(k)))); return e; };
+const say = (m) => { $("#status").textContent = m || ""; };
+const words = (t) => String(t || "").split(/\s+/).filter(Boolean).length;
+const safeUrl = (u) => (/^https?:\/\//i.test(String(u || "")) ? String(u) : "#");
+const mins = (w) => (w / 150).toFixed(1);
+const slugify = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "video";
+const PART = 19 * 1024 * 1024;
+const MUSIC = [["km-long-note-four", "Long Note Four (mystery, documentary)"], ["chopin-nocturne-9-2", "Chopin, Nocturne Op. 9 No. 2 (calm)"], ["km-clean-soul", "Clean Soul (calm)"], ["satie-gymnopedie-1", "Erik Satie, Gymnopédie No. 1 (calm)"], ["km-fluidscape", "Fluidscape (calm)"], ["km-gymnopedie-no-1", "Gymnopedie No 1 (calm)"], ["km-lightless-dawn", "Lightless Dawn (calm)"], ["km-ancient-rite", "Ancient Rite (epic)"], ["km-crusade", "Crusade (epic)"], ["km-echoes-of-time", "Echoes of Time (epic)"], ["km-five-armies", "Five Armies (epic)"], ["km-impact-prelude", "Impact Prelude (epic)"], ["km-prelude-and-action", "Prelude and Action (epic)"], ["km-rising-tide", "Rising Tide (epic)"], ["km-sovereign", "Sovereign (epic)"], ["km-ascending-the-vale", "Ascending the Vale (hopeful)"], ["km-dreams-become-real", "Dreams Become Real (hopeful)"], ["km-healing", "Healing (hopeful)"], ["km-inspired", "Inspired (hopeful)"], ["bach-air", "J.S. Bach, Air (Orchestral Suite No. 3) (hopeful)"], ["km-comfortable-mystery", "Comfortable Mystery (mystery)"], ["km-crypto", "Crypto (mystery)"], ["km-investigations", "Investigations (mystery)"], ["km-unanswered-questions", "Unanswered Questions (mystery)"], ["km-thinking-music", "Thinking Music (playful)"], ["km-bossa-antigua", "Bossa Antigua (retro)"], ["km-covert-affair", "Covert Affair (retro)"], ["km-dark-times", "Dark Times (sad)"], ["km-heartbreaking", "Heartbreaking (sad)"], ["km-long-note-two", "Long Note Two (sad)"], ["km-ossuary-6-air", "Ossuary 6 - Air (sad)"], ["km-darkest-child", "Darkest Child (tension)"], ["km-gathering-darkness", "Gathering Darkness (tension)"], ["grieg-mountain-king", "Grieg, In the Hall of the Mountain King (tension)"], ["km-hidden-agenda", "Hidden Agenda (tension)"], ["km-impact-allegretto", "Impact Allegretto (tension)"], ["km-impact-moderato", "Impact Moderato (tension)"], ["km-interloper", "Interloper (tension)"], ["mussorgsky-bald-mountain", "Mussorgsky, Night on Bald Mountain (tension)"], ["km-spy-glass", "Spy Glass (tension)"], ["km-volatile-reaction", "Volatile Reaction (tension)"], ["km-despair-and-triumph", "Despair and Triumph (triumphant)"], ["tchaikovsky-1812", "Tchaikovsky, 1812 Overture (triumphant)"], ["grandmaster", "Grandmaster (code-made)"], ["calm-study", "Calm Study (code-made)"]];
+const STATUS = { writing: ["Writing", "warn"], draft: ["Draft", ""], waiting: ["Waiting for render", "warn"], rendering: ["Rendering", "warn"], review: ["Ready for your review", "warn"], approved: ["Approved: uploading", "warn"], pc: ["Ready for your PC", "warn"], done: ["Done", "ok"], failed: ["Failed", "bad"] };
+const BUSY = ["waiting", "rendering", "writing", "approved"]; // a cloud run or Claude is working on it
+// video formats: each shapes the outline differently, so the channel's videos do not all follow one template
+const FORMATS = {
+  story: ["Story documentary", "a true story told in order with rising stakes, from the beginning to the decisive moment and what it changed"],
+  breakdown: ["Game breakdown", "one famous game: the build-up, then its key moments move by move on the board, why each mattered, and what it changed"],
+  whatif: ["What if", "a real turning point, then what could have happened instead (clearly marked as speculation, with board lines where it helps), then what really happened"],
+  countdown: ["Countdown", "a ranked list counting down to number one (e.g. the 5 greatest comebacks), one chapter per entry, each a mini-story"],
+  rivalry: ["Rivalry", "two players side by side: who they are, their clashes in order, the decisive meeting, and the legacy"],
+};
+
+// ---------- capabilities (the page works without them, features light up when they arrive) ----------
+const S = { view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, projects: [], music: [], cur: null, busy: false };
+(async () => {
+  const c = window.claude; if (!c) { say("Open this page in Claude to use it."); return render(); }
+  const [db, sample, assets, downloads, perms] = await Promise.all(["db", "sample", "assets", "downloads", "permissions"].map((n) => c.use(n).catch(() => null)));
+  Object.assign(S, { db, sample, assets, downloads, perms });
+  if (!db) say("Sign in to Claude to save projects.");
+  if (db) {
+    db.collection("projects").onSnapshot((snap) => { S.projects = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur; render(); }, () => {});
+    db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if (S.view === "music" || S.cur) render(); }, () => {});
+    db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; render(); }, () => {});
+  }
+  render();
+})();
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => { S.view = b.dataset.view; if (S.view !== "projects") S.cur = S.view === "write" ? S.cur : null; render(); }));
+try { const v = localStorage.getItem("docu.view"); if (v) S.view = v; } catch (e) {}
+
+async function save(p, patch) {
+  if (!S.db) return say("Saving needs Claude sign-in.");
+  const doc = { ...patch, updatedAt: new Date().toISOString() };
+  try { await S.db.doc("projects/" + p.id).update(doc); Object.assign(p, doc); }
+  catch (e) {
+    // on GitHub only a missing document is saved whole: any other failure would overwrite newer data
+    if (window.claude && window.claude.github && e.code !== "not-found") return say("Could not save: " + (e.message || e.code));
+    try { await S.db.doc("projects/" + p.id).set({ ...p, ...doc }); Object.assign(p, doc); } catch (e2) { say("Could not save: " + (e2.message || e2.code)); }
+  }
+}
+
+// ---------- views ----------
+function render() {
+  try { localStorage.setItem("docu.view", S.view); } catch (e) {}
+  document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === S.view)));
+  const v = $("#view"); v.textContent = "";
+  v.append(S.view === "trends" ? viewTrends() : S.view === "write" ? viewWrite() : S.view === "music" ? viewMusic() : viewProjects());
+}
+
+function viewTrends() {
+  const t = S.trends;
+  const box = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "What chess fans care about now" }), t ? el("span", { class: "note", text: "Updated " + new Date(t.at).toLocaleString() }) : null));
+  if (!t || !(t.topics || []).length) { box.append(el("div", { class: "empty", text: "The trend radar runs every morning in the cloud and lists ranked topics here, each with an angle and sources. You can also start your own topic in Write." })); return box; }
+  t.topics.forEach((x) => box.append(el("article", { class: "topic" },
+    el("div", { class: "row", style: "justify-content:space-between" }, el("h3", { text: x.title }), el("span", { class: "pill" + (x.kind === "evergreen" ? " ok" : ""), text: x.kind === "evergreen" ? "Evergreen" : "Timely" })),
+    x.angle ? el("div", { text: x.angle }) : null,
+    x.why ? el("div", { class: "note", text: "Why now: " + x.why }) : null,
+    (x.sources || []).length ? el("div", { class: "note" }, "Sources: ", ...(x.sources || []).flatMap((s, i) => [i ? " · " : "", el("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener", text: s.title || s.url })])) : null,
+    el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", text: "Make this video", onclick: () => { S.view = "write"; S.cur = null; S.prefill = x; render(); } })))));
+  return box;
+}
+
+function viewWrite() {
+  const p = S.cur;
+  if (!p) return newForm();
+  return projectEditor(p);
+}
+
+function newForm() {
+  const pre = S.prefill || {}; S.prefill = null;
+  const f = el("form", { class: "panel", id: "newform" },
+    el("h2", { text: "New documentary" }),
+    el("label", {}, "Topic", el("input", { id: "topic", required: true, value: pre.title || "", placeholder: "e.g. Eugenio Torre, Asia's first grandmaster" })),
+    el("label", {}, "Angle (optional)", el("input", { id: "angle", value: pre.angle || "", placeholder: "What makes this story worth 10 minutes?" })),
+    el("div", { class: "grid2" },
+      el("label", {}, "Length", el("select", { id: "length" }, ...[5, 8, 10, 12, 15].map((m) => el("option", { value: m, selected: m === 10, text: m + " minutes" })))),
+      el("label", {}, "Music", el("select", { id: "music" }, ...MUSIC.map(([id, t]) => el("option", { value: id, text: t })))),
+      el("label", {}, "Format", el("select", { id: "format" }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, title: how, text: name }))))),
+    el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit", id: "go", disabled: !S.sample || !S.db, text: "Write the script" }),
+      el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes." : "Writing needs Claude in this page (sign in, then allow it when asked)." })),
+    el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
+  f.addEventListener("submit", (e) => { e.preventDefault(); write({ topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, sources: pre.sources || [] }); });
+  return f;
+}
+
+// ---------- script writing with Claude (sample) ----------
+// Calls: one for the outline + cold open, then one per chapter (each saved as soon as it is written, so a
+// failure resumes from the next chapter). Music is never sent to Claude: it names a mood per chapter and
+// the page picks a library track for it.
+// moods → library tracks, from the MUSIC list labels ("Title (mood)")
+const MOODS = {}; MUSIC.forEach(([id, t]) => { const m = (t.match(/\((\w+)/) || [])[1]; if (m && m !== "code") (MOODS[m] = MOODS[m] || []).push(id); });
+const trackFor = (mood, used) => { const l = MOODS[String(mood || "").toLowerCase()] || []; return l.find((x) => !used.includes(x)) || l[0]; };
+const errText = (e) => e.code === "not_granted" ? "Claude was not allowed for this page." : e.code === "rate_limited" ? "too many requests, try again in a few minutes." : (e.message || e.code);
+
+async function write(opt) {
+  if (!opt.topic) return;
+  S.busy = true; $("#go").disabled = true; const prog = $("#prog"); prog.hidden = false; const bar = $("#prog i");
+  const set = (k, m) => { bar.style.width = Math.round(k * 100) + "%"; say(m); };
+  try {
+    const target = opt.minutes * 150;
+    set(0.05, "Planning the chapters and the cold open…");
+    const outline = await S.sample.json(PROMPTS.outline(opt, target), { modelTier: "complex" });
+    if (!outline || !Array.isArray(outline.chapters) || !outline.chapters.length) throw new Error("the outline came back empty");
+    const co = (Array.isArray(outline.coldOpen) ? outline.coldOpen : []).filter((s) => s && s.text);
+    const scenes = co.length ? co.map((s, k) => ({ id: "open" + (k + 1), text: String(s.text), visual: s.visual && s.visual.type ? s.visual : { type: "title", title: outline.title } }))
+      : [{ id: "title", text: "", visual: { type: "title", title: outline.title, subtitle: "A PnoyChess story" } }];
+    const id = slugify(outline.title) + "-" + Date.now().toString(36).slice(-4);
+    const p = { id, title: outline.title, topic: opt.topic, minutes: opt.minutes, status: "writing", factsChecked: false, claimsRequired: true, sources: outline.sources || [], createdAt: new Date().toISOString(),
+      titles: [outline.title, ...((outline.titles || []).filter((t) => t && t !== outline.title).slice(0, 3))],
+      outline: { chapters: outline.chapters.map((c) => ({ title: String(c.title || ""), words: +c.words || 0, mood: c.mood || "", beats: c.beats || [], opens: String(c.opens || "") })), target,
+        question: String(outline.question || ""), format: opt.format || "story" },
+      writing: { next: 0 },
+      plan: { title: outline.title, format: "16:9", music: { track: opt.music }, next: outline.next || "", coldOpen: scenes.length, scenes,
+        thumbnail: { text: (outline.thumbnail && outline.thumbnail.text) || outline.title.split(" ").slice(0, 4).join(" "), small: outline.thumbnail && outline.thumbnail.small || "", person: outline.thumbnail && outline.thumbnail.person || "", people: [] } } };
+    await S.db.doc("projects/" + id).set({ ...p, updatedAt: new Date().toISOString() });
+    S.cur = p;
+    await writeChapters(p, set);
+  } catch (e) { say("Writing stopped: " + errText(e) + (S.cur && S.cur.status === "writing" ? " Press Continue writing to go on." : "")); }
+  finally { S.busy = false; const g = $("#go"); if (g) g.disabled = false; else render(); }
+}
+
+// the scenes of chapter i (0-based): from its first scene (which carries `chapter`) to the next chapter
+function chapterRange(p, i) {
+  const starts = p.plan.scenes.map((s, k) => (s.chapter ? k : -1)).filter((k) => k >= 0);
+  return starts[i] == null ? null : [starts[i], starts[i + 1] == null ? p.plan.scenes.length : starts[i + 1]];
+}
+const chapterList = (p) => p.outline && p.outline.chapters && p.outline.chapters.length ? p.outline.chapters
+  : p.plan.scenes.filter((s) => s.chapter).map((s) => ({ title: s.chapter, words: 0, mood: "", beats: [] }));
+
+// one chapter from Claude → scenes (ids c<n>s<k>; the first one carries the chapter title and, from its mood, the music)
+async function chapterScenes(p, i, opt = {}) {
+  const chs = chapterList(p), ch = chs[i], last = i === chs.length - 1;
+  const before = chapterRange(p, i - 1), prevText = i === 0 ? p.plan.scenes.slice(0, p.plan.coldOpen || 0).map((s) => s.text).join(" ")
+    : before ? p.plan.scenes.slice(before[0], before[1]).map((s) => s.text).join(" ") : "";
+  const words = ch.words || Math.round((p.outline && p.outline.target || p.minutes * 150) / chs.length);
+  const sc = await S.sample.json(PROMPTS.chapter({ p, chs, ch, i, words, prevText, opt, last }), { modelTier: "complex" });
+  if (!Array.isArray(sc) || !sc.length) throw new Error("chapter " + (i + 1) + " came back empty");
+  // music: the chapter's mood picks a track not used by the chapters before it
+  const used = p.plan.scenes.slice(0, before ? before[1] : 0).map((s) => s.music).filter(Boolean);
+  const track = ch.mood ? trackFor(ch.mood, used) : null;
+  return sc.map((s, k) => ({ id: `c${i + 1}s${k + 1}`, ...(k === 0 ? { chapter: ch.title, ...(track ? { music: track } : {}) } : {}), text: String(s.text || ""),
+    visual: s.visual && s.visual.type ? s.visual : { type: "title", title: ch.title }, ...(s.lowerThird && s.lowerThird.name ? { lowerThird: s.lowerThird } : {}), ...(s.take ? { take: true } : {}) }));
+}
+// thumbnail people: photos of the video's main person first (plan.thumbnail.person), then people introduced with a photo
+function peopleFor(scenes, person) {
+  const last = String(person || "").trim().split(/\s+/).pop().toLowerCase(), photos = scenes.filter((x) => x.visual && x.visual.type === "photo");
+  const main = last ? photos.filter((x) => [x.visual.search, x.visual.label, x.lowerThird && x.lowerThird.name].join(" ").toLowerCase().includes(last)) : [];
+  return [...new Set([...main.slice(0, 1), ...photos.filter((x) => x.lowerThird), ...main.slice(1)].map((x) => x.id))].slice(0, 2);
+}
+
+// writes chapters from p.writing.next on, saving after each one
+async function writeChapters(p, set = (k, m) => say(m)) {
+  const chs = chapterList(p);
+  for (let i = (p.writing && p.writing.next) || 0; i < chs.length; i++) {
+    set(0.1 + 0.85 * (i / chs.length), `Writing chapter ${i + 1} of ${chs.length}: ${chs[i].title}…`);
+    const sc = await chapterScenes(p, i);
+    p.plan.scenes = [...p.plan.scenes.filter((s) => !s.id.startsWith(`c${i + 1}s`)), ...sc];
+    p.plan.thumbnail.people = peopleFor(p.plan.scenes, p.plan.thumbnail.person);
+    await save(p, { plan: p.plan, writing: { next: i + 1 } });
+  }
+  await save(p, { status: "draft", writing: null });
+  // the original score plan comes with every new script (Music section: edit it, or pick library music instead)
+  if (S.sample && !(p.plan.score || []).length) {
+    set(0.97, "Composing the score plan…");
+    try { const { theme, score } = await scoreBriefs(p); p.plan.scoreTheme = theme; p.plan.score = score; useScoreEverywhere(p); await save(p, { plan: p.plan }); }
+    catch (e) { /* the script is saved; the score plan can be written later from the Music section */ }
+  }
+  if (S.sample) { set(0.99, "Listing the facts to check…"); try { await listClaims(p); } catch (e) { /* List the claims in Check the facts tries again */ } }
+  set(1, "Script ready, with an original score plan. Read it through, check the facts, then record your narration.");
+  S.view = "write"; render();
+}
+async function continueWriting(p) {
+  if (S.busy || !S.sample) return;
+  S.busy = true; render();
+  try { await writeChapters(p); } catch (e) { say("Writing stopped: " + errText(e) + " Press Continue writing to go on."); }
+  finally { S.busy = false; render(); }
+}
+async function rewriteChapter(p, i, note) {
+  if (S.busy || !S.sample) return;
+  const r = chapterRange(p, i); if (!r) return;
+  S.busy = true; say(`Rewriting chapter ${i + 1}…`); render();
+  try {
+    const sc = await chapterScenes(p, i, { current: p.plan.scenes.slice(r[0], r[1]).map((s) => s.text).join("\n"), note });
+    p.plan.scenes = [...p.plan.scenes.slice(0, r[0]), ...sc, ...p.plan.scenes.slice(r[1])];
+    p.plan.thumbnail = { ...(p.plan.thumbnail || {}), people: peopleFor(p.plan.scenes, p.plan.thumbnail && p.plan.thumbnail.person) };
+    await save(p, { plan: p.plan, factsChecked: false });
+    say(`Chapter ${i + 1} rewritten. Check its facts again.`);
+  } catch (e) { say("Rewrite stopped: " + errText(e)); }
+  finally { S.busy = false; render(); }
+}
+// "Rewrite chapter": asks for an optional note inside the page, then rewrites
+function rewriteControl(p, i) {
+  const wrap = el("span", { class: "row" });
+  const ask = el("button", { class: "btn", type: "button", text: "Rewrite chapter", disabled: S.busy || !S.sample || BUSY.includes(p.status) });
+  ask.addEventListener("click", () => {
+    const inp = el("input", { placeholder: "What to change (optional), e.g. shorter, more on the final game", "aria-label": "What to change in chapter " + (i + 1), style: "min-width:260px;flex:1" });
+    wrap.textContent = "";
+    wrap.append(inp, el("button", { class: "btn primary", type: "button", text: "Rewrite", onclick: () => rewriteChapter(p, i, inp.value.trim()) }),
+      el("button", { class: "btn", type: "button", text: "Cancel", onclick: () => { wrap.textContent = ""; wrap.append(ask); } }));
+    inp.focus();
+  });
+  wrap.append(ask);
+  return wrap;
+}
+
+// ---------- the fact gate ----------
+// Only the scenes not listed yet go to Claude; claims on unchanged scenes keep Mark's decisions. Every new claim
+// starts open whatever Claude says about it, and a source outside the script's list is dropped (it may be invented).
+// A changed scene may have nothing to check (an opinion, new thumbnail words): that is accepted and named, so Mark
+// reads it himself; only a first listing that finds no fact at all is an error.
+async function listClaims(p) {
+  const ids = new Set(factGate(p).changed), said = factScenes(p).filter(factText), todo = said.filter((s) => ids.has(s.id));
+  const factScan = Object.fromEntries(said.map((s) => [s.id, factKey(s)]));
+  const got = await S.sample.json(PROMPTS.claims(p, todo), { modelTier: "complex" });
+  const kept = Array.isArray(got) ? got.filter((c) => c && ids.has(c.scene) && String(c.text || "").trim()) : null;
+  if (!kept || (todo.length && !kept.length && !Object.keys(p.factScan || {}).length)) throw new Error("the claims came back empty");
+  const urls = (p.sources || []).map((s) => s.url), stamp = Date.now().toString(36);
+  const fresh = kept.map((c, k) => ({ id: `${c.scene}-${stamp}-${k}`, scene: c.scene, text: String(c.text).trim(), risk: c.risk === "high" ? "high" : "standard", source: urls.includes(c.source) ? c.source : "", status: "pending", note: "" }));
+  await save(p, { claims: [...(p.claims || []).filter((c) => factScan[c.scene] && !ids.has(c.scene)), ...fresh], factScan });
+  return todo.filter((s) => !fresh.some((c) => c.scene === s.id)).map((s) => (s.id === "_film" ? "the title and thumbnail" : "scene " + s.id));
+}
+async function pressListClaims(p) {
+  if (S.busy || !S.sample) return;
+  S.busy = true; say("Listing the facts to check…"); render();
+  try { const none = await listClaims(p); say("Claims listed. Check each one against its source." + (none.length ? ` No fact found in ${none.join(", ")}: read ${none.length > 1 ? "them" : "it"} yourself.` : "")); } catch (e) { say("Listing stopped: " + errText(e)); }
+  finally { S.busy = false; render(); }
+}
+function claimRow(p, c) {
+  const decide = (patch) => { Object.assign(c, patch); return save(p, { claims: p.claims }).then(render); };
+  const head = el("div", {}, c.text, el("div", { class: "note", text: `${c.scene === "_film" ? "Title, thumbnail or end card" : "Scene " + c.scene}${c.risk === "high" ? " · high risk" : ""}` }));
+  if (claimDone(c)) return el("li", { class: "claim" }, head,
+    el("div", { class: "row" }, el("span", { class: "pill ok", text: c.status === "waived" ? "Waived" : "Confirmed" }),
+      c.status === "waived" ? el("span", { class: "note", text: c.note }) : el("a", { href: c.source, target: "_blank", rel: "noopener", text: "Source" }),
+      el("button", { class: "btn", type: "button", text: "Undo", onclick: () => decide({ status: "pending" }) })));
+  const url = el("input", { type: "url", value: c.source || "", placeholder: "Source URL", "aria-label": "Source for: " + c.text, style: "min-width:220px;flex:1", onchange: (e) => { c.source = e.target.value.trim(); save(p, { claims: p.claims }); } }); // kept when another claim redraws the list
+  const why = el("input", { placeholder: "Why it needs no source", "aria-label": "Reason to waive: " + c.text, style: "min-width:180px;flex:1" });
+  return el("li", { class: "claim" }, head,
+    el("div", { class: "row" }, url, el("button", { class: "btn primary", type: "button", text: "Confirmed", onclick: () => { const source = url.value.trim(); if (!/^https?:\/\/\S+$/.test(source)) return say("Paste the link of the source you read first."); decide({ status: "supported", source }); } })),
+    el("div", { class: "row" }, why, el("button", { class: "btn", type: "button", text: "Waive", onclick: () => { const note = why.value.trim(); if (!note) return say("Write why this claim needs no source first."); decide({ status: "waived", note }); } })));
+}
+function factsBox(p) {
+  const g = factGate(p), live = (p.claims || []).filter((c) => !g.changed.includes(c.scene) && factScenes(p).some((s) => s.id === c.scene));
+  const list = g.changed.length ? el("button", { class: "btn primary", type: "button", disabled: S.busy || !S.sample, text: Array.isArray(p.claims) ? `List the claims of ${g.changed.length} changed scene(s)` : "List the claims", onclick: () => pressListClaims(p) }) : null;
+  if (!g.required) return el("div", {}, el("label", { class: "row", style: "display:flex;gap:8px;color:var(--fg)" }, el("input", { type: "checkbox", id: "facts", checked: !!p.factsChecked, style: "width:auto", onchange: (e) => save(p, { factsChecked: e.target.checked }).then(render) }), "I checked the facts"), list);
+  const order = (c) => (claimDone(c) ? 2 : c.risk === "high" ? 0 : 1);
+  return el("div", {}, el("div", { class: "row" }, el("span", { class: "pill" + (g.ok ? " ok" : " warn"), text: g.ok ? "Facts checked" : `${g.total - g.open} of ${g.total} checked` }), list),
+    el("ul", { class: "claims" }, [...live].sort((a, b) => order(a) - order(b)).map((c) => claimRow(p, c))));
+}
+
+// ---------- project editor ----------
+function projectEditor(p) {
+  const scenes = p.plan.scenes, total = scenes.reduce((n, s) => n + words(s.text), 0);
+  const top = el("section", { class: "panel" },
+    el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: p.title }), statusPill(p)),
+    el("div", { class: "note", text: `${scenes.length} scenes · ${total} words · about ${mins(total)} minutes narrated` }),
+    p.outline && (p.outline.question || p.outline.format) ? el("div", { class: "note", text: [p.outline.format && FORMATS[p.outline.format] ? "Format: " + FORMATS[p.outline.format][0] : "", p.outline.question ? "Central question: " + p.outline.question : ""].filter(Boolean).join(" · ") }) : null,
+    el("div", { class: "note", text: `Mark's take: ${scenes.filter((s) => s.take).length} of ${scenes.filter((s) => s.chapter).length} chapters have a first-person scene` }),
+    el("div", { class: "row" }, el("button", { class: "btn", type: "button", text: "← All projects", onclick: () => { S.cur = null; S.view = "projects"; render(); } }), deleteControl(p)),
+    p.status === "writing" ? el("div", { class: "row" }, el("span", { class: "note", text: `Chapters written: ${(p.writing && p.writing.next) || 0} of ${chapterList(p).length}. Every finished chapter is saved.` }),
+      el("button", { class: "btn primary", type: "button", disabled: S.busy || !S.sample, text: S.busy ? "Writing…" : "Continue writing", onclick: () => continueWriting(p) })) : null);
+  // steps
+  const steps = el("section", { class: "panel steps" });
+  const aiVoice = !!(p.narration && p.narration.kind === "ai-stock"), elVoice = !!(p.narration && p.narration.kind === "elevenlabs");
+  const factsDone = factsReady(p), voiceDone = aiVoice || elVoice || !!(p.narration && p.narration.parts && p.narration.parts.length);
+  steps.append(
+    el("div", { class: "step" + (factsDone ? " done" : "") }, el("div", {}, el("h3", { text: "Check the facts" }),
+      el("div", { class: "note", text: "Read each claim against its source, then press Confirmed, or Waive it with a reason. Fix a wrong fact in the script below: that scene's claims are listed again. Claude only finds the facts; you approve them, and nothing renders or goes to YouTube until every claim is done." }),
+      el("ul", {}, ...(p.sources || []).map((s) => el("li", {}, el("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener", text: s.title || s.url })))),
+      factsBox(p))),
+    el("div", { class: "step" + (voiceDone ? " done" : "") }, el("div", {}, el("h3", { text: "Record your narration" }),
+      el("div", { class: "note", text: "Download the teleprompter: it opens in Chrome or Edge on your PC with your script and Record, Pause and Stop buttons, then saves the recording. Upload it here. (Recording on your phone works too.)" }),
+      el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", disabled: !S.downloads, text: "Download teleprompter", onclick: () => downloadTeleprompter(p) }),
+        el("button", { class: "btn", type: "button", text: "Show script to read", onclick: () => showReader(p) }),
+        el("button", { class: "btn", type: "button", text: "Copy script for ElevenLabs", onclick: (e) => copyScript(p, e.target) }),
+        el("button", { class: "btn", type: "button", disabled: !S.downloads, text: "Download script (.txt)", onclick: () => S.downloads.save({ filename: p.id + "-script.txt", data: plainScript(p) }).then(() => say("Saved the script as a text file.")).catch((e) => say(e.code === "declined" ? "Download cancelled." : "Could not save the script.")) }),
+        el("label", { class: "btn", style: "display:inline-flex;color:var(--fg)" }, voiceDone ? "Replace recording" : "Upload recording", el("input", { type: "file", id: "voice", accept: "audio/*,video/mp4,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm", hidden: true, disabled: !S.assets, onchange: (e) => uploadVoice(p, e.target.files[0]) }))),
+      el("div", { class: "row" }, el("button", { class: "btn" + (elVoice ? " primary" : ""), type: "button", text: elVoice ? "Using my ElevenLabs voice ✓" : "Use my ElevenLabs voice (no recording)", title: "The cloud reads the script with your ElevenLabs clone, with exact caption timing.",
+        onclick: () => save(p, { narration: elVoice ? null : { kind: "elevenlabs", model: "eleven_v4", style: "documentary", name: "My ElevenLabs voice", size: 0 } }).then(render) }),
+        el("button", { class: "btn", type: "button", text: aiVoice ? "Using the free AI test voice ✓" : "Use a free AI test voice instead", title: "A stock AI voice (not a real person) so you can judge the video before recording. Not for publishing.",
+        onclick: () => save(p, { narration: aiVoice ? null : { kind: "ai-stock", voice: "af_heart", name: "Free AI test voice (Kokoro)", size: 0 } }).then(render) })),
+      elVoice ? el("div", { style: "display:grid;gap:8px" },
+        el("label", { style: "max-width:420px" }, "Delivery (same voice, different energy)",
+          el("select", { "aria-label": "Voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. The narration is made again at the next render (ElevenLabs credits for the script)."); render(); }) },
+            ...(p.narration.model ? [["documentary", "Natural (recommended)"], ["calm", "Steadier: more even from scene to scene"], ["energetic", "Freer: more varied, can sound exaggerated"]] : [["energetic", "Energetic: lively, faster, more expression (creator style)"], ["documentary", "Documentary: steady and clear"], ["calm", "Calm: slow and soft"]]).map(([v, t]) => el("option", { value: v, selected: (p.narration.style || "documentary") === v, text: t })))),
+        p.narration.model ? null : el("div", { class: "row" }, el("button", { class: "btn", type: "button", id: "upgrade-voice", disabled: BUSY.includes(p.status), text: "Upgrade to Eleven v4", title: "The better voice and pronunciation (Baguio said the Filipino way). This video's voice is made again at the next render.",
+          onclick: () => save(p, { narration: { ...p.narration, model: "eleven_v4", style: "documentary" } }).then(() => { say(`Upgraded. The whole voice is made again at the next render: about ${plainScript(p).length.toLocaleString()} credits.`); render(); }) }),
+          el("span", { class: "note", text: "This video keeps its older voice until you upgrade." })),
+        el("div", { class: "note", text: `Your ElevenLabs clone (${p.narration.model ? "Eleven v4" : "older model"}) reads the script in the cloud (about 9,000 credits per 10 minutes) with exact caption timing. Names in the pronunciation list (FIDE = Fee-day…) are said correctly; captions keep the real spelling.` })) :
+      aiVoice ? el("div", { class: "note", text: "Test voice: a free stock AI voice reads the script so you can judge the visuals. Record your own voice (or connect ElevenLabs) before publishing." })
+        : voiceDone ? el("div", { class: "note", text: `Uploaded: ${p.narration.name} (${(p.narration.size / 1e6).toFixed(1)} MB)` }) : (S.assets ? null : el("div", { class: "note", text: "Uploading needs edit access to this page." })))),
+    el("div", { class: "step" + (["waiting", "rendering", "review", "approved", "pc", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Render" }),
+      el("div", { class: "note", text: "The cloud finds licensed photos, times your words, renders the video in 1080p and makes the description, subtitles and thumbnails. Then it waits for you: nothing goes to YouTube until you approve it below. Render now puts this video first in line: the cloud worker starts it at its next run. Prepare for my PC does the same voice and photo work, then stops so your PC can render it, much faster and with no time limit." }),
+      el("div", { class: "row" }, ...[[true, "Render now", "btn primary"], [false, ["review", "done"].includes(p.status) ? "Render again (queue)" : "Add to queue", "btn"]].map(([rush, text, cls]) =>
+        el("button", { class: cls, type: "button", disabled: !(factsDone && voiceDone) || BUSY.includes(p.status), text,
+          onclick: () => save(p, { status: "waiting", rush, renderOn: null, note: rush ? "First in line" : "", requestedAt: new Date().toISOString() }).then(() => { say(rush ? "First in line: the next cloud worker run starts it." : "Queued. A cloud worker run picks it up."); render(); }) })),
+        el("button", { class: "btn", type: "button", disabled: !(factsDone && voiceDone) || BUSY.includes(p.status), text: "Prepare for my PC",
+          onclick: () => save(p, { status: "waiting", rush: true, renderOn: "pc", note: "Preparing for your PC", requestedAt: new Date().toISOString() }).then(() => { say("The next cloud worker run prepares the voice and photos, then this video is ready for your PC."); render(); }) }),
+        p.note ? el("span", { class: "note", text: p.note }) : null),
+      p.status === "pc" ? pcBox(p) : null)),
+    el("div", { class: "step" + (["approved", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Watch it, change the music if you like, approve" }), resultBox(p))),
+    el("div", { class: "step" + (p.status === "done" && p.result && p.result.youtube ? " done" : "") }, el("div", {}, el("h3", { text: "On YouTube (Private), you publish" }),
+      el("div", { class: "note", text: p.status === "approved" ? "Approved. The next cloud worker run uploads it to YouTube as Private with your title and thumbnail." : p.result && p.result.youtube ? "Uploaded as Private. Check it in YouTube Studio and publish it when you are happy." : "After you approve, the video goes to YouTube as Private: only you can see it until you publish it in YouTube Studio." }))));
+  // script
+  const script = el("section", { class: "panel" }, el("h2", { text: "Script and scenes" }), el("div", { class: "note", text: "Edit the narration freely. Visuals are JSON: photos use a search, which the cloud turns into a licensed photo with a credit." }));
+  let ch = null, chNo = -1;
+  scenes.forEach((s, i) => {
+    if (s.chapter || !ch) { if (s.chapter) chNo++;
+      ch = el("div", { class: "chapter" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h3", { text: s.chapter || "Opening" }), s.chapter ? rewriteControl(p, chNo) : null)); script.append(ch); }
+    const t = el("textarea", { id: "t-" + s.id, "aria-label": "Narration for scene " + (i + 1) }); t.value = s.text;
+    const vj = el("textarea", { class: "code", id: "v-" + s.id, "aria-label": "Visual for scene " + (i + 1) }); vj.value = JSON.stringify(s.visual);
+    const meta = el("div", { class: "meta" }, el("span", { text: `${i + 1}. ${s.visual.type}${s.visual.search ? ": " + s.visual.search : ""}` }), el("span", { text: words(s.text) + " words" }));
+    t.addEventListener("change", () => { s.text = t.value; save(p, { plan: p.plan, factsChecked: false }); meta.lastChild.textContent = words(t.value) + " words"; });
+    vj.addEventListener("change", () => { try { const nv = JSON.parse(vj.value); if (!nv || typeof nv !== "object" || typeof nv.type !== "string") throw new Error("no type"); s.visual = nv; vj.style.borderColor = ""; save(p, { plan: p.plan }); } catch (e) { vj.style.borderColor = "var(--bad)"; say("That visual is not valid JSON with a type; it was not saved."); } });
+    ch.append(el("div", { class: "scene" }, meta, i === 0 && !s.text ? el("div", { class: "note", text: "Title card (3 seconds, no narration)" }) : t, vj));
+  });
+  return el("div", { style: "display:grid;gap:18px" }, top, steps, musicBox(p), script);
+}
+// ---------- ready for Mark's PC: the voice and photos are in git, tools/docu.mjs "local" renders them there ----------
+function pcBox(p) {
+  const cmd = ".\\render-pc " + p.id, folder = "C:\\PnoyChess\\media\\docu\\" + p.id;
+  return el("div", { style: "display:grid;gap:8px" },
+    el("div", { class: "note", text: "On your PC, open a terminal in C:\\PnoyChess\\docu and run this. The video lands in " + folder + " and opens for you to watch. Say yes and GitHub uploads it to YouTube as Private; the link shows here after the next evening worker run. Mark as rendered is only for a video you will not upload this way." }),
+    el("pre", { class: "desc", text: cmd }),
+    el("div", { class: "row" },
+      el("button", { class: "btn", type: "button", text: "Copy command", onclick: () => navigator.clipboard.writeText(cmd).then(() => say("Copied."), () => say("Could not copy: select the command above.")) }),
+      el("button", { class: "btn", type: "button", text: "Mark as rendered", onclick: () => save(p, { status: "done", note: "Rendered on your PC: " + folder }).then(render) })));
+}
+// ---------- delete a project (asks first, inside the page) ----------
+function deleteControl(p) {
+  const wrap = el("span", { class: "row" });
+  const ask = el("button", { class: "btn", type: "button", text: "Delete", disabled: !S.db || BUSY.includes(p.status), title: BUSY.includes(p.status) ? "Wait until the render finishes." : "Delete this project" });
+  ask.addEventListener("click", () => {
+    wrap.textContent = "";
+    wrap.append(el("span", { class: "note", text: `Delete "${p.title}"? The script, recording and video go for good.` }),
+      el("button", { class: "btn danger", type: "button", text: "Yes, delete", onclick: () => deleteProject(p) }),
+      el("button", { class: "btn", type: "button", text: "Cancel", onclick: () => { wrap.textContent = ""; wrap.append(ask); } }));
+  });
+  wrap.append(ask);
+  return wrap;
+}
+async function deleteProject(p) {
+  if (!S.db) return say("Deleting needs Claude sign-in.");
+  const r = p.result || {};
+  const ids = [...(r.parts || []), ...(r.previewParts || []), ...(r.thumbs || []), ...(r.contact ? [r.contact] : []), ...((p.narration && p.narration.parts) || []), ...(p.musicUploads || []).flatMap((u) => u.parts || []), ...(p.shorts || []).map((s) => s.asset)];
+  say(`Deleting "${p.title}"…`);
+  try {
+    if (S.assets) for (const id of ids) await S.assets.delete(id).catch(() => {});
+    await S.db.doc("projects/" + p.id).delete();
+    S.projects = S.projects.filter((x) => x.id !== p.id);
+    if (S.cur && S.cur.id === p.id) { S.cur = null; S.view = "projects"; }
+    say(`Deleted "${p.title}".`); render();
+  } catch (e) { say("Could not delete: " + (e.code === "not_granted" ? "only the page owner can delete projects." : (e.message || e.code))); }
+}
+function statusPill(p) { const [t, c] = STATUS[p.status] || STATUS.draft; return el("span", { class: "pill " + c, text: t }); }
+
+// narration only: no chapter labels, no emphasis marks; scenes joined as paragraphs (what a voice tool should read)
+function plainScript(p) { return p.plan.scenes.filter((s) => s.text).map((s) => s.text.replace(/\*\*/g, "").trim()).join("\n\n") + "\n"; }
+async function copyScript(p, btn) {
+  const t = plainScript(p);
+  try { await navigator.clipboard.writeText(t); btn.textContent = "Copied"; setTimeout(() => (btn.textContent = "Copy script for ElevenLabs"), 2000);
+    say(`Copied ${t.length.toLocaleString()} characters. In ElevenLabs, paste it into Studio (long text) with your cloned voice, export as MP3, then Upload recording here.`); }
+  catch (e) { showReader(p); say("Copy is blocked in this view: select the script text below and copy it."); }
+}
+function showReader(p) {
+  const v = $("#view"); v.textContent = "";
+  const txt = p.plan.scenes.filter((s) => s.text).map((s) => (s.chapter ? "\n— " + s.chapter + " —\n" : "") + s.text.replace(/\*\*/g, "")).join("\n\n");
+  v.append(el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Read aloud" }), el("button", { class: "btn", type: "button", text: "Back", onclick: render })),
+    el("div", { class: "note", text: "Read at a natural pace. If you stumble, pause and repeat the sentence; small differences are fine." }),
+    el("div", { class: "read", text: txt.trim() })));
+}
+
+// ---------- teleprompter + recorder: a small HTML file that runs in the viewer's own browser, where the microphone works ----------
+function teleprompterHtml(p) {
+  const lines = []; p.plan.scenes.forEach((s) => { if (s.chapter) lines.push({ ch: s.chapter }); if (s.text) lines.push({ t: s.text.replace(/\*\*/g, "") }); });
+  const data = JSON.stringify({ id: p.id, title: p.title, lines }).replace(/</g, "\\u003c");
+  return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Teleprompter: ${p.title.replace(/</g, "")}</title>
+<style>
+:root{--bg:#12100d;--fg:#f3ece0;--dim:#9b9080;--gold:#e0b04a;--red:#e2574c;--panel:#1d1915;color-scheme:dark}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,sans-serif}
+.bar{position:sticky;top:0;z-index:2;display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 18px;background:var(--panel);border-bottom:1px solid #332d25}
+.bar h1{font-size:15px;margin:0 12px 0 0;color:var(--dim);font-weight:600;max-width:40ch;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+button{font:600 15px system-ui;padding:9px 16px;border-radius:8px;border:1px solid #4a4236;background:#2a241d;color:var(--fg);cursor:pointer}
+button.rec{background:var(--red);border-color:var(--red);color:#fff}button:disabled{opacity:.4;cursor:not-allowed}
+button:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+label{display:flex;gap:6px;align-items:center;color:var(--dim);font-size:13px}
+.time{font:600 18px ui-monospace,monospace;min-width:5ch}.dot{width:12px;height:12px;border-radius:50%;background:#555}.dot.on{background:var(--red);animation:b 1s infinite}@keyframes b{50%{opacity:.3}}
+.meter{width:120px;height:8px;background:#333;border-radius:4px;overflow:hidden}.meter i{display:block;height:100%;width:0;background:var(--gold)}
+#script{max-width:900px;margin:0 auto;padding:40vh 24px 70vh;font-family:Georgia,serif;font-size:var(--fs,34px);line-height:1.6}
+#script p{margin:0 0 1.1em;opacity:.32;transition:opacity .25s}#script p.cur{opacity:1}#script span.w{border-radius:4px}#script span.said{color:#cbbfa9}#script span.now{color:var(--gold);text-decoration:underline;text-underline-offset:.18em}#script .ch{font:600 .5em system-ui;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin:1.6em 0 .6em}
+.guide{position:fixed;left:0;right:0;top:40vh;height:2px;background:var(--gold);opacity:.35;pointer-events:none}
+[hidden]{display:none!important}.done{display:flex;flex-wrap:wrap;gap:10px;align-items:center;padding:12px 18px;background:#1f2a1f;border-bottom:1px solid #2f4a30}
+.hint{color:var(--dim);font-size:13px}
+</style></head><body>
+<div class="bar"><h1></h1>
+<button id="rec" class="rec">● Record</button><button id="pause" disabled>Pause</button><button id="stop" disabled>Stop</button>
+<span class="dot" id="dot"></span><span class="time" id="time">0:00</span><span class="meter"><i id="lvl"></i></span>
+<label title="Highlights each word as you say it and scrolls with you (Chrome or Edge; uses the browser's speech recognition, which sends audio to Google)"><input type="checkbox" id="follow"> Follow my voice</label><label><input type="checkbox" id="auto"> Auto-scroll</label><label>Speed <input type="range" id="speed" min="10" max="120" value="45"></label>
+<label>Text <input type="range" id="size" min="22" max="60" value="34"></label></div>
+<div class="done" id="done" hidden><audio id="play" controls></audio><button id="save">Save recording</button><button id="redo">Record again</button>
+<span class="hint">Then open Docu Studio and press Upload recording.</span></div>
+<div class="hint" id="msg" style="padding:8px 18px"></div>
+<div class="guide"></div><div id="script"></div>
+<script>
+const D=${data};
+document.querySelector("h1").textContent=D.title;
+const sc=document.getElementById("script");
+const W=[];const norm=w=>w.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+D.lines.forEach(l=>{const e=document.createElement(l.ch?"div":"p");if(l.ch){e.className="ch";e.textContent="— "+l.ch+" — (don't read)";}else l.t.split(/\\s+/).filter(Boolean).forEach((w,i)=>{if(i)e.append(" ");const sp=document.createElement("span");sp.className="w";sp.textContent=w;sp.dataset.i=W.length;W.push({n:norm(w),el:sp,p:e});e.append(sp);});sc.append(e);});
+const $=id=>document.getElementById(id),msg=t=>$("msg").textContent=t||"";
+$("size").oninput=e=>document.documentElement.style.setProperty("--fs",e.target.value+"px");
+let scrolling=false,last=0;function tick(t){if(scrolling){const dt=last?(t-last)/1000:0;window.scrollBy(0,dt*+$("speed").value);}last=t;requestAnimationFrame(tick);}requestAnimationFrame(tick);
+$("auto").onchange=e=>{scrolling=e.target.checked;if(scrolling){$("follow").checked=false;stopFollow();}};
+// focus line: the paragraph at the gold guide is bright, the rest dimmed
+let curP=null;const guideY=()=>innerHeight*0.4;
+function focusAt(){const y=guideY();let best=null,bd=1e9;sc.querySelectorAll("p").forEach(p=>{const r=p.getBoundingClientRect();const d=r.top<=y&&r.bottom>=y?0:Math.min(Math.abs(r.top-y),Math.abs(r.bottom-y));if(d<bd){bd=d;best=p;}});if(best!==curP){if(curP)curP.classList.remove("cur");best&&best.classList.add("cur");curP=best;}}
+addEventListener("scroll",()=>requestAnimationFrame(focusAt),{passive:true});focusAt();
+// follow my voice: match the last words heard to the script and keep the current word on the guide line
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let sr=null,following=false,ptr=0,selfScroll=0;
+if(!SR){$("follow").disabled=true;$("follow").parentElement.title="Follow my voice needs Chrome or Edge.";}
+function mark(){W.forEach((w,i)=>{w.el.classList.toggle("said",i<ptr);w.el.classList.toggle("now",i===ptr);});const w=W[Math.min(ptr,W.length-1)];if(!w)return;const r=w.el.getBoundingClientRect(),dy=r.top-guideY();if(Math.abs(dy)>8){selfScroll=performance.now();scrollBy({top:dy,behavior:"smooth"});}}
+function matchHeard(text){const h=text.split(/\\s+/).map(norm).filter(Boolean);if(!h.length)return;
+  for(let k=Math.min(3,h.length);k>=1;k--){const tail=h.slice(-k);if(k===1&&tail[0].length<4)continue;
+    for(let j=Math.max(0,ptr-6);j<Math.min(W.length-k+1,ptr+45);j++){let ok=true;for(let q=0;q<k;q++)if(W[j+q].n!==tail[q]){ok=false;break;}if(ok){if(j+k!==ptr){ptr=j+k;mark();}return;}}}}
+function startFollow(){if(!SR||following)return;following=true;sr=new SR();sr.continuous=true;sr.interimResults=true;sr.lang="en-US";
+  sr.onresult=e=>{let t="";for(let i=e.resultIndex;i<e.results.length;i++)t+=" "+e.results[i][0].transcript;matchHeard(t);};
+  sr.onerror=e=>{if(e.error==="not-allowed"||e.error==="service-not-allowed"){msg("Follow my voice was blocked by the browser; scroll by hand or use auto-scroll.");following=false;$("follow").checked=false;}};
+  sr.onend=()=>{if(following)try{sr.start();}catch(x){}};try{sr.start();}catch(x){}}
+function stopFollow(){following=false;if(sr)try{sr.stop();}catch(x){}sr=null;}
+$("follow").onchange=e=>{if(e.target.checked){$("auto").checked=false;scrolling=false;if(rec&&rec.state==="recording")startFollow();msg("Follow my voice is on: it starts listening when you press Record.");}else stopFollow();};
+// scrolling by hand re-syncs the pointer to the first word at the guide line
+addEventListener("wheel",resync,{passive:true});addEventListener("keydown",e=>{if(["ArrowUp","ArrowDown","PageUp","PageDown"].includes(e.key))setTimeout(resync,250);});
+function resync(){setTimeout(()=>{if(performance.now()-selfScroll<600)return;const y=guideY();const hit=W.find(w=>{const r=w.el.getBoundingClientRect();return r.bottom>=y;});if(hit){ptr=+hit.el.dataset.i;W.forEach((w,i)=>{w.el.classList.toggle("said",i<ptr);w.el.classList.toggle("now",i===ptr);});}},200);}
+document.addEventListener("keydown",e=>{if(e.code==="Space"&&e.target===document.body){e.preventDefault();$("auto").checked=!$("auto").checked;scrolling=$("auto").checked;}});
+let rec,chunks=[],stream,t0=0,acc=0,timer,blob,ext="webm",ac,an;
+const types=["audio/mp4","audio/webm;codecs=opus","audio/webm"];
+function fmt(s){s=Math.floor(s);return Math.floor(s/60)+":"+String(s%60).padStart(2,"0");}
+function elapsed(){return acc+(rec&&rec.state==="recording"?(performance.now()-t0)/1000:0);}
+async function start(){
+  try{stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:false,noiseSuppression:true,autoGainControl:false}});}
+  catch(e){msg("The browser did not allow the microphone. Click the lock icon in the address bar, allow the microphone, and try again.");return;}
+  const type=types.find(t=>window.MediaRecorder&&MediaRecorder.isTypeSupported(t))||"";ext=type.startsWith("audio/mp4")?"m4a":"webm";
+  rec=new MediaRecorder(stream,type?{mimeType:type,audioBitsPerSecond:128000}:{});chunks=[];acc=0;
+  rec.ondataavailable=e=>e.data.size&&chunks.push(e.data);
+  rec.onstop=()=>{blob=new Blob(chunks,{type:rec.mimeType||"audio/webm"});$("play").src=URL.createObjectURL(blob);$("done").hidden=false;stream.getTracks().forEach(t=>t.stop());$("dot").classList.remove("on");msg("Listen back if you like, then Save recording.");};
+  ac=new AudioContext();an=ac.createAnalyser();an.fftSize=512;ac.createMediaStreamSource(stream).connect(an);const buf=new Uint8Array(an.fftSize);
+  (function lv(){if(!an)return;an.getByteTimeDomainData(buf);let m=0;for(const v of buf)m=Math.max(m,Math.abs(v-128));$("lvl").style.width=Math.min(100,m/1.28)+"%";requestAnimationFrame(lv);})();
+  rec.start(1000);t0=performance.now();ptr=0;mark();if($("follow").checked)startFollow();$("dot").classList.add("on");$("rec").disabled=true;$("pause").disabled=false;$("stop").disabled=false;$("done").hidden=true;
+  timer=setInterval(()=>$("time").textContent=fmt(elapsed()),250);msg("Recording. Read at a natural pace; pausing is fine.");
+  window.scrollTo(0,0);
+}
+$("rec").onclick=start;
+$("pause").onclick=()=>{if(rec.state==="recording"){acc+=(performance.now()-t0)/1000;rec.pause();stopFollow();$("pause").textContent="Resume";$("dot").classList.remove("on");scrolling=false;}else{t0=performance.now();rec.resume();if($("follow").checked)startFollow();$("pause").textContent="Pause";$("dot").classList.add("on");scrolling=$("auto").checked;}};
+$("stop").onclick=()=>{if(rec.state==="recording")acc+=(performance.now()-t0)/1000;rec.stop();stopFollow();clearInterval(timer);$("time").textContent=fmt(acc);$("rec").disabled=false;$("pause").disabled=true;$("stop").disabled=true;$("pause").textContent="Pause";scrolling=false;$("auto").checked=false;if(ac){ac.close();ac=null;an=null;}};
+$("redo").onclick=()=>{$("done").hidden=true;start();};
+$("save").onclick=()=>{const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=D.id+"-narration."+ext;document.body.append(a);a.click();a.remove();msg("Saved "+D.id+"-narration."+ext+" to your Downloads folder. Now upload it in Docu Studio.");};
+<\/script></body></html>`;
+}
+async function downloadTeleprompter(p) {
+  if (!S.downloads) return say("Downloading needs Claude in this page.");
+  try { await S.downloads.save({ filename: p.id + "-teleprompter.html", data: teleprompterHtml(p) }); say("Saved. Open the file from your Downloads folder in Chrome or Edge, allow the microphone, and record."); }
+  catch (e) { say(e.code === "declined" ? "Download cancelled." : "Could not save: " + (e.message || e.code)); }
+}
+
+async function uploadVoice(p, file) {
+  if (!file || !S.assets) return;
+  const ext = (file.name.split(".").pop() || "").toLowerCase();
+  // the asset store takes video containers as-is; other audio is stored as plain bytes (the cloud reads the file back exactly)
+  const type = ["m4a", "mp4", "mov"].includes(ext) ? "video/mp4" : ext === "webm" ? "video/webm" : "text/plain";
+  const parts = [];
+  try {
+    for (let o = 0, k = 1, n = Math.ceil(file.size / PART); o < file.size; o += PART, k++) {
+      say(`Uploading recording, part ${k} of ${n}…`);
+      const r = await S.assets.upload(file.slice(o, o + PART), { type }); parts.push(r.id);
+    }
+    const old = (p.narration && p.narration.parts) || [];
+    await save(p, { narration: { parts, name: file.name, ext, size: file.size, uploadedAt: new Date().toISOString() } });
+    for (const id of old) S.assets.delete(id).catch(() => {});
+    say("Recording uploaded."); render();
+  } catch (e) { say("Upload failed: " + (e.code === "quota_or_state" ? "storage is full; free storage from a finished project." : (e.message || e.code))); for (const id of parts) S.assets.delete(id).catch(() => {}); }
+}
+
+// ---------- your decision: nothing goes to YouTube until Approve ----------
+function reviewControls(p) {
+  const r = p.result || {}, titles = (p.titles || []).length ? p.titles : [p.title], approved = p.status === "approved";
+  const stale = !!r.scriptKey && r.scriptKey !== scriptKey(p); // the script changed after this render: the video still has the old one
+  const tsel = el("select", { "aria-label": "YouTube title", disabled: approved, onchange: (e) => save(p, { ytTitle: e.target.value }) }, ...titles.map((t) => el("option", { value: t, selected: (p.ytTitle || titles[0]) === t, text: t })));
+  const thsel = (r.thumbs || []).length ? el("select", { "aria-label": "YouTube thumbnail", disabled: approved, onchange: (e) => save(p, { ytThumb: +e.target.value }) }, ...r.thumbs.map((_, i) => el("option", { value: i, selected: (p.ytThumb || 0) === i, text: "Thumbnail " + (i + 1) }))) : null;
+  return el("div", { class: "panel", style: "background:var(--bg);border-color:var(--gold)" },
+    el("h3", { text: approved ? "Approved" : "Your decision" }),
+    el("div", { class: "note", text: approved ? "The next cloud worker run uploads it to YouTube as Private. Cancel if you changed your mind." : stale ? "You changed the script after this render, so this video still has the old version. Press Re-render to approve the new one." : "Watch the preview below. Nothing goes to YouTube until you approve. To try other music, change it in the Music section, then press Re-render." }),
+    el("div", { class: "grid2" }, el("label", {}, "YouTube title", tsel), thsel ? el("label", {}, "YouTube thumbnail", thsel) : null),
+    approved ? null : thumbControls(p),
+    el("div", { class: "row" },
+      approved ? el("button", { class: "btn", type: "button", text: "Cancel approval", onclick: () => save(p, { status: "review", note: "" }).then(render) })
+        : el("button", { class: "btn primary", type: "button", disabled: !(r.parts || []).length || r.freed || p.thumbsRequest === "waiting" || !factsReady(p) || stale, title: stale ? "The script changed after this render: Re-render first" : !factsReady(p) ? "Finish Check the facts first" : p.thumbsRequest === "waiting" ? "Wait for the new thumbnails" : "", text: "Approve for YouTube (Private)",
+          onclick: () => save(p, { status: "approved", approvedAt: new Date().toISOString(), ytTitle: p.ytTitle || titles[0], ytThumb: p.ytThumb || 0, note: "Approved: goes to YouTube (Private) at the next worker run" }).then(() => { say("Approved. The next cloud worker run uploads it as Private."); render(); }) }),
+      approved ? null : el("button", { class: "btn", type: "button", disabled: !factsReady(p), text: "Re-render with my changes",
+        onclick: () => save(p, { status: "waiting", rush: true, renderOn: null, requestedAt: new Date().toISOString(), note: "Re-render requested" }).then(() => { say("Re-render queued, first in line. The voice is reused, so it costs no voice credits."); render(); }) })));
+}
+
+// wrong person or words on the thumbnails: pick the photos and text, and the next cloud run remakes only the
+// thumbnails (a few minutes, no new render)
+function thumbControls(p) {
+  const th = p.plan.thumbnail = p.plan.thumbnail || {}, busy = p.thumbsRequest === "waiting";
+  const photos = p.plan.scenes.filter((s) => s.visual && s.visual.type === "photo");
+  const name = (s) => `${s.lowerThird ? s.lowerThird.name + " · " : ""}${s.visual.label || s.visual.search || s.id}`;
+  const pick = (k) => el("select", { "aria-label": "Thumbnail person " + (k + 1), disabled: busy }, k ? el("option", { value: "", text: "(nobody)" }) : null,
+    ...photos.map((s) => el("option", { value: s.id, selected: (th.people || [])[k] === s.id, text: name(s) })));
+  const p1 = pick(0), p2 = pick(1), text = el("input", { value: th.text || "", disabled: busy, "aria-label": "Thumbnail words", placeholder: "2-4 big words" });
+  return el("details", { open: busy || undefined }, el("summary", { text: "Wrong person or words on the thumbnails?" }),
+    el("div", { style: "display:grid;gap:8px;padding-top:8px" },
+      el("div", { class: "grid2" }, el("label", {}, "Main photo", p1), el("label", {}, "Second photo (versus design)", p2)),
+      el("label", {}, "Big words", text),
+      el("div", { class: "row" }, el("button", { class: "btn", type: "button", disabled: busy || !photos.length, text: busy ? "Remaking at the next cloud run…" : "Remake thumbnails",
+        onclick: () => { th.people = [p1.value, p2.value].filter(Boolean); th.text = text.value.trim() || th.text; delete th.texts;
+          save(p, { plan: p.plan, thumbsRequest: "waiting" }).then(() => { say("Thumbnails will be remade at the next cloud worker run (a few minutes; the video stays as it is)."); render(); }); } }),
+        el("span", { class: "note", text: "Only the thumbnails are remade; the video does not render again." }))));
+}
+
+// ---------- music: a library track or your own upload per chapter ----------
+const MUSIC_PART = 19 * 1024 * 1024;
+const audioType = (ext) => ({ mp3: "audio/mpeg", m4a: "audio/mp4", wav: "audio/wav", ogg: "audio/ogg", aac: "audio/aac" })[ext] || "audio/mpeg";
+function musicSelect(p, cur, keep, onpick, fromId) {
+  const s = el("select", { onchange: (e) => onpick(e.target.value) });
+  if (keep) s.append(el("option", { value: "", text: "Keep the track before", selected: !cur }));
+  if ((p.plan.score || []).some((c) => c.from === fromId)) s.append(el("option", { value: "score", text: "Original score (Eleven Music)", selected: cur === "score" }));
+  const groups = {}; MUSIC.forEach(([id, t]) => { const m = (t.match(/\(([\w-]+)/) || [])[1] || "other"; (groups[m] = groups[m] || []).push([id, t]); });
+  for (const [m, list] of Object.entries(groups)) s.append(el("optgroup", { label: m }, ...list.map(([id, t]) => el("option", { value: id, text: t.replace(/\s*\([^)]*\)\s*$/, ""), selected: cur === id }))));
+  const orig = originals();
+  if (orig.length) s.append(el("optgroup", { label: "Your original music" }, ...orig.map((o) => el("option", { value: o.id, text: `${o.title} (${o.mood})`, selected: cur === o.id }))));
+  const ups = p.musicUploads || [];
+  if (ups.length) s.append(el("optgroup", { label: "Your uploads" }, ...ups.map((u) => el("option", { value: "upload:" + u.key, text: u.name, selected: cur === "upload:" + u.key }))));
+  return s;
+}
+function musicBox(p) {
+  const plan = p.plan, ups = p.musicUploads || [], locked = BUSY.includes(p.status);
+  const changed = () => say(p.status === "review" || p.status === "done" ? "Music saved. Press Re-render to hear it." : "Music saved.");
+  const box = el("section", { class: "panel" }, el("h2", { text: "Music" }),
+    el("div", { class: "note", text: "One track per chapter: the licensed library (credits go into the description automatically) or your own upload. The music dips under your voice and rises in the pauses. Changes apply at the next render." }));
+  const rows = el("div", { style: "display:grid;gap:8px" });
+  const row = (label, sel) => el("label", { style: "display:grid;grid-template-columns:minmax(120px,220px) 1fr;gap:10px;align-items:center;color:var(--fg)" }, label, sel);
+  const first = musicSelect(p, plan.music && plan.music.track, false, (v) => { plan.music = { ...(plan.music || {}), track: v }; delete plan.music.file; save(p, { plan }).then(changed); }, plan.scenes[0] && plan.scenes[0].id);
+  first.disabled = locked; rows.append(row("Opening", first));
+  plan.scenes.filter((s) => s.chapter).forEach((s) => { const sel = musicSelect(p, s.music, true, (v) => { if (v) s.music = v; else delete s.music; save(p, { plan }).then(changed); }, s.id); sel.disabled = locked; rows.append(row(s.chapter, sel)); });
+  box.append(rows, scoreBox(p, locked));
+  // uploads
+  const used = (key) => (plan.music && plan.music.track === "upload:" + key) || plan.scenes.some((s) => s.music === "upload:" + key);
+  if (ups.length) box.append(el("div", {}, el("h3", { text: "Your music" }), ...ups.map((u) => {
+    const player = el("span");
+    return el("div", { class: "row", style: "padding:6px 0;border-top:1px solid var(--line)" },
+      el("div", { style: "flex:1;min-width:200px" }, el("div", { text: `${u.name} · ${(u.size / 1e6).toFixed(1)} MB` }), el("div", { class: "note", text: "Credit: " + u.credit })),
+      el("button", { class: "btn", type: "button", text: "Play", onclick: async () => { try { say("Loading…"); const b = await joined(u.parts, audioType(u.ext)); player.textContent = ""; player.append(el("audio", { src: URL.createObjectURL(b), controls: true, autoplay: true })); say(""); } catch (e) { say("Could not play it: " + e.message); } } }),
+      player,
+      el("button", { class: "btn", type: "button", disabled: locked || used(u.key) || !S.assets, title: used(u.key) ? "Used in a chapter: pick another track there first" : "", text: "Remove",
+        onclick: async () => { for (const id of u.parts) await S.assets.delete(id).catch(() => {}); await save(p, { musicUploads: ups.filter((x) => x.key !== u.key) }); render(); } }));
+  })));
+  const file = el("input", { type: "file", accept: ".mp3,.m4a,.wav,.ogg,.aac,audio/*", "aria-label": "Music file" });
+  const credit = el("input", { placeholder: "Credit for the description, e.g. Music: \"Title\" by Artist (YouTube Audio Library)", "aria-label": "Music credit" });
+  const ok = el("input", { type: "checkbox", style: "width:auto" });
+  box.append(el("div", { style: "display:grid;gap:8px;padding-top:6px;border-top:1px solid var(--line)" }, el("h3", { text: "Upload your own music" }),
+    el("div", { class: "grid2" }, file, credit),
+    el("label", { class: "row", style: "display:flex;gap:8px;color:var(--fg)" }, ok, "I have the right to use this music on YouTube (my own, YouTube Audio Library, or licensed)"),
+    el("div", { class: "row" }, el("button", { class: "btn", type: "button", disabled: !S.assets || locked, text: "Upload music",
+      onclick: () => { if (!file.files[0]) return say("Choose a music file first."); if (!credit.value.trim()) return say("Add the credit: it goes into the YouTube description."); if (!ok.checked) return say("Tick the box to confirm you may use this music.");
+        uploadMusic(p, file.files[0], credit.value.trim()); } }),
+      S.assets ? null : el("span", { class: "note", text: "Uploading needs edit access to this page." }))));
+  return box;
+}
+// ---------- original score: Claude writes one brief per section, Eleven Music composes it in the cloud ----------
+const sectionLabel = (p, from) => (p.plan.scenes[0] && p.plan.scenes[0].id === from) ? "Opening" : (p.plan.scenes.find((s) => s.id === from) || {}).chapter || from;
+function scoreBox(p, locked) {
+  const plan = p.plan, sc = plan.score || [];
+  const wrap = el("div", { style: "display:grid;gap:8px;padding-top:6px;border-top:1px solid var(--line)" }, el("h3", { text: "Original score (Eleven Music)" }),
+    el("div", { class: "note", text: "Claude writes a short music brief for the opening and each chapter; ElevenLabs composes it during the render (your Creator plan, commercial use). Each cue is made once and reused on re-renders; editing a brief makes a new one. Choose \"Original score\" for any section above, or keep library music where you prefer it." }));
+  if (plan.scoreTheme && plan.scoreTheme.motif) {
+    const tm = el("textarea", { "aria-label": "The film's musical identity", disabled: locked }); tm.value = plan.scoreTheme.motif;
+    tm.addEventListener("change", () => { plan.scoreTheme.motif = tm.value.trim(); save(p, { plan }).then(() => say("Musical identity saved. Every cue is composed again at the next render.")); });
+    wrap.append(el("label", {}, "The film's musical identity (shared by every section)", tm), el("div", { class: "note", text: "Palette: " + (plan.scoreTheme.styles || []).join(", ") }));
+  }
+  sc.forEach((c) => {
+    const ta = el("textarea", { "aria-label": "Music brief for " + sectionLabel(p, c.from), disabled: locked }); ta.value = c.prompt;
+    ta.addEventListener("change", () => { c.prompt = ta.value.trim(); save(p, { plan }).then(() => say("Brief saved. A new cue is composed at the next render.")); });
+    wrap.append(el("label", {}, `${sectionLabel(p, c.from)} · ${c.mood}`, ta),
+      (c.arc || []).length ? el("div", { class: "note", text: "Timed to the story: " + c.arc.map((a) => `${a.at} ${String(a.text).split("\n")[0]}`).join(" → ") }) : null);
+  });
+  wrap.append(el("div", { class: "row" },
+    el("button", { class: "btn" + (sc.length ? "" : " primary"), type: "button", disabled: locked || S.busy || !S.sample, text: S.busy ? "Writing…" : sc.length ? "Rewrite the briefs" : "Write the score briefs", onclick: () => writeScore(p) }),
+    sc.length ? el("button", { class: "btn", type: "button", disabled: locked, text: "Use the original score everywhere",
+      onclick: () => { useScoreEverywhere(p); save(p, { plan }).then(() => { say("Original score chosen for every section. It is composed at the next render."); render(); }); } }) : null,
+    S.sample ? null : el("span", { class: "note", text: "Writing briefs needs Claude in this page." })));
+  return wrap;
+}
+function useScoreEverywhere(p) {
+  const plan = p.plan, has = (id) => (plan.score || []).some((c) => c.from === id);
+  if (plan.scenes[0] && has(plan.scenes[0].id)) plan.music = { ...(plan.music || {}), track: "score" };
+  plan.scenes.forEach((s) => { if (s.chapter && has(s.id)) s.music = "score"; });
+}
+// Claude as film composer: one musical identity for the whole film (plan.scoreTheme) and, per section, a brief
+// with styles and an arc of timed steps that start on real scenes (the cloud turns them into an Eleven Music
+// composition plan whose builds, peaks and hits land on those scenes; see tools/score.mjs)
+async function scoreBriefs(p) {
+  const plan = p.plan, scenes = plan.scenes, starts = scenes.map((s, i) => (i === 0 || s.chapter ? i : -1)).filter((i) => i >= 0);
+  const sections = starts.map((a, k) => { const list = scenes.slice(a, starts[k + 1] ?? scenes.length);
+    return { from: scenes[a].id, title: a === 0 && !scenes[0].chapter ? "Opening (cold open)" : scenes[a].chapter, secs: Math.round(list.reduce((n, s) => n + words(s.text), 0) / 2.5),
+      scenes: list.map((s) => `${s.id}${s.visual && s.visual.type === "words" ? " [punchline]" : ""}: ${s.text.replace(/\*\*/g, "").slice(0, 110)}`) }; });
+  const out = await S.sample.json(PROMPTS.score(p, sections), { modelTier: "complex" });
+  const ids = new Set(scenes.map((s) => s.id)), tags = (a, n) => (Array.isArray(a) ? a : []).map((x) => String(x).trim()).filter(Boolean).slice(0, n);
+  const ok = ((out && out.sections) || []).filter((c) => c && sections.some((s) => s.from === c.from) && c.prompt).map((c) => ({
+    from: c.from, mood: String(c.mood || "calm"), prompt: String(c.prompt).trim(), styles: tags(c.styles, 8), avoid: tags(c.avoid, 4),
+    arc: (Array.isArray(c.arc) ? c.arc : []).filter((a) => a && ids.has(a.at)).slice(0, 5).map((a) => ({ at: a.at, text: String(a.text || "[Section]").slice(0, 200), styles: tags(a.styles, 4) })) }));
+  if (!ok.length) throw new Error("the briefs came back empty");
+  const th = (out && out.theme) || {};
+  return { theme: { motif: String(th.motif || "").trim(), styles: tags(th.styles, 8), avoid: tags(th.avoid, 6) }, score: ok };
+}
+async function writeScore(p) {
+  if (S.busy || !S.sample) return;
+  const plan = p.plan;
+  S.busy = true; say("Composing the score plan…"); render();
+  try {
+    const { theme, score } = await scoreBriefs(p);
+    const firstTime = !(plan.score || []).length;
+    plan.scoreTheme = theme; plan.score = score;
+    if (firstTime) useScoreEverywhere(p);
+    await save(p, { plan });
+    say(firstTime ? "Score plan written, and the original score is chosen for every section. Read the briefs, edit any you like, then render." : "Score plan rewritten. New cues are composed at the next render.");
+  } catch (e) { say("Writing the score plan stopped: " + errText(e)); }
+  finally { S.busy = false; render(); }
+}
+
+async function uploadMusic(p, file, credit) {
+  const ext = (file.name.split(".").pop() || "mp3").toLowerCase();
+  if (file.size > 80e6) return say("That file is over 80 MB; use an MP3.");
+  // like the recording: m4a goes up as a video container, other audio as plain bytes (the cloud reads them back exactly)
+  const type = ["m4a", "mp4"].includes(ext) ? "video/mp4" : "text/plain", parts = [];
+  try {
+    for (let o = 0, k = 1, n = Math.ceil(file.size / MUSIC_PART); o < file.size; o += MUSIC_PART, k++) { say(`Uploading music, part ${k} of ${n}…`); parts.push((await S.assets.upload(file.slice(o, o + MUSIC_PART), { type })).id); }
+    const ups = p.musicUploads || [], key = "up" + (Math.max(0, ...ups.map((u) => +String(u.key).slice(2) || 0)) + 1);
+    await save(p, { musicUploads: [...ups, { key, name: file.name, ext, size: file.size, parts, credit, uploadedAt: new Date().toISOString() }] });
+    say(`Uploaded "${file.name}". Pick it for the opening or a chapter above.`); render();
+  } catch (e) { say("Upload failed: " + (e.code === "quota_or_state" ? "storage is full; free storage from a finished project." : (e.message || e.code))); for (const id of parts) S.assets.delete(id).catch(() => {}); }
+}
+
+// ---------- saving files: the downloads capability when this view allows it, else a plain link to click ----------
+// (a view can lack downloads: never granted here, or the viewer said no earlier; asking again or the Permissions panel fixes it)
+async function saveFile(filename, blob, holder) {
+  if (!S.downloads && S.perms) {
+    const st = await S.perms.request(["downloads"]).catch(() => ({}));
+    if (st.downloads === "granted") S.downloads = await window.claude.use("downloads").catch(() => null);
+  }
+  if (S.downloads) {
+    try { say("Saving…"); await S.downloads.save({ filename, data: blob }); say(`Saved ${filename}.`); return; }
+    catch (e) { if (e.code === "declined") return say("Download cancelled."); }
+  }
+  // fallback: a normal link the browser saves (right-click → Save link as, if a click only opens it)
+  const a = el("a", { class: "btn primary", href: URL.createObjectURL(blob), download: filename, text: "Save " + filename });
+  if (holder) { holder.prepend(el("div", { class: "row" }, a, S.perms ? el("button", { class: "btn", type: "button", text: "Allow downloads for this page", onclick: () => S.perms.manage().catch(() => say("Open the page menu → Permissions and switch Downloads on.")) }) : null)); }
+  say(`Ready: click "Save ${filename}" below. If it only opens the file, right-click it and choose Save link as.`);
+}
+
+// ---------- results: parts are joined back into one file in the browser ----------
+async function joined(ids, type, onp) { const blobs = []; for (let i = 0; i < ids.length; i++) { onp && onp(i, ids.length); const r = await fetch("/_blob/" + ids[i]); if (!r.ok) throw new Error("part " + (i + 1) + " is missing"); blobs.push(await r.blob()); } return new Blob(blobs, { type }); }
+function resultBox(p) {
+  const r = p.result;
+  if (p.status === "failed") return el("div", { class: "note", text: "The render failed: " + (p.note || "see the cloud report") + ". Fix the script if needed and press Render again." });
+  if (!r) return el("div", { class: "note", text: "The finished video appears here." });
+  if (r.freed) return el("div", { class: "note", text: "Storage was freed after download. Render again to get the video back." });
+  const box = el("div", { style: "display:grid;gap:10px" });
+  const vid = el("div");
+  const hasParts = (r.parts || []).length > 0;
+  // (append skips empty slots: plain DOM append would print "null")
+  [el("div", { class: "note", text: `${Math.floor(r.seconds / 60)}:${String(Math.round(r.seconds % 60)).padStart(2, "0")} long · ${(r.size / 1e6).toFixed(0)} MB` + (hasParts ? ` in ${r.parts.length} parts` : "") }),
+    r.youtube ? el("div", { class: "row" }, el("span", { class: "pill ok", text: "On YouTube · Private" }),
+      el("a", { class: "btn primary", href: r.youtube.studio || r.youtube.url, target: "_blank", rel: "noopener", text: "Check it in YouTube Studio" }),
+      el("a", { class: "btn", href: r.youtube.url, target: "_blank", rel: "noopener", text: "Watch" }),
+      (r.youtube.notes || []).length ? el("span", { class: "note", text: r.youtube.notes.join(" · ") }) : null) : null,
+    (r.notes || []).length ? el("div", { class: "note", text: "From the cloud: " + r.notes.join(" · ") }) : null,
+    ["review", "approved"].includes(p.status) ? reviewControls(p) : null,
+    el("div", { class: "row" },
+      !hasParts ? null : el("button", { class: "btn", type: "button", text: "Watch preview", onclick: async () => { try { say("Loading preview…"); const b = await joined(r.previewParts, "video/mp4"); vid.textContent = ""; vid.append(el("video", { src: URL.createObjectURL(b), controls: true, playsinline: true })); say(""); } catch (e) { say("Preview failed: " + e.message); } } }),
+      !hasParts ? null : el("button", { class: "btn primary", type: "button", text: "Download full video", onclick: async () => { try { const b = await joined(r.parts, "video/mp4", (i, n) => say(`Joining part ${i + 1} of ${n}…`)); await saveFile(p.id + ".mp4", b, vid); } catch (e) { say("Download failed: " + (e.message || e.code)); } } }),
+      el("button", { class: "btn", type: "button", text: "Download subtitles (.srt)", onclick: () => saveFile(p.id + ".srt", new Blob([r.srt || ""], { type: "text/plain" }), vid).catch(() => {}) }),
+      el("button", { class: "btn", type: "button", text: "Copy description", onclick: async (e) => { try { await navigator.clipboard.writeText(r.description || ""); e.target.textContent = "Copied"; } catch (x) { say("Select the description text and copy it."); } } })),
+    vid,
+    (r.thumbs || []).length ? el("div", {}, el("h3", { text: "Thumbnails (upload all three to YouTube's Test & compare)" }),
+      el("div", { class: "thumbs" }, ...r.thumbs.map((id, i) => el("figure", {}, el("img", { src: "/_blob/" + id, alt: "Thumbnail option " + (i + 1), loading: "lazy" }),
+        el("button", { class: "btn", type: "button", text: "Download " + (i + 1), onclick: async () => { try { const b = await (await fetch("/_blob/" + id)).blob(); await saveFile(`${p.id}-thumb-${i + 1}.jpg`, b, vid); } catch (e) { say("Download failed."); } } }))))) : null,
+    (p.titles || []).length ? el("div", {}, el("h3", { text: "Title options" }), ...p.titles.map((t) => el("div", { class: "row" }, el("span", { text: t, style: "flex:1" }),
+      el("button", { class: "btn", type: "button", text: "Copy", onclick: async (e) => { try { await navigator.clipboard.writeText(t); e.target.textContent = "Copied"; } catch (x) {} } })))) : null,
+    r.qa ? el("div", {}, el("h3", { text: r.qa.issues.length ? `Quality check: ${r.qa.issues.length} thing(s) to look at` : "Quality check: passed" }),
+      el("div", { class: "note", text: (r.qa.notes || []).join(" · ") }),
+      r.qa.issues.length ? el("ul", {}, ...r.qa.issues.map((x) => el("li", { text: x }))) : null,
+      r.contact ? el("details", {}, el("summary", { text: "Every scene at a glance" }), el("img", { src: "/_blob/" + r.contact, alt: "One frame from every scene", style: "width:100%;border-radius:8px" })) : null) : null,
+    ["review", "approved", "done"].includes(p.status) ? shortsBox(p) : null,
+    el("pre", { class: "desc", text: r.description || "" }),
+    p.status !== "done" ? null : el("div", { class: "row" }, el("button", { class: "btn", type: "button", disabled: !S.assets, text: "Free storage (after it is on YouTube)", title: "Deletes the video, preview, thumbnails, recording and Shorts from Docu Studio", onclick: async () => { for (const id of [...r.parts, ...(r.previewParts || []), ...(r.thumbs || []), ...(r.contact ? [r.contact] : []), ...((p.narration && p.narration.parts) || []), ...(p.shorts || []).map((s) => s.asset)]) await S.assets.delete(id).catch(() => {}); await save(p, { result: { ...r, freed: true }, shorts: null }); render(); } }))].forEach((x) => x != null && box.append(x));
+  return box;
+}
+
+// ---------- Shorts: vertical clips cut from the finished video (the cloud makes them on request) ----------
+function shortsBox(p) {
+  const list = p.shorts || [], waiting = p.shortsRequest === "waiting", holder = el("div", { style: "display:grid;gap:8px" });
+  list.forEach((s, i) => {
+    const player = el("div");
+    const blob = async () => new Blob([await (await fetch("/_blob/" + s.asset)).blob()], { type: "video/mp4" });
+    holder.append(el("div", { style: "display:grid;gap:6px;border-top:1px solid var(--line);padding-top:8px" },
+      el("div", { class: "row", style: "justify-content:space-between" }, el("strong", { text: `${i + 1}. ${s.title}` }), el("span", { class: "note", text: `${Math.round(s.seconds || 0)} s` })),
+      el("div", { class: "row" },
+        el("button", { class: "btn", type: "button", text: "Watch", onclick: async () => { try { const b = await blob(); player.textContent = ""; player.append(el("video", { src: URL.createObjectURL(b), controls: true, playsinline: true, style: "max-width:320px" })); } catch (e) { say("Could not load the Short."); } } }),
+        el("button", { class: "btn", type: "button", text: "Download", onclick: async () => { try { await saveFile(`${p.id}-short-${i + 1}.mp4`, await blob(), player); } catch (e) { say("Download failed."); } } }),
+        el("button", { class: "btn", type: "button", text: "Copy caption", onclick: async (e) => { try { await navigator.clipboard.writeText(s.caption || ""); e.target.textContent = "Copied"; } catch (x) { say("Select the caption text and copy it."); } } })),
+      el("div", { class: "note", text: s.caption || "" }), player));
+  });
+  return el("div", { class: "panel", style: "background:var(--bg)" }, el("h3", { text: "Shorts" }),
+    el("div", { class: "note", text: list.length ? `${list.length} Shorts from this video. Watch each, download it, and upload it in YouTube Studio as a Short with its caption: they bring viewers to the full video.`
+      : "5–8 vertical clips cut from this video (the cold open and one beat per chapter). They use the saved voice, so no ElevenLabs credits; about 20–40 minutes of cloud time." }),
+    holder,
+    el("div", { class: "row" }, el("button", { class: "btn" + (list.length ? "" : " primary"), type: "button", disabled: waiting || !S.db || BUSY.includes(p.status), text: waiting ? "Making Shorts at the next cloud run…" : list.length ? "Make the Shorts again" : "Make Shorts",
+      onclick: async () => {
+        // remaking: the old clips leave storage first (the new set replaces them)
+        if (list.length && S.assets) for (const s of list) await S.assets.delete(s.asset).catch(() => {});
+        await save(p, { shortsRequest: "waiting", ...(list.length ? { shorts: null } : {}) }); say("Shorts will be made at the next cloud worker run."); render(); } })));
+}
+
+// ---------- Music tab: your own library of original tracks (Eleven Music), made once, reused in every video ----------
+// every original track you can pick in a project: library requests that are ready + the chapter scores of past videos
+function originals() {
+  const out = [], seen = new Set(), add = (id, title, mood, seconds, from) => { if (id && !seen.has(id)) { seen.add(id); out.push({ id, title, mood, seconds, from }); } };
+  S.music.filter((t) => t.status === "ready" && t.libId).forEach((t) => add(t.libId, t.title, t.mood, t.seconds, "library"));
+  S.projects.forEach((p) => ((p.result && p.result.scoreCues) || []).forEach((c) => add(c.id, c.title, c.mood, c.seconds, p.title)));
+  return out;
+}
+const mmss = (s) => `${Math.floor((s || 0) / 60)}:${String(Math.round((s || 0) % 60)).padStart(2, "0")}`;
+function viewMusic() {
+  const wrap = el("div", { style: "display:grid;gap:18px" });
+  // request form
+  const title = el("input", { id: "mt-title", placeholder: "e.g. Tense endgame, slow build", "aria-label": "Track name" });
+  const mood = el("select", { id: "mt-mood", "aria-label": "Mood" }, ...Object.keys(MOODS).map((m) => el("option", { value: m, text: m })));
+  const len = el("select", { id: "mt-len", "aria-label": "Length" }, ...[1, 2, 3, 4, 5].map((m) => el("option", { value: m * 60, selected: m === 2, text: m + (m === 1 ? " minute" : " minutes") })));
+  const brief = el("textarea", { id: "mt-brief", placeholder: "Describe the music: instruments, tempo, mood and how it develops. Or press \"Let Claude write the brief\".", "aria-label": "Music brief" });
+  const form = el("section", { class: "panel" }, el("h2", { text: "Make an original track" }),
+    el("div", { class: "note", text: "Eleven Music composes it at the next cloud worker run (your Creator plan: commercial use; it uses music minutes once). The track is saved for good and appears in every project's music list under \"Your original music\"." }),
+    el("div", { class: "grid2" }, el("label", {}, "Name", title), el("div", { class: "grid2" }, el("label", {}, "Mood", mood), el("label", {}, "Length", len))),
+    el("label", {}, "Brief", brief),
+    el("div", { class: "row" },
+      el("button", { class: "btn", type: "button", disabled: !S.sample || S.busy, text: S.busy ? "Writing…" : "Let Claude write the brief", onclick: async () => {
+        S.busy = true; say("Writing the brief…");
+        try { const r = await S.sample(`Write one music prompt (35-60 words) for an AI music model, for a reusable instrumental track in a chess documentary channel (PnoyChess). Name: "${title.value || "untitled"}". Mood: ${mood.value}. ${brief.value ? "Idea: " + brief.value : ""}
+Give instruments, tempo, how it develops; it sits under narration; no artist names or existing songs. Reply with only the prompt text.`, { modelTier: "quick" });
+          brief.value = String(r.text || "").trim(); say("Brief written. Edit it if you like, then press Make it."); }
+        catch (e) { say("Could not write the brief: " + errText(e)); } finally { S.busy = false; } } }),
+      el("button", { class: "btn primary", type: "button", disabled: !S.db, text: "Make it", onclick: async () => {
+        if (!brief.value.trim()) return say("Write a brief first (or let Claude write it).");
+        const id = "t-" + Date.now().toString(36);
+        try { await S.db.doc("music/" + id).set({ status: "waiting", title: title.value.trim() || mood.value + " track", mood: mood.value, seconds: +len.value, prompt: brief.value.trim(), requestedAt: new Date().toISOString() });
+          say("Requested. The next cloud worker run composes it."); render(); }
+        catch (e) { say("Could not save the request: " + (e.message || e.code)); } } })));
+  wrap.append(form);
+  // your tracks
+  const list = el("section", { class: "panel" }, el("h2", { text: "Your original tracks" }));
+  if (!S.music.length) list.append(el("div", { class: "empty", text: "No original tracks yet. Request one above." }));
+  S.music.forEach((t) => {
+    const player = el("span"), [label, cls] = t.status === "ready" ? ["Ready", "ok"] : t.status === "failed" ? ["Failed", "bad"] : ["Waiting for the cloud", "warn"];
+    list.append(el("div", { class: "proj" },
+      el("div", {}, el("div", { class: "t", text: t.title }), el("div", { class: "note", text: `${t.mood} · ${mmss(t.seconds)}${t.note ? " · " + t.note : ""}` }), el("div", { class: "note", text: t.prompt })),
+      el("div", { class: "row" }, el("span", { class: "pill " + cls, text: label }),
+        t.preview ? el("button", { class: "btn", type: "button", text: "Play", onclick: async () => { try { const b = await (await fetch("/_blob/" + t.preview)).blob(); player.textContent = ""; player.append(el("audio", { src: URL.createObjectURL(new Blob([b], { type: "audio/mp4" })), controls: true, autoplay: true })); } catch (e) { say("Could not play it."); } } }) : null,
+        player,
+        el("button", { class: "btn", type: "button", disabled: !S.db, text: t.status === "waiting" ? "Cancel" : "Remove from list", title: "The track stays in the music library of the code; it just leaves this list",
+          onclick: async () => { if (t.preview && S.assets) await S.assets.delete(t.preview).catch(() => {}); await S.db.doc("music/" + t.id).delete().catch(() => {}); render(); } }))));
+  });
+  wrap.append(list);
+  // scores of past videos
+  const cues = originals().filter((o) => o.from !== "library");
+  if (cues.length) wrap.append(el("section", { class: "panel" }, el("h2", { text: "From your videos' original scores" }),
+    el("div", { class: "note", text: "Chapter scores made for earlier videos. Pick them again in any project under \"Your original music\"; reuse costs nothing." }),
+    ...cues.map((c) => el("div", { class: "row", style: "justify-content:space-between;border-top:1px solid var(--line);padding:6px 0" }, el("span", { text: c.title }), el("span", { class: "note", text: `${c.mood} · ${mmss(c.seconds)} · ${c.from}` })))));
+  return wrap;
+}
+
+function viewProjects() {
+  if (S.cur) return projectEditor(S.cur);
+  const box = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Projects" }), el("button", { class: "btn primary", type: "button", text: "New documentary", onclick: () => { S.view = "write"; S.cur = null; render(); } })));
+  if (!S.projects.length) { box.append(el("div", { class: "empty", text: S.db ? "No projects yet. Pick a topic in Trends or start one in Write." : "Projects appear here once you are signed in." })); return box; }
+  const list = el("div");
+  S.projects.forEach((p) => list.append(el("div", { class: "proj" },
+    el("div", {}, el("div", { class: "t", text: p.title }), el("div", { class: "note", text: `${p.minutes} min · ${(p.plan && p.plan.scenes || []).length} scenes · updated ${new Date(p.updatedAt).toLocaleString()}` })),
+    el("div", { class: "row" }, statusPill(p), el("button", { class: "btn", type: "button", text: "Open", onclick: () => { S.cur = p; S.view = "write"; render(); } }), deleteControl(p)))));
+  box.append(list); return box;
+}
+render();
+</script>
