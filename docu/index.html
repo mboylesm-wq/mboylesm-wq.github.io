@@ -465,7 +465,7 @@ const S = { view: "trends", db: null, sample: null, assets: null, downloads: nul
     db.collection("projects").onSnapshot((snap) => { S.projects = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur; render(); }, () => {});
     db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if (S.view === "music" || S.cur) render(); }, () => {});
     db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; render(); }, () => {});
-        db.collection("channel").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "health"); S.health = d ? d.data() : null; if (S.view === "channel") render(); }, () => {});
+        db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog") }; if (S.view === "channel") render(); }, () => {});
         db.collection("ytedits").onSnapshot((snap) => { S.edits = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.view === "channel") render(); }, () => {});
       }
   render();
@@ -1195,10 +1195,11 @@ function shortsBox(p) {
         s.asset ? el("button", { class: "btn", type: "button", text: "Download", onclick: async () => { try { await saveFile(`${p.id}-short-${i + 1}.mp4`, await blob(), player); } catch (e) { say("Download failed."); } } })
           : s.url ? el("a", { class: "btn", href: safeUrl(s.url), target: "_blank", rel: "noopener", text: "Download", title: "From GitHub (signed in); also on your PC in media\\docu\\" + p.id + "\\shorts" }) : null,
         ...(plat.length ? plat.map(([k, name]) => copy(shortCaption(s, k, url), "Copy for " + name)) : [copy(shortCaption(s, "facebook", url), "Copy caption")])),
+      s.posted ? el("div", { class: "row" }, el("span", { class: "note", text: "Posted:" }), ...[["facebook", "Facebook"], ["instagram", "Instagram"], ["youtube", "YouTube"]].filter(([k]) => s.posted[k]).map(([k, name]) => el("a", { class: "btn", href: safeUrl(s.posted[k]), target: "_blank", rel: "noopener", text: name }))) : null,
       el("div", { class: "note", style: "white-space:pre-wrap", text: shortCaption(s, "facebook", url) }), player));
   });
   return el("div", { class: "panel", style: "background:var(--bg)" }, el("h3", { text: "Shorts" }),
-    el("div", { class: "note", text: list.length ? `${list.length} Shorts from this video for Facebook, Instagram, TikTok and YouTube Shorts. Download each and post it with the caption for that app: every caption links to the full video${url ? "" : " (the link is filled in once it is on YouTube)"}.`
+    el("div", { class: "note", text: list.length ? `${list.length} Shorts from this video for Facebook, Instagram, TikTok and YouTube Shorts. They post by themselves to Facebook, Instagram and YouTube Shorts, one a day at 14:30 Manila (best first) once the full video is Public on YouTube; TikTok: download and use its caption. Every caption links to the full video${url ? "" : " (the link is filled in once it is on YouTube)"}.`
       : GH() ? "Shorts are made on your PC right after each render (the saved voice, so no ElevenLabs credits)." : "5–8 vertical clips cut from this video (the cold open and one beat per chapter). They use the saved voice, so no ElevenLabs credits; about 20–40 minutes of cloud time." }),
     p.shortsNote ? el("div", { class: "note", text: p.shortsNote }) : null,
     holder,
@@ -1294,6 +1295,109 @@ function bulkSet(v, f) {
   if (title !== v.title) set.title = title; if (desc !== v.description) set.description = desc; if (tags.join("|") !== (v.tags || []).join("|")) set.tags = tags;
   return set;
 }
+// ---- channel management (yt-channel auto, every morning): settings, playlists, the channel's own description
+// the same defaults as tools/yt-channel.mjs DEFAULTS (tests/run.mjs checks they match)
+const CHAN_DEFAULTS = { autopilot: true, footer: "Subscribe for more Filipino chess stories: https://www.youtube.com/@pnoychessofficialyt?sub_confirmation=1",
+  hashtags: ["#chess", "#PnoyChess"], tags: ["chess", "PnoyChess", "Filipino chess"], lang: "en", filipino: false, protectTop: 10, budget: 9000, skip: [] };
+const chanSettings = () => ({ ...CHAN_DEFAULTS, ...((S.chan2 || {}).settings || {}) });
+const AI_HINT = 'In VS Code ask the Docu writer agent: "suggest channel improvements".';
+async function saveChan(id, patch, replace) {
+  if (!S.db) return say("Saving needs sign-in.");
+  const doc = { ...patch, updatedAt: new Date().toISOString() };
+  try { if ((S.chan2 || {})[id] && !replace) await S.db.doc("channel/" + id).update(doc); else await S.db.doc("channel/" + id).set(doc); }
+  catch (e) { say("Could not save: " + (e.message || e.code)); }
+}
+const valued = (node, v) => { node.value = v == null ? "" : v; return node; };
+function chanAutoPanel(h) {
+  const st = chanSettings(), lg = (S.chan2 || {}).autolog || {}, last = (lg.runs || [])[0];
+  const f = { on: el("input", { type: "checkbox", id: "auto-on", checked: !!st.autopilot }), footer: valued(el("textarea", { id: "auto-footer", rows: 2 }), st.footer),
+    hash: valued(el("input", { id: "auto-hash" }), (st.hashtags || []).join(" ")), tags: valued(el("input", { id: "auto-tags" }), (st.tags || []).join(", ")),
+    protect: valued(el("input", { type: "number", min: 0, max: 50, id: "auto-protect" }), st.protectTop) };
+  const p = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Autopilot" }),
+      el("button", { class: "btn", type: "button", id: "chan-auto", disabled: !S.actions, title: S.actions ? "" : "Only the GitHub page can start this", text: "Run the autopilot now", onclick: () => runChannel("auto") })),
+    el("div", { class: "note", text: "Every morning GitHub runs it with YouTube's free quota (no AI, no cost): it sends what you approved, makes and fills the approved playlists, then adds only safe things to videos that miss them: the footer below, hashtags, a few tags and the language. It never changes a title, a thumbnail or text that is already there, and every change can be undone here." }),
+    el("div", { class: "note", text: last ? `Last run ${new Date(last.at).toLocaleString()}: ${last.fixed || 0} video(s) fixed${last.fixLeft ? ", " + last.fixLeft + " left for the next mornings" : ""}${last.sorted != null ? `, ${last.sorted} sorted into playlists` : ""}${last.unsorted > 0 ? ` (${last.unsorted} to go)` : ""} · ${last.units || 0} of ${st.budget} quota units` : "Not run yet: it starts tomorrow morning, or press Run the autopilot now." }),
+    el("label", { class: "row" }, f.on, " Safe fixes on (footer, hashtags, tags, language)"),
+    el("label", {}, "Footer added to descriptions that link to no YouTube video or channel", f.footer),
+    el("div", { class: "grid2" }, el("label", {}, "Hashtags added when a video has none", f.hash), el("label", {}, "Tags added when a video has fewer than 3", f.tags)),
+    el("label", {}, "Protect the most watched videos: the AI keeps their titles", f.protect),
+    el("button", { class: "btn primary", type: "button", id: "auto-save", disabled: !S.db, text: "Save the autopilot settings", onclick: async () => {
+      if (/[<>]/.test(f.footer.value)) return say("YouTube does not allow < or > in descriptions.");
+      const hashtags = f.hash.value.split(/[\s,]+/).filter((x) => /^#[\p{L}\p{N}_]+$/u.test(x)), tags = f.tags.value.split(",").map((x) => x.trim()).filter(Boolean);
+      await saveChan("settings", { ...st, autopilot: f.on.checked, footer: f.footer.value.trim(), hashtags, tags, protectTop: Math.max(0, Math.min(50, Math.round(+f.protect.value) || 0)) }, true);
+      say("Autopilot settings saved."); render(); } }));
+  const ch = lg.changes || [];
+  if (ch.length) {
+    const skip = new Set(st.skip || []);
+    p.append(el("details", {}, el("summary", { text: `What the autopilot changed (${ch.length})` }), ...ch.slice(0, 60).map((c) => el("div", { class: "proj" },
+      el("div", {}, el("div", { class: "t", text: c.title || c.video }), el("div", { class: "note", text: [c.add ? "added: " + c.add.trim().replace(/\s+/g, " ").slice(0, 120) : "", (c.tags || []).length ? "tags: " + c.tags.join(", ") : "", c.lang ? "language set" : ""].filter(Boolean).join(" · ") + " · " + new Date(c.at).toLocaleDateString() })),
+      skip.has(c.video) ? el("span", { class: "pill", text: "Undone: left alone" }) : el("button", { class: "btn", type: "button", text: "Undo", title: "A draft that takes the added text and tags back out; the autopilot then leaves this video alone", onclick: async () => {
+        const v = (h.videos || []).find((x) => x.id === c.video); if (!v) return say("This video is not in the last check.");
+        const set = {}, d = String(v.description || "");
+        if (c.add) { const back = d.includes(c.add) ? d.split(c.add).join("") : d.split(c.add.trim()).join("").replace(/\s+$/, ""); if (back !== d) set.description = back; }
+        if ((c.tags || []).length) { const drop = new Set(c.tags.map((t) => t.toLowerCase())), t = (v.tags || []).filter((x) => !drop.has(x.toLowerCase())); if (t.length !== (v.tags || []).length) set.tags = t; }
+        await saveChan("settings", { ...st, skip: [...skip, v.id] }, true);
+        if (Object.keys(set).length) await saveEdit(v, { status: "draft", set, why: "Undo of the autopilot's change of " + new Date(c.at).toLocaleDateString(), thumbIdea: null, note: "" });
+        say(Object.keys(set).length ? "Undo draft made below in Changes: Approve it to send it." : "The autopilot will leave this video alone."); render(); } })))));
+  }
+  return p;
+}
+function chanPlaylistsPanel(h) {
+  const d = (S.chan2 || {}).playlists, lists = (d && d.lists) || [], byId = new Map((h.videos || []).map((v) => [v.id, v])), p = el("section", { class: "panel" }, el("h2", { text: "Playlists" }));
+  const approved = d && d.status === "approved";
+  const askBtn = el("button", { class: "btn primary", type: "button", id: "pl-ask", disabled: !S.db, text: lists.length ? "Ask the AI for new playlists" : "Ask AI to propose playlists",
+    onclick: async () => { await saveChan("playlists", { status: "ask", lists: [], note: "" }, true); say("Waiting for the AI. " + AI_HINT); render(); } });
+  if (!d || ["failed"].includes(d.status) || (!approved && !lists.length && d.status !== "ask")) {
+    p.append(el("div", { class: "note", text: "Playlists keep viewers watching the next video and show on your channel page. The AI groups every public video into 4–8 series from their titles; you check them once, then the autopilot makes them and sorts every video in (and every new upload, by keyword). Sorting " + (h.videos || []).length + " videos takes a few mornings: each video costs 50 of YouTube's free daily units." }));
+    if (d && d.note) p.append(el("div", { class: "note", style: "color:var(--warn)", text: d.note }));
+    p.append(askBtn); return p;
+  }
+  if (d.status === "ask") { p.append(el("div", { class: "note", text: "Waiting for the AI. " + AI_HINT })); return p; }
+  if (d.why) p.append(el("div", { class: "note", text: "Why: " + d.why }));
+  const save = (i, patch) => saveChan("playlists", { lists: lists.map((l, j) => (j === i ? { ...l, ...patch } : l)) });
+  lists.forEach((l, i) => {
+    const kw = valued(el("input", { "aria-label": "Keywords for " + l.title, onchange: (e) => save(i, { keywords: e.target.value.split(",").map((x) => x.trim().toLowerCase()).filter(Boolean) }) }), (l.keywords || []).join(", "));
+    const names = (l.videos || []).map((id) => (byId.get(id) || {}).title).filter(Boolean);
+    p.append(el("div", { class: "panel", style: "margin-top:10px" },
+      approved ? el("div", { class: "row", style: "justify-content:space-between" }, l.id ? el("a", { class: "t", href: "https://www.youtube.com/playlist?list=" + encodeURIComponent(l.id), target: "_blank", rel: "noopener", text: l.title }) : el("div", { class: "t", text: l.title }),
+          el("span", { class: "pill " + (l.id && l.count >= names.length ? "ok" : "warn"), text: l.id ? `${l.count || 0} of ${names.length} in` : "made next run" }))
+        : el("div", {}, el("label", {}, "Title", valued(el("input", { "aria-label": "Playlist title", onchange: (e) => save(i, { title: e.target.value.trim() }) }), l.title)),
+          el("label", {}, "Description", valued(el("textarea", { rows: 3, "aria-label": "Playlist description", onchange: (e) => save(i, { description: e.target.value }) }), l.description))),
+      el("label", {}, "Keywords that sort new uploads in (comma separated)", kw),
+      el("details", {}, el("summary", { text: names.length + " videos" }), ...names.slice(0, 200).map((t) => el("div", { class: "note", text: t }))),
+      approved ? null : el("button", { class: "btn", type: "button", text: "Remove this playlist", onclick: () => saveChan("playlists", { lists: lists.filter((_, j) => j !== i) }).then(render) })));
+  });
+  const inNone = (h.videos || []).filter((v) => v.privacy === "public" && !lists.some((l) => (l.videos || []).includes(v.id))).length;
+  p.append(el("div", { class: "note", text: `${inNone} public video(s) in no playlist${approved ? ": new ones are sorted in when their title or tags contain a playlist's keyword" : ""}.` }));
+  if (approved) {
+    if (d.left > 0) p.append(el("div", { class: "note", text: `${d.left} video(s) still to sort in: the autopilot goes on every morning (YouTube's free daily quota).` }));
+    if (d.note) p.append(el("div", { class: "note", style: "color:var(--warn)", text: d.note }));
+    p.append(el("div", { class: "note", text: "To rename or delete a playlist, use YouTube Studio; the autopilot only adds." }));
+  } else p.append(el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", id: "pl-approve", disabled: !lists.length || !S.db, text: `Approve ${lists.length} playlists`,
+    title: "The autopilot makes them (public) and sorts the videos in over the next mornings", onclick: () => saveChan("playlists", { status: "approved", note: "" }).then(() => { say("Approved: the autopilot makes them tomorrow morning, or press Run the autopilot now."); render(); }) }), askBtn));
+  return p;
+}
+function chanSetupPanel(h) {
+  const d = (S.chan2 || {}).setup, c = h.channel || {}, set = (d && d.set) || {}, open = !!d && ["suggested", "draft", "failed"].includes(d.status);
+  const p = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Channel description, keywords and trailer" }), d ? el("span", { class: "pill " + ((EDIT[d.status] || [])[1] || ""), text: (EDIT[d.status] || [d.status])[0] }) : null));
+  const ask = el("button", { class: "btn", type: "button", id: "setup-ask", disabled: !S.db || (d && d.status === "waiting"), text: "Ask AI to write it", onclick: async () => { await saveChan("setup", { status: "ask", set: {}, note: "" }, true); say("Waiting for the AI. " + AI_HINT); render(); } });
+  p.append(el("div", { class: "note", text: `Now: ${(c.description || "").length} characters of description, ${c.keywords ? "keywords set" : "no keywords"}, ${c.trailer ? "a trailer" : "no trailer"} for new visitors. The first 100 characters of the description show in search and on the channel page.` }));
+  if (!d || d.status === "ask") { p.append(d ? el("div", { class: "note", text: "Waiting for the AI. " + AI_HINT }) : el("div", { class: "row" }, ask, el("button", { class: "btn", type: "button", text: "Write it myself", disabled: !S.db, onclick: () => saveChan("setup", { status: "draft", set: {} }, true).then(render) }))); return p; }
+  if (d.note) p.append(el("div", { class: "note", text: d.note })); if (d.why) p.append(el("div", { class: "note", text: "Why: " + d.why }));
+  const put = (k) => (e) => saveChan("setup", { set: { ...set, [k]: e.target.value }, status: d.status === "failed" ? "draft" : d.status });
+  const desc = valued(el("textarea", { rows: 6, disabled: !open, "aria-label": "Channel description", maxlength: 1000, onchange: put("description") }), set.description ?? c.description);
+  const longs = (h.videos || []).filter((v) => !v.short && v.privacy === "public").sort((a, b) => (b.views || 0) - (a.views || 0)).slice(0, 40), tr = set.trailer ?? c.trailer;
+  p.append(el("label", {}, `Description (${(set.description ?? c.description ?? "").length}/1000)`, desc),
+    el("label", {}, "Keywords (comma separated)", valued(el("input", { disabled: !open, "aria-label": "Channel keywords", onchange: put("keywords") }), set.keywords ?? c.keywords)),
+    el("label", {}, "Trailer for visitors who have not subscribed", el("select", { disabled: !open, "aria-label": "Trailer", onchange: put("trailer") }, el("option", { value: "", text: "(no trailer)", selected: !tr }),
+      ...longs.map((v) => el("option", { value: v.id, text: `${v.title} (${v.views} views)`, selected: v.id === tr })))),
+    el("div", { class: "row" },
+      open ? el("button", { class: "btn primary", type: "button", id: "setup-approve", text: "Approve", title: "The autopilot sends it tomorrow morning (or press Run the autopilot now); the old text is kept for Undo", onclick: () => saveChan("setup", { status: "waiting", note: "" }).then(render) }) : null,
+      d.status === "waiting" ? el("button", { class: "btn", type: "button", text: "Back to draft", onclick: () => saveChan("setup", { status: "draft" }).then(render) }) : null,
+      d.status === "done" && d.before ? el("button", { class: "btn", type: "button", text: "Undo", onclick: () => saveChan("setup", { status: "draft", set: { description: d.before.description, keywords: d.before.keywords, trailer: d.before.trailer }, before: null, why: "Undo of the change made " + new Date(d.appliedAt || d.updatedAt).toLocaleDateString(), note: "" }).then(render) }) : null,
+      d.status === "waiting" ? null : ask));
+  return p;
+}
 function viewChannel() {
   const h = S.health, st = chState(), wrap = el("div", { style: "display:grid;gap:18px" });
   const check = el("button", { class: "btn", type: "button", id: "chan-check", disabled: !S.actions, title: S.actions ? "" : "Only the GitHub page can start this", text: "Check the channel now", onclick: () => runChannel("audit") });
@@ -1311,6 +1415,7 @@ function viewChannel() {
     el("div", { class: "note", text: `${r.views} views · ${r.hours} hours watched · ${r.subs >= 0 ? "+" : ""}${r.subs} subscribers · ${pct(r.avgViewPct, 0)} of each video watched · click rate ${r.ctr == null ? "not in yet" : pct(r.ctr) + " of " + r.impressions + " impressions"}` }),
     el("div", { class: "note", text: "Viewers from the Philippines: " + pct(r.ph, 0) + " · top countries: " + (r.countries || []).slice(0, 5).map((x) => x.name + " " + x.views).join(", ") }),
     el("div", { class: "note", text: "Where views come from: " + (r.sources || []).map((x) => x.name.toLowerCase().replace(/_/g, " ") + " " + x.views).join(", ") })));
+  wrap.append(chanAutoPanel(h), chanPlaylistsPanel(h), chanSetupPanel(h));
 
   // ---- the videos
   const vids = (h.videos || []).filter((v) => (st.kind === "all" || (st.kind === "short") === !!v.short) && (!st.check || (v.checks || []).some((x) => x.id === st.check && !x.ok)));
@@ -1349,7 +1454,7 @@ function viewChannel() {
   wrap.append(el("section", { class: "panel" }, el("h2", { text: `Change the ${sel.length} selected video${sel.length === 1 ? "" : "s"}` }),
     el("div", { class: "note", text: "Nothing changes on YouTube until you approve each change below and press Apply. Every change keeps the old text and thumbnail, so Undo can put them back." }),
     el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", id: "chan-ask", disabled: !sel.length || !S.db, text: "Ask AI to suggest",
-      title: "Your AI in VS Code writes a better title, description, tags, Filipino title and a thumbnail idea for each",
+      title: "Your AI in VS Code writes a better title, description, tags and the words for a new thumbnail (made on your PC) for each",
       onclick: async () => { for (const v of selV) await saveEdit(v, { status: "ask", ask: true, note: "" }); say(`${selV.length} video(s) waiting for the AI. In VS Code ask the Docu writer agent: "suggest channel improvements".`); render(); } })),
     el("label", {}, "Add to the end of each description", fx.append), el("div", { class: "grid2" }, el("label", {}, "Add hashtags", fx.hash), el("label", {}, "Add tags (comma separated)", fx.tags)),
     el("div", { class: "grid2" }, el("label", {}, "Find in titles and descriptions", fx.find), el("label", {}, "Replace with", fx.repl)),
@@ -1372,15 +1477,26 @@ function viewChannel() {
     const thumbIn = el("input", { type: "file", accept: "image/jpeg,image/png", disabled: !open || !S.assets, "aria-label": "New thumbnail", onchange: async (ev) => {
       const f = ev.target.files[0]; if (!f) return; if (f.size > 2e6) return say("The thumbnail must be under 2 MB (1280×720 JPG).");
       try { say("Uploading the thumbnail…"); const { id } = await S.assets.upload(f); await saveEdit(v, { thumb: id }); say("Thumbnail added to the change."); } catch (x) { say("Could not upload: " + (x.message || x.code)); } } });
-    const [lbl, cls] = EDIT[e.status] || [e.status, ""];
+    const [lbl, cls] = EDIT[e.status] || [e.status, ""], fil = chanSettings().filipino || set.tlTitle != null || set.tlDescription != null, ts = e.thumbSpec || {};
+    const tsIn = { text: valued(el("input", { disabled: !open, "aria-label": "Thumbnail words", placeholder: "1–4 BIG WORDS" }), ts.text), small: valued(el("input", { disabled: !open, "aria-label": "Thumbnail tag", placeholder: "small tag (optional)" }), ts.small),
+      badge: valued(el("input", { disabled: !open, "aria-label": "Thumbnail badge", placeholder: "number badge, e.g. 1978 (optional)" }), ts.badge) };
+    const makeThumb = el("button", { class: "btn", type: "button", disabled: !open || !S.db, text: e.thumb ? "Make it again on the PC" : "Make it on the PC", title: "Your PC makes it from the video's own frames the next time render-pc runs (free)", onclick: () => {
+      const spec = { text: tsIn.text.value.trim(), small: tsIn.small.value.trim(), badge: tsIn.badge.value.trim() };
+      if (!spec.text || spec.text.split(/\s+/).length > 4 || /[<>]/.test(JSON.stringify(spec))) return say("Thumbnail words: 1 to 4 words, no < or >.");
+      saveEdit(v, { thumbSpec: spec, thumbWant: true }).then(() => { say("Your PC makes it the next time render-pc runs (or: node tools/yt-thumbs.mjs)."); render(); }); } });
     box.append(el("div", { class: "panel", style: "margin-top:10px" },
       el("div", { class: "row", style: "justify-content:space-between" }, el("div", { class: "t", text: v.title }), el("span", { class: "pill " + cls, text: lbl })),
       e.note ? el("div", { class: "note", text: e.note }) : null, e.why ? el("div", { class: "note", text: "Why: " + e.why }) : null, e.thumbIdea ? el("div", { class: "note", text: "Thumbnail idea: " + e.thumbIdea }) : null,
       e.status === "ask" ? null : el("div", {}, field("title", "Title", v.title), field("description", "Description", v.description, true), field("tags", "Tags (comma separated)", v.tags || []),
-        el("div", { class: "grid2" }, field("tlTitle", "Filipino title", v.tl && v.tl.title), field("tlDescription", "Filipino description", v.tl && v.tl.description, true)),
-        el("label", {}, "New thumbnail" + (e.thumb ? " (added)" : ""), thumbIn)),
+        fil ? el("div", { class: "grid2" }, field("tlTitle", "Filipino title", v.tl && v.tl.title), field("tlDescription", "Filipino description", v.tl && v.tl.description, true)) : null,
+        e.thumb ? el("figure", { style: "margin:8px 0" }, el("img", { src: "/_blob/" + e.thumb, alt: "New thumbnail for " + v.title, width: 320, height: 180, loading: "lazy", style: "border-radius:6px;max-width:100%;height:auto" }),
+          el("figcaption", { class: "note", text: "New thumbnail" + (v.thumb ? " (the current one is in the list above)" : "") })) : null,
+        el("div", { class: "grid2" }, el("label", {}, "Thumbnail words", tsIn.text), el("label", {}, "Small tag", tsIn.small)), el("label", {}, "Number badge", tsIn.badge),
+        el("div", { class: "row" }, makeThumb, e.thumbWant ? el("span", { class: "pill warn", text: "Waiting for your PC (render-pc)" }) : null),
+        el("label", {}, "Or upload your own thumbnail" + (e.thumb ? " (added)" : ""), thumbIn)),
       el("div", { class: "row" },
-        open ? el("button", { class: "btn primary", type: "button", text: "Approve", disabled: !Object.keys(set).length && !e.thumb, onclick: () => saveEdit(v, { status: "waiting", note: "" }).then(render) }) : null,
+        open ? el("button", { class: "btn primary", type: "button", text: "Approve", disabled: (!Object.keys(set).length && !e.thumb) || !!e.thumbWant, title: e.thumbWant ? "Waiting for the thumbnail from your PC" : "", onclick: () => saveEdit(v, { status: "waiting", note: "" }).then(render) }) : null,
+        open && e.thumbWant ? el("button", { class: "btn", type: "button", text: "Skip the thumbnail", onclick: () => saveEdit(v, { thumbWant: null }).then(render) }) : null,
         e.status === "waiting" ? el("button", { class: "btn", type: "button", text: "Back to draft", onclick: () => saveEdit(v, { status: "draft" }).then(render) }) : null,
         e.status === "done" && e.before ? el("button", { class: "btn", type: "button", text: "Undo", title: "A draft that puts back the old text" + (e.before.thumb ? " and thumbnail" : ""),
           onclick: () => { const b = e.before, s = {}; ["title", "description", "tags", "tlTitle", "tlDescription"].forEach((k) => { if (b[k] != null && (e.set || {})[k] != null) s[k] = b[k]; });
