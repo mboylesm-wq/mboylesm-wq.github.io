@@ -571,8 +571,13 @@ function saveDraft(data) {
     db.collection("projects").onSnapshot((snap) => { S.projects = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if ((S.view === "music" || S.cur) && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
-    db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog"), ai: g("ai"), after: g("after") }; if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
-    db.collection("ytedits").onSnapshot((snap) => { S.edits = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    S._ensureChannel = () => {
+      if (S._channelSub) return;
+      S._channelSub = true;
+      db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog"), ai: g("ai"), after: g("after") }; if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+      db.collection("ytedits").onSnapshot((snap) => { S.edits = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    };
+    if (S.view === "channel") S._ensureChannel();
   }
   render();
 })();
@@ -2071,6 +2076,7 @@ function chanSocialCard() {
 }
 
 function viewChannel() {
+  if (S._ensureChannel) S._ensureChannel();
   const h = S.health, st = chState(), wrap = el("div", { style: "display:grid;gap:18px" });
   wrap.append(chanSocialCard());
   const check = el("button", { class: "btn", type: "button", id: "chan-check", disabled: !S.actions, title: S.actions ? "" : "Only the GitHub page can start this", text: "Check the channel now", onclick: () => runChannel("audit") });
