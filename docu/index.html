@@ -1267,7 +1267,7 @@ Give instruments, tempo, how it develops; it sits under narration; no artist nam
 }
 
 // ---------- Channel: the YouTube channel's health and bulk changes (tools/yt-channel.mjs in .github/workflows/channel.yml) ----------
-const EDIT = { ask: ["Waiting for the AI", "warn"], suggested: ["AI suggestion: review it", "warn"], draft: ["Draft", ""], waiting: ["Approved: waiting to apply", "warn"], done: ["On YouTube", "ok"], failed: ["Failed", "bad"] };
+const EDIT = { ask: ["Queued for the AI (5:00 am)", "warn"], suggested: ["AI suggestion: review it", "warn"], draft: ["Draft", ""], waiting: ["Approved: waiting to apply", "warn"], done: ["On YouTube", "ok"], failed: ["Failed", "bad"] };
 const editOf = (vid) => S.edits.find((e) => e.video === vid);
 const pct = (x, d = 1) => (x == null ? "–" : Number(x).toFixed(d) + "%");
 const scoreCls = (n) => (n >= 80 ? "ok" : n >= 60 ? "warn" : "bad");
@@ -1298,9 +1298,9 @@ function bulkSet(v, f) {
 // ---- channel management (yt-channel auto, every morning): settings, playlists, the channel's own description
 // the same defaults as tools/yt-channel.mjs DEFAULTS (tests/run.mjs checks they match)
 const CHAN_DEFAULTS = { autopilot: true, footer: "Subscribe for more Filipino chess stories: https://www.youtube.com/@pnoychessofficialyt?sub_confirmation=1",
-  hashtags: ["#chess", "#PnoyChess"], tags: ["chess", "PnoyChess", "Filipino chess"], lang: "en", filipino: false, protectTop: 10, budget: 9000, skip: [] };
+  hashtags: ["#chess", "#PnoyChess"], tags: ["chess", "PnoyChess", "Filipino chess"], lang: "en", filipino: false, protectTop: 10, budget: 9000, skip: [], autoApprove: true };
 const chanSettings = () => ({ ...CHAN_DEFAULTS, ...((S.chan2 || {}).settings || {}) });
-const AI_HINT = 'In VS Code ask the Docu writer agent: "suggest channel improvements".';
+const AI_HINT = "Your PC's AI writes it by itself every morning at 5:00 (when the PC is on), or now: double-click channel-ai.cmd in C:\\PnoyChess\\docu.";
 async function saveChan(id, patch, replace) {
   if (!S.db) return say("Saving needs sign-in.");
   const doc = { ...patch, updatedAt: new Date().toISOString() };
@@ -1310,7 +1310,7 @@ async function saveChan(id, patch, replace) {
 const valued = (node, v) => { node.value = v == null ? "" : v; return node; };
 function chanAutoPanel(h) {
   const st = chanSettings(), lg = (S.chan2 || {}).autolog || {}, last = (lg.runs || [])[0];
-  const f = { on: el("input", { type: "checkbox", id: "auto-on", checked: !!st.autopilot }), footer: valued(el("textarea", { id: "auto-footer", rows: 2 }), st.footer),
+  const f = { on: el("input", { type: "checkbox", id: "auto-on", checked: !!st.autopilot }), approve: el("input", { type: "checkbox", id: "auto-approve", checked: !!st.autoApprove }), footer: valued(el("textarea", { id: "auto-footer", rows: 2 }), st.footer),
     hash: valued(el("input", { id: "auto-hash" }), (st.hashtags || []).join(" ")), tags: valued(el("input", { id: "auto-tags" }), (st.tags || []).join(", ")),
     protect: valued(el("input", { type: "number", min: 0, max: 50, id: "auto-protect" }), st.protectTop) };
   const p = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Autopilot" }),
@@ -1318,13 +1318,14 @@ function chanAutoPanel(h) {
     el("div", { class: "note", text: "Every morning GitHub runs it with YouTube's free quota (no AI, no cost): it sends what you approved, makes and fills the approved playlists, then adds only safe things to videos that miss them: the footer below, hashtags, a few tags and the language. It never changes a title, a thumbnail or text that is already there, and every change can be undone here." }),
     el("div", { class: "note", text: last ? `Last run ${new Date(last.at).toLocaleString()}: ${last.fixed || 0} video(s) fixed${last.fixLeft ? ", " + last.fixLeft + " left for the next mornings" : ""}${last.sorted != null ? `, ${last.sorted} sorted into playlists` : ""}${last.unsorted > 0 ? ` (${last.unsorted} to go)` : ""} · ${last.units || 0} of ${st.budget} quota units` : "Not run yet: it starts tomorrow morning, or press Run the autopilot now." }),
     el("label", { class: "row" }, f.on, " Safe fixes on (footer, hashtags, tags, language)"),
+    el("label", { class: "row", title: "Your PC's AI (channel-ai.cmd, every morning at 5:00) approves its own suggestions: title, description, tags and thumbnail" }, f.approve, " Approve the AI's suggestions automatically (the autopilot sends up to 80 a day)"),
     el("label", {}, "Footer added to descriptions that link to no YouTube video or channel", f.footer),
     el("div", { class: "grid2" }, el("label", {}, "Hashtags added when a video has none", f.hash), el("label", {}, "Tags added when a video has fewer than 3", f.tags)),
     el("label", {}, "Protect the most watched videos: the AI keeps their titles", f.protect),
     el("button", { class: "btn primary", type: "button", id: "auto-save", disabled: !S.db, text: "Save the autopilot settings", onclick: async () => {
       if (/[<>]/.test(f.footer.value)) return say("YouTube does not allow < or > in descriptions.");
       const hashtags = f.hash.value.split(/[\s,]+/).filter((x) => /^#[\p{L}\p{N}_]+$/u.test(x)), tags = f.tags.value.split(",").map((x) => x.trim()).filter(Boolean);
-      await saveChan("settings", { ...st, autopilot: f.on.checked, footer: f.footer.value.trim(), hashtags, tags, protectTop: Math.max(0, Math.min(50, Math.round(+f.protect.value) || 0)) }, true);
+      await saveChan("settings", { ...st, autopilot: f.on.checked, autoApprove: f.approve.checked, footer: f.footer.value.trim(), hashtags, tags, protectTop: Math.max(0, Math.min(50, Math.round(+f.protect.value) || 0)) }, true);
       say("Autopilot settings saved."); render(); } }));
   const ch = lg.changes || [];
   if (ch.length) {
@@ -1452,10 +1453,10 @@ function viewChannel() {
     hash: el("input", { id: "bulk-hash", placeholder: "#chess #PnoyChess #ahedres" }), tags: el("input", { id: "bulk-tags", placeholder: "chess, ahedres, Filipino chess" }),
     find: el("input", { id: "bulk-find", placeholder: "find (exact text)" }), repl: el("input", { id: "bulk-repl", placeholder: "replace with" }) };
   wrap.append(el("section", { class: "panel" }, el("h2", { text: `Change the ${sel.length} selected video${sel.length === 1 ? "" : "s"}` }),
-    el("div", { class: "note", text: "Nothing changes on YouTube until you approve each change below and press Apply. Every change keeps the old text and thumbnail, so Undo can put them back." }),
+    el("div", { class: "note", text: chanSettings().autoApprove ? "Ask AI to suggest: your PC's AI writes a better title, description, tags and thumbnail each morning at 5:00 and approves them automatically; the 6:17 autopilot then sends up to 80 a day to YouTube. Every change keeps the old text and thumbnail, so Undo can put them back." : "Nothing changes on YouTube until you approve each change below and press Apply. Every change keeps the old text and thumbnail, so Undo can put them back." }),
     el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", id: "chan-ask", disabled: !sel.length || !S.db, text: "Ask AI to suggest",
-      title: "Your AI in VS Code writes a better title, description, tags and the words for a new thumbnail (made on your PC) for each",
-      onclick: async () => { for (const v of selV) await saveEdit(v, { status: "ask", ask: true, note: "" }); say(`${selV.length} video(s) waiting for the AI. In VS Code ask the Docu writer agent: "suggest channel improvements".`); render(); } })),
+      title: "Your PC's AI (Copilot CLI, every morning at 5:00) writes a better title, description, tags and the words for a new thumbnail for each",
+      onclick: async () => { for (const v of selV) await saveEdit(v, { status: "ask", ask: true, note: "" }); say(`${selV.length} video(s) queued for the AI. ${AI_HINT}`); render(); } })),
     el("label", {}, "Add to the end of each description", fx.append), el("div", { class: "grid2" }, el("label", {}, "Add hashtags", fx.hash), el("label", {}, "Add tags (comma separated)", fx.tags)),
     el("div", { class: "grid2" }, el("label", {}, "Find in titles and descriptions", fx.find), el("label", {}, "Replace with", fx.repl)),
     el("button", { class: "btn", type: "button", id: "chan-bulk", disabled: !sel.length || !S.db, text: "Make drafts", onclick: async () => {
