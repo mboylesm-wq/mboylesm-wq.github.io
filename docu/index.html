@@ -54,6 +54,7 @@ textarea.code { font: 12.5px/1.45 var(--mono); min-height: 60px; }
 .steps { display: grid; gap: 10px; counter-reset: step; }
 .claims { list-style: none; margin: 8px 0 0; padding: 0; }
 .claim { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); }
+.check-ok { color: var(--ok); } .check-warn { color: var(--warn); } .check-bad { color: var(--bad); }
 .step { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; }
 .step::before { counter-increment: step; content: counter(step); width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font: 600 13px var(--body); background: var(--gold-bg); color: var(--gold); }
 .step.done::before { content: "✓"; background: var(--ok); color: var(--bg); }
@@ -76,6 +77,7 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
       <button type="button" id="nav-write" data-view="write">Write</button>
       <button type="button" id="nav-projects" data-view="projects">Projects</button>
       <button type="button" id="nav-music" data-view="music">Music</button>
+      <button type="button" id="nav-channel" data-view="channel">Channel</button>
     </nav>
   </header>
   <div id="status" class="note" role="status"></div>
@@ -286,7 +288,7 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
   window.claude = { github: true, repo: REPO, use: (name) => (have[name] ? Promise.resolve(have[name]) : Promise.reject(new Error(name + " needs Claude"))) };
   setInterval(() => { if (document.visibilityState === "visible") backend.refreshAll(); }, POLL);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") backend.refreshAll(); });
-  const out = () => panel(`<span style="color:#aaa">Docu Studio on GitHub · saving to <b>${REPO}</b> · writing new scripts needs Claude</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = () => { localStorage.removeItem(KEY); location.reload(); }; });
+  const out = () => panel(`<span style="color:#aaa">Docu Studio on GitHub · saving to <b>${REPO}</b> · writing: Copilot in VS Code (Docu writer) or Claude</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = () => { localStorage.removeItem(KEY); location.reload(); }; });
   out();
 })();
 
@@ -383,7 +385,9 @@ const factKey = (s) => fnv(factText(s));
 // the scenes, plus "_film": the titles, the thumbnail words and the end-card line
 const factScenes = (p) => { const pl = (p && p.plan) || {}, t = pl.thumbnail || {};
   return [...(pl.scenes || []), { id: "_film", text: "", film: [...new Set([p && p.title, pl.title, ...((p && p.titles) || [])].filter(Boolean)), t.text, t.small, pl.next].filter(Boolean).join("\n") }]; };
-const claimDone = (c) => (c.status === "supported" && /^https?:\/\/\S+$/.test(String(c.source || "").trim())) || (c.status === "waived" && !!String(c.note || "").trim());
+// the source check (tools/ai-write.mjs) found this claim's own source dead or saying something else: not confirmable
+const sourceBad = (c) => !!(c.check && c.check.source === c.source && (c.check.verdict === "dead-link" || c.check.verdict === "contradicts"));
+const claimDone = (c) => (c.status === "supported" && /^https?:\/\/\S+$/.test(String(c.source || "").trim()) && !sourceBad(c)) || (c.status === "waived" && !!String(c.note || "").trim());
 const factGate = (p) => {
   const required = !!p.claimsRequired || Array.isArray(p.claims), scenes = factScenes(p).filter(factText), scan = p.factScan || {};
   const changed = scenes.filter((s) => scan[s.id] !== factKey(s)).map((s) => s.id);
@@ -451,7 +455,7 @@ const FORMATS = {
 };
 
 // ---------- capabilities (the page works without them, features light up when they arrive) ----------
-const S = { view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, projects: [], music: [], cur: null, busy: false };
+const S = { view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, projects: [], music: [], cur: null, busy: false, health: null, edits: [] };
 (async () => {
   const c = window.claude; if (!c) { say("Open this page in Claude to use it."); return render(); }
   const [db, sample, assets, downloads, perms, actions] = await Promise.all(["db", "sample", "assets", "downloads", "permissions", "actions"].map((n) => c.use(n).catch(() => null)));
@@ -461,7 +465,9 @@ const S = { view: "trends", db: null, sample: null, assets: null, downloads: nul
     db.collection("projects").onSnapshot((snap) => { S.projects = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur; render(); }, () => {});
     db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if (S.view === "music" || S.cur) render(); }, () => {});
     db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; render(); }, () => {});
-  }
+        db.collection("channel").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "health"); S.health = d ? d.data() : null; if (S.view === "channel") render(); }, () => {});
+        db.collection("ytedits").onSnapshot((snap) => { S.edits = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.view === "channel") render(); }, () => {});
+      }
   render();
 })();
 document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => { S.view = b.dataset.view; if (S.view !== "projects") S.cur = S.view === "write" ? S.cur : null; render(); }));
@@ -483,7 +489,7 @@ function render() {
   try { localStorage.setItem("docu.view", S.view); } catch (e) {}
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === S.view)));
   const v = $("#view"); v.textContent = "";
-  v.append(S.view === "trends" ? viewTrends() : S.view === "write" ? viewWrite() : S.view === "music" ? viewMusic() : viewProjects());
+  v.append(S.view === "trends" ? viewTrends() : S.view === "write" ? viewWrite() : S.view === "music" ? viewMusic() : S.view === "channel" ? viewChannel() : viewProjects());
 }
 
 function viewTrends() {
@@ -516,7 +522,7 @@ function newForm() {
       el("label", {}, "Music", el("select", { id: "music" }, ...MUSIC.map(([id, t]) => el("option", { value: id, text: t })))),
       el("label", {}, "Format", el("select", { id: "format" }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, title: how, text: name }))))),
     el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit", id: "go", disabled: !S.sample || !S.db, text: "Write the script" }),
-      el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes." : "Writing needs Claude in this page (sign in, then allow it when asked)." })),
+      el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes." : "Writing needs Claude in this page, or Copilot in VS Code: ask the Docu writer agent (tools/ai-write.mjs)." })),
     el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
   f.addEventListener("submit", (e) => { e.preventDefault(); write({ topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, sources: pre.sources || [] }); });
   return f;
@@ -664,9 +670,15 @@ async function pressListClaims(p) {
   try { const none = await listClaims(p); say("Claims listed. Check each one against its source." + (none.length ? ` No fact found in ${none.join(", ")}: read ${none.length > 1 ? "them" : "it"} yourself.` : "")); } catch (e) { say("Listing stopped: " + errText(e)); }
   finally { S.busy = false; render(); }
 }
+function checkNote(c) {
+  const k = c.check; if (!k || k.source !== c.source) return null;
+  const say = { supports: ["ok", "Source check: supports"], contradicts: ["bad", "Source check: the source says otherwise" + (k.note ? " (" + k.note + ")" : "")], "not-found": ["warn", "Source check: not found in the source"],
+    unverified: ["warn", "Source check: the AI's quote is not in the source"], "dead-link": ["bad", "Source check: the link is dead" + (k.note ? " (" + k.note + ")" : "") + ": find another source"], unchecked: ["warn", "Source check: could not read the source" + (k.note ? " (" + k.note + ")" : "")] }[k.verdict] || ["warn", "Source check: " + k.verdict];
+  return el("div", { class: "note check-" + say[0], text: say[1] + (k.quote ? `: “${k.quote}”` : "") });
+}
 function claimRow(p, c) {
   const decide = (patch) => { Object.assign(c, patch); return save(p, { claims: p.claims }).then(render); };
-  const head = el("div", {}, c.text, el("div", { class: "note", text: `${c.scene === "_film" ? "Title, thumbnail or end card" : "Scene " + c.scene}${c.risk === "high" ? " · high risk" : ""}` }));
+  const head = el("div", {}, c.text, el("div", { class: "note", text: `${c.scene === "_film" ? "Title, thumbnail or end card" : "Scene " + c.scene}${c.risk === "high" ? " · high risk" : ""}` }), checkNote(c));
   if (claimDone(c)) return el("li", { class: "claim" }, head,
     el("div", { class: "row" }, el("span", { class: "pill ok", text: c.status === "waived" ? "Waived" : "Confirmed" }),
       c.status === "waived" ? el("span", { class: "note", text: c.note }) : el("a", { href: c.source, target: "_blank", rel: "noopener", text: "Source" }),
@@ -682,7 +694,10 @@ function factsBox(p) {
   const list = g.changed.length ? el("button", { class: "btn primary", type: "button", disabled: S.busy || !S.sample, text: Array.isArray(p.claims) ? `List the claims of ${g.changed.length} changed scene(s)` : "List the claims", onclick: () => pressListClaims(p) }) : null;
   if (!g.required) return el("div", {}, el("label", { class: "row", style: "display:flex;gap:8px;color:var(--fg)" }, el("input", { type: "checkbox", id: "facts", checked: !!p.factsChecked, style: "width:auto", onchange: (e) => save(p, { factsChecked: e.target.checked }).then(render) }), "I checked the facts"), list);
   const order = (c) => (claimDone(c) ? 2 : c.risk === "high" ? 0 : 1);
-  return el("div", {}, el("div", { class: "row" }, el("span", { class: "pill" + (g.ok ? " ok" : " warn"), text: g.ok ? "Facts checked" : `${g.total - g.open} of ${g.total} checked` }), list),
+  // the claims the source check verified with a quote found in the source: Mark confirms them in one go after reading
+  const verified = live.filter((c) => c.status !== "supported" && c.status !== "waived" && c.check && c.check.source === c.source && c.check.verdict === "supports" && c.check.quote);
+  const bulk = verified.length ? el("button", { class: "btn", type: "button", text: `Confirm the ${verified.length} claim(s) the source check verified`, title: "Read each one and its quote first", onclick: () => { verified.forEach((c) => Object.assign(c, { status: "supported" })); save(p, { claims: p.claims }).then(render); } }) : null;
+  return el("div", {}, el("div", { class: "row" }, el("span", { class: "pill" + (g.ok ? " ok" : " warn"), text: g.ok ? "Facts checked" : `${g.total - g.open} of ${g.total} checked` }), list, bulk),
     el("ul", { class: "claims" }, [...live].sort((a, b) => order(a) - order(b)).map((c) => claimRow(p, c))));
 }
 
@@ -1049,7 +1064,7 @@ function scoreBox(p, locked) {
     el("button", { class: "btn" + (sc.length ? "" : " primary"), type: "button", disabled: locked || S.busy || !S.sample, text: S.busy ? "Writing…" : sc.length ? "Rewrite the briefs" : "Write the score briefs", onclick: () => writeScore(p) }),
     sc.length ? el("button", { class: "btn", type: "button", disabled: locked, text: "Use the original score everywhere",
       onclick: () => { useScoreEverywhere(p); save(p, { plan }).then(() => { say("Original score chosen for every section. It is composed at the next render."); render(); }); } }) : null,
-    S.sample ? null : el("span", { class: "note", text: "Writing briefs needs Claude in this page." })));
+    S.sample ? null : el("span", { class: "note", text: "Writing briefs needs Claude in this page, or Copilot in VS Code (tools/ai-write.mjs next <id>)." })));
   return wrap;
 }
 function useScoreEverywhere(p) {
@@ -1239,6 +1254,132 @@ Give instruments, tempo, how it develops; it sits under narration; no artist nam
   if (cues.length) wrap.append(el("section", { class: "panel" }, el("h2", { text: "From your videos' original scores" }),
     el("div", { class: "note", text: "Chapter scores made for earlier videos. Pick them again in any project under \"Your original music\"; reuse costs nothing." }),
     ...cues.map((c) => el("div", { class: "row", style: "justify-content:space-between;border-top:1px solid var(--line);padding:6px 0" }, el("span", { text: c.title }), el("span", { class: "note", text: `${c.mood} · ${mmss(c.seconds)} · ${c.from}` })))));
+  return wrap;
+}
+
+// ---------- Channel: the YouTube channel's health and bulk changes (tools/yt-channel.mjs in .github/workflows/channel.yml) ----------
+const EDIT = { ask: ["Waiting for the AI", "warn"], suggested: ["AI suggestion: review it", "warn"], draft: ["Draft", ""], waiting: ["Approved: waiting to apply", "warn"], done: ["On YouTube", "ok"], failed: ["Failed", "bad"] };
+const editOf = (vid) => S.edits.find((e) => e.video === vid);
+const pct = (x, d = 1) => (x == null ? "–" : Number(x).toFixed(d) + "%");
+const scoreCls = (n) => (n >= 80 ? "ok" : n >= 60 ? "warn" : "bad");
+const chState = () => S.chan || (S.chan = { kind: "all", sort: "score", check: "", sel: new Set() });
+async function runChannel(mode) {
+  try { if (!S.actions) throw new Error("this page cannot start GitHub jobs"); await S.actions.dispatch("channel.yml", { mode });
+    say(mode === "apply" ? "Sending the approved changes to YouTube. The list updates in a few minutes." : "Checking the channel. The new score appears here in a few minutes."); }
+  catch (e) { say("Could not start it: " + (e.message || e.code)); }
+}
+// one change document per video (db/ytedits/v<videoId>.json): set holds only what changes; before is kept for Undo
+async function saveEdit(v, patch) {
+  if (!S.db) return say("Saving needs sign-in.");
+  const cur = editOf(v.id), id = cur ? cur.id : "v" + v.id, doc = { ...patch, updatedAt: new Date().toISOString() };
+  try { if (cur && cur.status !== "done") await S.db.doc("ytedits/" + id).update(doc); else await S.db.doc("ytedits/" + id).set({ video: v.id, title: v.title, set: {}, ...doc }); }
+  catch (e) { say("Could not save: " + (e.message || e.code)); }
+}
+function bulkSet(v, f) {
+  const cur = editOf(v.id), base = cur && cur.status !== "done" ? cur.set || {} : {}, set = { ...base };
+  let title = base.title ?? v.title, desc = base.description ?? v.description, tags = [...(base.tags ?? v.tags ?? [])];
+  if (f.find) { const rep = (t) => t.split(f.find).join(f.repl); title = rep(title); desc = rep(desc); }
+  if (f.append && !desc.includes(f.append.trim())) desc = desc.replace(/\s+$/, "") + "\n\n" + f.append.trim();
+  const tagsNow = new Set(tags.map((t) => t.toLowerCase())); f.tags.forEach((t) => { if (!tagsNow.has(t.toLowerCase())) tags.push(t); });
+  const hs = f.hash.filter((h) => !new RegExp("(^|\\s)" + h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(\\s|$)", "i").test(desc));
+  if (hs.length) desc = desc.replace(/\s+$/, "") + "\n\n" + hs.join(" ");
+  if (title !== v.title) set.title = title; if (desc !== v.description) set.description = desc; if (tags.join("|") !== (v.tags || []).join("|")) set.tags = tags;
+  return set;
+}
+function viewChannel() {
+  const h = S.health, st = chState(), wrap = el("div", { style: "display:grid;gap:18px" });
+  const check = el("button", { class: "btn", type: "button", id: "chan-check", disabled: !S.actions, title: S.actions ? "" : "Only the GitHub page can start this", text: "Check the channel now", onclick: () => runChannel("audit") });
+  const top = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Channel health" + (h ? ": " + h.score + "/100" : "") }), check));
+  wrap.append(top);
+  if (!h) { top.append(el("div", { class: "empty", text: "No check yet. Press \"Check the channel now\": GitHub reads the channel with YouTube's free quota (no AI, no cost) and the score appears here. It also runs by itself every Monday morning." })); return wrap; }
+  const c = h.channel || {};
+  top.append(el("div", { class: "note", text: `${c.title || ""} ${c.handle || ""} · ${c.subs == null ? "subscribers hidden" : c.subs + " subscribers"} · ${(h.videos || []).length} videos · checked ${new Date(h.at).toLocaleString()}` }));
+  if (h.note) top.append(el("div", { class: "note", style: "color:var(--warn)", text: h.note }));
+  (h.signals || []).forEach((g) => top.append(el("div", { class: "proj" },
+    el("div", {}, el("div", { class: "t", text: g.label }), el("div", { class: "note", text: g.say }), g.fix ? el("div", { class: "note", text: "→ " + g.fix }) : null),
+    el("span", { class: "pill " + (g.score == null ? "" : scoreCls(g.score)), text: g.score == null ? "no data" : g.score + "/100" }))));
+  const r = h.reach;
+  if (r) wrap.append(el("section", { class: "panel" }, el("h2", { text: `Last 28 days (${r.from} to ${r.to})` }),
+    el("div", { class: "note", text: `${r.views} views · ${r.hours} hours watched · ${r.subs >= 0 ? "+" : ""}${r.subs} subscribers · ${pct(r.avgViewPct, 0)} of each video watched · click rate ${r.ctr == null ? "not in yet" : pct(r.ctr) + " of " + r.impressions + " impressions"}` }),
+    el("div", { class: "note", text: "Viewers from the Philippines: " + pct(r.ph, 0) + " · top countries: " + (r.countries || []).slice(0, 5).map((x) => x.name + " " + x.views).join(", ") }),
+    el("div", { class: "note", text: "Where views come from: " + (r.sources || []).map((x) => x.name.toLowerCase().replace(/_/g, " ") + " " + x.views).join(", ") })));
+
+  // ---- the videos
+  const vids = (h.videos || []).filter((v) => (st.kind === "all" || (st.kind === "short") === !!v.short) && (!st.check || (v.checks || []).some((x) => x.id === st.check && !x.ok)));
+  const by = { score: (a, b) => a.score - b.score, new: (a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)), views: (a, b) => b.views - a.views, ctr: (a, b) => (a.ctr ?? 99) - (b.ctr ?? 99) };
+  vids.sort(by[st.sort] || by.score);
+  const pick = (id, label, val, opts, on) => el("label", {}, label, el("select", { id, onchange: (e) => { on(e.target.value); render(); } }, ...opts.map(([v, t]) => el("option", { value: v, text: t, selected: v === val }))));
+  const checkIds = [...new Map((h.videos || []).flatMap((v) => v.checks || []).map((x) => [x.id, x.label])).entries()];
+  const sel = [...st.sel].filter((id) => (h.videos || []).some((v) => v.id === id)), selV = (h.videos || []).filter((v) => sel.includes(v.id));
+  const list = el("section", { class: "panel" }, el("h2", { text: "Videos" }),
+    el("div", { class: "row" },
+      pick("chan-kind", "Show ", st.kind, [["all", "all"], ["long", "long videos"], ["short", "Shorts"]], (x) => { st.kind = x; }),
+      pick("chan-check-f", "Missing ", st.check, [["", "anything"], ...checkIds], (x) => { st.check = x; }),
+      pick("chan-sort", "Sort by ", st.sort, [["score", "lowest score"], ["new", "newest"], ["views", "most views"], ["ctr", "lowest click rate"]], (x) => { st.sort = x; }),
+      el("button", { class: "btn", type: "button", text: "Select all shown", onclick: () => { vids.forEach((v) => st.sel.add(v.id)); render(); } }),
+      el("button", { class: "btn", type: "button", text: "Clear", onclick: () => { st.sel.clear(); render(); } }),
+      el("span", { class: "note", text: sel.length + " selected" })));
+  if (!vids.length) list.append(el("div", { class: "empty", text: "No videos match." }));
+  vids.forEach((v) => {
+    const fails = (v.checks || []).filter((x) => !x.ok), ed = editOf(v.id), [el1, cls] = ed ? EDIT[ed.status] || [ed.status, ""] : [];
+    list.append(el("div", { class: "proj", "data-video": v.id },
+      el("label", { class: "row", style: "align-items:flex-start;gap:10px" },
+        el("input", { type: "checkbox", checked: st.sel.has(v.id), "aria-label": "Select " + v.title, onchange: (e) => { e.target.checked ? st.sel.add(v.id) : st.sel.delete(v.id); render(); } }),
+        v.thumb ? el("img", { src: safeUrl(v.thumb), alt: "", width: 120, height: 68, loading: "lazy", style: "border-radius:4px" }) : null,
+        el("div", {}, el("a", { class: "t", href: "https://youtu.be/" + encodeURIComponent(v.id), target: "_blank", rel: "noopener", text: v.title }),
+          el("div", { class: "note", text: `${v.short ? "Short" : mmss(v.seconds)} · ${v.privacy} · ${new Date(v.publishedAt).toLocaleDateString()} · ${v.views} views · click rate ${pct(v.ctr)} · watched ${pct(v.avgViewPct, 0)}` }),
+          fails.length ? el("div", { class: "note", text: "Missing: " + fails.map((x) => x.label).join(" · "), title: fails.map((x) => x.fix).join("\n") }) : null,
+          ...(v.flags || []).map((f) => el("div", { class: "note", style: "color:var(--warn)", text: f })))),
+      el("div", { class: "row" }, ed ? el("span", { class: "pill " + cls, text: el1 }) : null, el("span", { class: "pill " + scoreCls(v.score), text: v.score + "/100" }))));
+  });
+  wrap.append(list);
+
+  // ---- what to do with the selected videos
+  const fx = { append: el("textarea", { id: "bulk-append", placeholder: "Text to add at the end of each description (e.g. links to a playlist and the next video)" }),
+    hash: el("input", { id: "bulk-hash", placeholder: "#chess #PnoyChess #ahedres" }), tags: el("input", { id: "bulk-tags", placeholder: "chess, ahedres, Filipino chess" }),
+    find: el("input", { id: "bulk-find", placeholder: "find (exact text)" }), repl: el("input", { id: "bulk-repl", placeholder: "replace with" }) };
+  wrap.append(el("section", { class: "panel" }, el("h2", { text: `Change the ${sel.length} selected video${sel.length === 1 ? "" : "s"}` }),
+    el("div", { class: "note", text: "Nothing changes on YouTube until you approve each change below and press Apply. Every change keeps the old text and thumbnail, so Undo can put them back." }),
+    el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", id: "chan-ask", disabled: !sel.length || !S.db, text: "Ask AI to suggest",
+      title: "Your AI in VS Code writes a better title, description, tags, Filipino title and a thumbnail idea for each",
+      onclick: async () => { for (const v of selV) await saveEdit(v, { status: "ask", ask: true, note: "" }); say(`${selV.length} video(s) waiting for the AI. In VS Code ask the Docu writer agent: "suggest channel improvements".`); render(); } })),
+    el("label", {}, "Add to the end of each description", fx.append), el("div", { class: "grid2" }, el("label", {}, "Add hashtags", fx.hash), el("label", {}, "Add tags (comma separated)", fx.tags)),
+    el("div", { class: "grid2" }, el("label", {}, "Find in titles and descriptions", fx.find), el("label", {}, "Replace with", fx.repl)),
+    el("button", { class: "btn", type: "button", id: "chan-bulk", disabled: !sel.length || !S.db, text: "Make drafts", onclick: async () => {
+      const f = { append: fx.append.value, hash: fx.hash.value.split(/[\s,]+/).filter((x) => /^#[\p{L}\p{N}_]+$/u.test(x)), tags: fx.tags.value.split(",").map((x) => x.trim()).filter(Boolean), find: fx.find.value, repl: fx.repl.value };
+      let n = 0; for (const v of selV) { const set = bulkSet(v, f); if (Object.keys(set).length) { await saveEdit(v, { status: "draft", set }); n++; } }
+      say(n ? n + " draft(s) made: check them below, then Approve." : "Nothing would change."); render(); } })));
+
+  // ---- the changes
+  const eds = S.edits.filter((e) => e.status !== "done" || (e.before && Date.now() - Date.parse(e.appliedAt || e.updatedAt) < 30 * 864e5));
+  const waiting = S.edits.filter((e) => e.status === "waiting").length;
+  const box = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Changes" }),
+    el("button", { class: "btn primary", type: "button", id: "chan-apply", disabled: !waiting || !S.actions, title: S.actions ? "" : "Only the GitHub page can start this", text: `Apply ${waiting} approved on YouTube`, onclick: () => runChannel("apply") })));
+  if (!eds.length) box.append(el("div", { class: "empty", text: "No changes yet. Select videos above and ask the AI or make drafts." }));
+  eds.forEach((e) => {
+    const v = (h.videos || []).find((x) => x.id === e.video) || { id: e.video, title: e.title || e.video, description: "", tags: [] }, set = e.set || {}, open = ["suggested", "draft", "failed"].includes(e.status);
+    const field = (key, label, now, area) => { const val = key === "tags" ? (set.tags ?? now).join(", ") : set[key] ?? now ?? "";
+      const inp = el(area ? "textarea" : "input", { disabled: !open, "aria-label": label, rows: area ? 6 : null, onchange: (ev) => { const x = ev.target.value; saveEdit(v, { set: { ...set, [key]: key === "tags" ? x.split(",").map((t) => t.trim()).filter(Boolean) : x } }); } });
+      inp.value = val; return el("label", {}, label + (set[key] != null ? " (changed)" : ""), inp); };
+    const thumbIn = el("input", { type: "file", accept: "image/jpeg,image/png", disabled: !open || !S.assets, "aria-label": "New thumbnail", onchange: async (ev) => {
+      const f = ev.target.files[0]; if (!f) return; if (f.size > 2e6) return say("The thumbnail must be under 2 MB (1280×720 JPG).");
+      try { say("Uploading the thumbnail…"); const { id } = await S.assets.upload(f); await saveEdit(v, { thumb: id }); say("Thumbnail added to the change."); } catch (x) { say("Could not upload: " + (x.message || x.code)); } } });
+    const [lbl, cls] = EDIT[e.status] || [e.status, ""];
+    box.append(el("div", { class: "panel", style: "margin-top:10px" },
+      el("div", { class: "row", style: "justify-content:space-between" }, el("div", { class: "t", text: v.title }), el("span", { class: "pill " + cls, text: lbl })),
+      e.note ? el("div", { class: "note", text: e.note }) : null, e.why ? el("div", { class: "note", text: "Why: " + e.why }) : null, e.thumbIdea ? el("div", { class: "note", text: "Thumbnail idea: " + e.thumbIdea }) : null,
+      e.status === "ask" ? null : el("div", {}, field("title", "Title", v.title), field("description", "Description", v.description, true), field("tags", "Tags (comma separated)", v.tags || []),
+        el("div", { class: "grid2" }, field("tlTitle", "Filipino title", v.tl && v.tl.title), field("tlDescription", "Filipino description", v.tl && v.tl.description, true)),
+        el("label", {}, "New thumbnail" + (e.thumb ? " (added)" : ""), thumbIn)),
+      el("div", { class: "row" },
+        open ? el("button", { class: "btn primary", type: "button", text: "Approve", disabled: !Object.keys(set).length && !e.thumb, onclick: () => saveEdit(v, { status: "waiting", note: "" }).then(render) }) : null,
+        e.status === "waiting" ? el("button", { class: "btn", type: "button", text: "Back to draft", onclick: () => saveEdit(v, { status: "draft" }).then(render) }) : null,
+        e.status === "done" && e.before ? el("button", { class: "btn", type: "button", text: "Undo", title: "A draft that puts back the old text" + (e.before.thumb ? " and thumbnail" : ""),
+          onclick: () => { const b = e.before, s = {}; ["title", "description", "tags", "tlTitle", "tlDescription"].forEach((k) => { if (b[k] != null && (e.set || {})[k] != null) s[k] = b[k]; });
+            saveEdit(v, { status: "draft", set: s, thumb: e.thumb && b.thumb ? b.thumb : null, before: null, why: "Undo of the change made " + new Date(e.appliedAt || e.updatedAt).toLocaleDateString(), thumbIdea: null, note: "" }).then(render); } }) : null,
+        e.status !== "waiting" ? el("button", { class: "btn", type: "button", text: e.status === "done" ? "Hide" : "Discard", onclick: () => S.db.doc("ytedits/" + e.id).delete().then(render, () => {}) }) : null)));
+  });
+  wrap.append(box);
   return wrap;
 }
 
