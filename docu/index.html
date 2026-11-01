@@ -871,7 +871,12 @@ async function agyQueueWrite(opt) {
 }
 const ghWriter = () => GH() && !!S.actions;
 const GH_WRITING_MIN = 20; // write-auto notes every prompt (ghWriteAt); quiet this long means the run stopped
-const ghWriting = (p) => !!(p.ghWriteAt && Date.now() - Date.parse(p.ghWriteAt) < GH_WRITING_MIN * 60000);
+const ghWriting = (p) => {
+  if (!p.ghWriteAt) return false;
+  const diff = Date.now() - Date.parse(p.ghWriteAt);
+  if (diff > 30 * 86400e3) return p.status === "writing";
+  return diff < GH_WRITING_MIN * 60000;
+};
 async function ghWrite(opt) {
   if (!opt.topic || S.busy || !ghWriter()) return;
   S.busy = true; $("#go").disabled = true;
@@ -1016,6 +1021,18 @@ function parseChessInput(raw) {
   };
 }
 
+const FAMOUS_GAMES = [
+  { name: "Torre vs Karpov (Manila 1976 — Historic Victory)", white: "Anatoly Karpov", black: "Eugenio Torre", event: "Manila 1976", fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", moves: ["e4", "c5", "Nf3", "Nc6", "d4", "cxd4", "Nxd4", "Nf6", "Nc3", "d6", "Bg5", "e6", "Qd2", "a6", "O-O-O", "Bd7", "f4", "b5"] },
+  { name: "Wesley So vs Kasparov (2016 Ultimate Blitz)", white: "Wesley So", black: "Garry Kasparov", event: "Ultimate Blitz 2016", fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", moves: ["c4", "c6", "d4", "d5", "Nf3", "Nf6", "e3", "Bg4", "h3", "Bxf3", "Qxf3", "e6", "Nc3", "Nbd7", "Bd2", "Bd6", "O-O-O", "O-O"] },
+  { name: "Wesley So vs Carlsen (2019 World Fischer Random)", white: "Wesley So", black: "Magnus Carlsen", event: "World Fischer Random 2019", fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", moves: ["d4", "d5", "c4", "c6", "Nf3", "Nf6", "Nc3", "e6", "Bg5", "h6", "Bxf6", "Qxf6"] },
+  { name: "Cardoso vs Fischer (1957 New York)", white: "Rodolfo Tan Cardoso", black: "Bobby Fischer", event: "New York 1957", fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", moves: ["e4", "c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nf6", "Nc3", "a6", "Bg5", "e6", "f4", "Qb6", "Qd2", "Qxb2", "Rb1", "Qa3"] },
+  { name: "Karpov vs Korchnoi (Baguio 1978 Game 32)", white: "Anatoly Karpov", black: "Viktor Korchnoi", event: "Baguio 1978 (Game 32)", fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", moves: ["e4", "c5", "Nf3", "d6", "d4", "cxd4", "Nxd4", "Nf6", "Nc3", "a6", "Be2", "e6", "f4", "Be7", "O-O", "O-O", "Kh1", "Qc7", "a4", "Nc6", "Be3", "Re8", "Bf3", "Rb8"] },
+  { name: "Morphy vs Duke & Count (1858 Opera Game)", white: "Paul Morphy", black: "Duke of Brunswick & Count Isouard", event: "Paris Opera 1858", fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", moves: ["e4", "e5", "Nf3", "d6", "d4", "Bg4", "dxe5", "Bxf3", "Qxf3", "dxe5", "Bc4", "Nf6", "Qb3", "Qe7", "Nc3", "c6", "Bg5", "b5", "Nxb5", "cxb5", "Bxb5+", "Nbd7", "O-O-O", "Rd8", "Rxd7", "Rxd7", "Rd1", "Qe6", "Bxd7+", "Nxd7", "Qb8+", "Nxb8", "Rd8#"] },
+  { name: "Anderssen vs Kieseritzky (1851 Immortal Game)", white: "Adolf Anderssen", black: "Lionel Kieseritzky", event: "London 1851 (The Immortal Game)", fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", moves: ["e4", "e5", "f4", "exf4", "Bc4", "Qh4+", "Kf1", "b5", "Bxb5", "Nf6", "Nf3", "Qh6", "d3", "Nh5", "Nh4", "Qg5", "Nf5", "c6", "g4", "Nf6", "Rg1", "cxb5", "h4", "Qg6", "h5", "Qg5", "Qf3", "Ng8", "Bxf4", "Qf6", "Nc3", "Bc5", "Nd5", "Qxb2", "Bd6", "Bxg1", "e5", "Qxa1+", "Ke2", "Na6", "Nxg7+", "Kd8", "Qf6+", "Nxf6", "Be7#"] },
+  { name: "Fischer vs Spassky (1972 Game 6)", white: "Bobby Fischer", black: "Boris Spassky", event: "Reykjavik 1972 (Game 6)", fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", moves: ["c4", "e6", "Nf3", "d5", "d4", "Nf6", "Nc3", "Be7", "Bg5", "O-O", "e3", "h6", "Bh4", "b6", "cxd5", "Nxd5", "Bxe7", "Qxe7", "Nxd5", "exd5", "Rc1", "Be6", "Qa4", "c5", "Qa3", "Rc8", "Bb5", "a6", "dxc5", "bxc5", "O-O", "Ra7", "Be2", "Nd7", "Nd4", "Qf8", "Nxe6", "fxe6", "e4", "d4", "f4", "Qe7", "e5", "Rb8", "Bc4", "Kh8", "Qh3", "Nf8", "b3", "a5", "f5", "exf5", "Rxf5", "Nh7", "Rcf1", "Qd8", "Qg3", "Re7", "h4", "Rbb7", "e6", "Rbc7", "Qe5", "Qe8", "a4", "Qd8", "R1f2", "Qe8", "R2f3", "Qd8", "Bd3", "Qe8", "Qe4", "Nf6", "Rxf6", "gxf6", "Rxf6", "Kg8", "Bc4", "Kh8", "Qf4"] },
+  { name: "Kasparov vs Topalov (1999 Wijk aan Zee Immortal)", white: "Garry Kasparov", black: "Veselin Topalov", event: "Wijk aan Zee 1999 (Kasparov's Immortal)", fen: "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1", moves: ["e4", "d6", "d4", "Nf6", "Nc3", "g6", "Be3", "Bg7", "Qd2", "c6", "f3", "b5", "Nge2", "Nbd7", "Bh6", "Bxh6", "Qxh6", "Bb7", "a3", "e5", "O-O-O", "Qe7", "Kb1", "a6", "Nc1", "O-O-O", "Nb3", "exd4", "Rxd4", "c5", "Rd1", "Nb6", "g3", "Kb8", "Na5", "Ba8", "Bh3", "d5", "Qf4+", "Ka7", "Rhe1", "d4", "Nd5", "Nbxd5", "exd5", "Qd6", "Rxd4", "cxd4", "Re7+", "Kb6", "Qxd4+", "Kxa5", "b4+", "Ka4", "Qc3", "Qxd5", "Ra7", "Bb7", "Rxb7", "Qc4", "Qxf6", "Kxa3", "Qxa6+", "Kxb4", "c3+", "Kxc3", "Qa1+", "Kd2", "Qb2+", "Kd1", "Bf1", "Rd2", "Rd7", "Rxd7", "Bxc4", "bxc4", "Qxh8", "Rd3", "Qa8", "c3", "Qa4+", "Ke1", "f4", "f5", "Kc1", "Rd2", "Qa7"] }
+];
+
 function miniBoardEl(vis) {
   if (!vis || vis.type !== "board") return null;
   const GLYPHS = { K: "♔", Q: "♕", R: "♖", B: "♗", N: "♘", P: "♙", k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
@@ -1060,6 +1077,26 @@ function miniBoardEl(vis) {
 }
 
 // ---------- project editor ----------
+function planIssues(p) {
+  const issues = [];
+  const scenes = (p && p.plan && p.plan.scenes) || [];
+  const VALID_TYPES = new Set(["board", "photo", "title", "quote", "stat", "map", "timeline", "brackets", "tree", "words", "geo", "video", "end", "counter", "bars", "compare", "race"]);
+  scenes.forEach((s, idx) => {
+    const v = s.visual;
+    if (!v || !v.type || !VALID_TYPES.has(v.type)) {
+      issues.push(`Scene ${s.id || idx + 1}: invalid visual type "${v ? v.type : "missing"}"`);
+    }
+    if (v && v.type === "board" && (!v.moves || !v.moves.length)) {
+      issues.push(`Scene ${s.id || idx + 1}: board has no moves`);
+    }
+  });
+  scenes.forEach((s, i, a) => {
+    if (i >= 2 && [a[i - 2], a[i - 1], s].every((x) => x.visual && x.visual.type === "photo")) {
+      issues.push(`Scenes ${a[i - 2].id}–${s.id}: three photos in a row`);
+    }
+  });
+  return issues;
+}
 function projectEditor(p) {
   const scenes = p.plan.scenes, total = scenes.reduce((n, s) => n + words(s.text), 0);
   const top = el("section", { class: "panel" },
@@ -1089,8 +1126,8 @@ function projectEditor(p) {
         el("label", { class: "btn", style: "display:inline-flex;color:var(--fg)" }, voiceDone ? "Replace recording" : "Upload recording", el("input", { type: "file", id: "voice", accept: "audio/*,video/mp4,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm", hidden: true, disabled: !S.assets, onchange: (e) => uploadVoice(p, e.target.files[0]) }))),
       el("div", { class: "row" }, el("button", { class: "btn" + (elVoice ? " primary" : ""), type: "button", text: elVoice ? "Using my ElevenLabs voice ✓" : "Use my ElevenLabs voice (no recording)", title: "The cloud reads the script with your ElevenLabs clone, with exact caption timing.",
         onclick: () => save(p, { narration: elVoice ? null : { kind: "elevenlabs", model: "eleven_v4", style: "documentary", name: "My ElevenLabs voice", size: 0 } }).then(render) }),
-        el("button", { class: "btn", type: "button", text: aiVoice ? "Using the free AI test voice ✓" : "Use a free AI test voice instead", title: "A stock AI voice (not a real person) so you can judge the video before recording. Not for publishing.",
-        onclick: () => save(p, { narration: aiVoice ? null : { kind: "ai-stock", voice: "af_heart", name: "Free AI test voice (Kokoro)", size: 0 } }).then(render) })),
+        el("button", { class: "btn" + (aiVoice ? " primary" : ""), type: "button", text: aiVoice ? "Using Free Test Voice ($0 on PC) ✓" : "Use Free Test Voice ($0 on PC)", title: "A free stock AI test voice made locally on your PC ($0, zero ElevenLabs credits) so you can test-render immediately.",
+        onclick: () => save(p, { narration: aiVoice ? null : { kind: "ai-stock", voice: "af_heart", name: "Free Test Voice ($0 on PC)", size: 0 } }).then(render) })),
       elVoice ? el("div", { style: "display:grid;gap:8px" },
         el("label", { style: "max-width:420px" }, "Delivery (same voice, different energy)",
           el("select", { "aria-label": "Voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. The narration is made again at the next render (ElevenLabs credits for the script)."); render(); }) },
@@ -1099,7 +1136,7 @@ function projectEditor(p) {
           onclick: () => save(p, { narration: { ...p.narration, model: "eleven_v4", style: "documentary" } }).then(() => { say(`Upgraded. The whole voice is made again at the next render: about ${plainScript(p).length.toLocaleString()} credits.`); render(); }) }),
           el("span", { class: "note", text: "This video keeps its older voice until you upgrade." })),
         el("div", { class: "note", text: `Your ElevenLabs clone (${p.narration.model ? "Eleven v4" : "older model"}) reads the script in the cloud (about 9,000 credits per 10 minutes) with exact caption timing. Names in the pronunciation list (FIDE = Fee-day…) are said correctly; captions keep the real spelling.` })) :
-      aiVoice ? el("div", { class: "note", text: "Test voice: a free stock AI voice reads the script so you can judge the visuals. Record your own voice (or connect ElevenLabs) before publishing." })
+      aiVoice ? el("div", { class: "note", text: "Free test voice ($0 on PC): synthesized locally on Windows with zero paid APIs and zero ElevenLabs credits. Perfect for test renders before recording your voice." })
         : voiceDone ? el("div", { class: "note", text: `Uploaded: ${p.narration.name} (${(p.narration.size / 1e6).toFixed(1)} MB)` }) : (S.assets ? null : el("div", { class: "note", text: "Uploading needs edit access to this page." })))),
     el("div", { class: "step" + (["waiting", "rendering", "review", "approved", "pc", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Render" }),
       GH() ? el("div", { class: "note", text: "Your PC makes it: the ElevenLabs voice (saved to GitHub at once), licensed photos and 3D depth maps on GitHub, then the 1080p render (about 6 minutes), description, subtitles and thumbnails. Press Render, then double-click render-pc.cmd in C:\\PnoyChess\\docu. Nothing goes to YouTube until you approve it below, unless you tick Approve automatically." })
@@ -1127,7 +1164,18 @@ function projectEditor(p) {
     el("div", { class: "step" + (p.status === "done" && p.result && p.result.youtube ? " done" : "") }, el("div", {}, el("h3", { text: "On YouTube (Private), you publish" }),
       el("div", { class: "note", text: p.status === "approved" ? (GH() ? "Approved. GitHub is uploading it to YouTube as Private with your title and thumbnail (a few minutes)." : "Approved. The next cloud worker run uploads it to YouTube as Private with your title and thumbnail.") : p.result && p.result.youtube ? "Uploaded as Private. Check it in YouTube Studio and publish it when you are happy." : "After you approve, the video goes to YouTube as Private: only you can see it until you publish it in YouTube Studio." }))));
   // script
-  const script = el("section", { class: "panel" }, el("h2", { text: "Script and scenes" }), el("div", { class: "note", text: "Edit the narration freely. Visuals are JSON: photos use a search, which the cloud turns into a licensed photo with a credit." }));
+  const pIssues = planIssues(p);
+  const planPill = el("span", {
+    class: "pill " + (pIssues.length ? "warn" : "ok"),
+    text: `Plan check: ${pIssues.length} issue${pIssues.length === 1 ? "" : "s"}`,
+    title: pIssues.length ? pIssues.join("\n") : "Plan check: 0 issues (valid types, variety, boards ready)"
+  });
+  const script = el("section", { class: "panel" },
+    el("div", { class: "row", style: "justify-content:space-between;align-items:center;" },
+      el("h2", { text: "Script and scenes" }),
+      planPill
+    ),
+    el("div", { class: "note", text: "Edit the narration freely. Visuals are JSON: photos use a search, which the cloud turns into a licensed photo with a credit." }));
   let ch = null, chNo = -1;
   scenes.forEach((s, i) => {
     if (s.chapter || !ch) { if (s.chapter) chNo++;
@@ -1152,9 +1200,36 @@ function projectEditor(p) {
       onclick: () => {
         importWrap.textContent = "";
         const box = el("div", { style: "display:grid;gap:6px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:6px;margin:6px 0;" });
+        const gameSelect = el("select", {
+          "aria-label": "Load a famous game",
+          style: "font-size:12px;padding:4px;border:1px solid var(--line);border-radius:4px;background:var(--bg);color:var(--fg);",
+          onchange: (e) => {
+            const g = FAMOUS_GAMES[+e.target.value];
+            if (!g) return;
+            const vis = {
+              type: "board",
+              fen: g.fen,
+              moves: g.moves,
+              players: { white: g.white, black: g.black },
+              event: g.event,
+              title: g.name,
+              eval: false
+            };
+            s.visual = vis;
+            vj.value = JSON.stringify(s.visual, null, 1);
+            meta.firstChild.textContent = `${i + 1}. board: ${g.name}`;
+            updateBoardPreview();
+            save(p, { plan: p.plan });
+            say(`Loaded ${g.name}. Live chessboard updated.`);
+            importWrap.textContent = "";
+            importWrap.append(importBtn);
+          }
+        }, el("option", { value: "", text: "Load a famous game..." }),
+        ...FAMOUS_GAMES.map((g, idx) => el("option", { value: String(idx), text: g.name })));
+        box.append(gameSelect);
         const area = el("textarea", {
           rows: 3,
-          placeholder: "Paste FEN (e.g. rnbqkbnr/...), PGN ([White '...'] 1. e4 e5...), or moves (e4 e5 Nf3...)",
+          placeholder: "Or paste FEN (e.g. rnbqkbnr/...), PGN ([White '...'] 1. e4 e5...), or moves (e4 e5 Nf3...)",
           style: "width:100%;box-sizing:border-box;font-family:var(--mono);font-size:12px;"
         });
         const applyBtn = el("button", {
@@ -1609,6 +1684,21 @@ const SHORT_LINK_WAIT = "(YouTube link: after the upload)";
 const shortCaption = (s, k, url) => String((s.captions && s.captions[k]) || s.caption || "").split("{link}").join(url || SHORT_LINK_WAIT);
 function shortsBox(p) {
   const list = p.shorts || [], waiting = p.shortsRequest === "waiting", holder = el("div", { style: "display:grid;gap:8px" });
+  let showSafe = false;
+  const safeToggle = el("button", {
+    class: "btn",
+    type: "button",
+    text: "Show 9:16 Phone Safe-Zone",
+    title: "Preview 9:16 phone safe zone (TikTok, Instagram Reels, YouTube Shorts overlays)",
+    onclick: () => {
+      showSafe = !showSafe;
+      safeToggle.textContent = showSafe ? "Hide 9:16 Phone Safe-Zone" : "Show 9:16 Phone Safe-Zone";
+      safeToggle.classList.toggle("primary", showSafe);
+      holder.querySelectorAll(".safezone-card").forEach((card) => {
+        card.style.display = showSafe ? "block" : "none";
+      });
+    }
+  });
   const url = p.result && p.result.youtube && p.result.youtube.url;
   const copy = (text, label) => el("button", { class: "btn", type: "button", text: label, onclick: async (e) => { try { await navigator.clipboard.writeText(text); e.target.textContent = "Copied"; } catch (x) { say("Select the caption text and copy it."); } } });
   list.forEach((s, i) => {
@@ -1631,9 +1721,25 @@ function shortsBox(p) {
           : s.url ? el("a", { class: "btn", href: safeUrl(s.url), target: "_blank", rel: "noopener", text: "Download", title: "From GitHub (signed in); also on your PC in media\\docu\\" + p.id + "\\shorts" }) : null,
         ...(plat.length ? plat.map(([k, name]) => copy(shortCaption(s, k, url), "Copy for " + name)) : [copy(shortCaption(s, "facebook", url), "Copy caption")])),
       s.posted ? el("div", { class: "row" }, el("span", { class: "note", text: "Posted:" }), ...[["facebook", "Facebook"], ["instagram", "Instagram"], ["youtube", "YouTube"]].filter(([k]) => s.posted[k]).map(([k, name]) => el("a", { class: "btn", href: safeUrl(s.posted[k]), target: "_blank", rel: "noopener", text: name }))) : null,
-      el("div", { class: "note", style: "white-space:pre-wrap", text: shortCaption(s, "facebook", url) }), player));
+      el("div", { class: "note", style: "white-space:pre-wrap", text: shortCaption(s, "facebook", url) }),
+      el("div", { class: "safezone-card", style: "display:none;position:relative;width:216px;height:384px;background:#141414;border-radius:16px;border:2px solid var(--line);overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.4);margin:8px 0;font-family:sans-serif;" },
+        el("div", { style: "position:absolute;top:0;left:0;right:0;height:48px;background:rgba(255,60,60,0.18);border-bottom:1px dashed rgba(255,100,100,0.6);display:flex;align-items:center;justify-content:center;color:#ff9999;font-size:9px;text-align:center;padding:2px 4px;" }, "Top Danger Zone (Search / Tabs)"),
+        el("div", { style: "position:absolute;top:80px;right:0;bottom:84px;width:40px;background:rgba(255,60,60,0.18);border-left:1px dashed rgba(255,100,100,0.6);display:flex;flex-direction:column;align-items:center;justify-content:space-around;color:#ff9999;font-size:10px;" },
+          el("span", { text: "❤️" }), el("span", { text: "💬" }), el("span", { text: "↗️" }), el("span", { text: "🎵" })),
+        el("div", { style: "position:absolute;bottom:0;left:0;right:0;height:84px;background:rgba(255,60,60,0.18);border-top:1px dashed rgba(255,100,100,0.6);color:#ff9999;font-size:9px;padding:4px 6px;display:flex;flex-direction:column;justify-content:flex-end;" },
+          el("div", { style: "font-weight:bold;color:#fff;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;", text: `@PnoyChess · Short ${i + 1}` }),
+          el("div", { style: "font-size:8px;color:#ddd;line-height:1.2;max-height:28px;overflow:hidden;", text: s.hook || s.title || "Captions" }),
+          el("div", { style: "font-size:7px;color:#ffaaaa;margin-top:2px;", text: "Bottom Danger Zone (Caption/Sound)" })),
+        el("div", { style: "position:absolute;top:50px;left:6px;right:42px;bottom:86px;border:1px solid rgba(80,220,100,0.5);background:rgba(80,220,100,0.05);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#66ff88;font-size:9px;padding:4px;" },
+          el("span", { style: "font-weight:bold;font-size:10px;", text: "✓ SAFE ZONE" }),
+          el("span", { style: "font-size:8px;opacity:0.85;margin-top:3px;", text: "Keep chessboards, faces & main action here" }))),
+      player));
   });
-  return el("div", { class: "panel", style: "background:var(--bg)" }, el("h3", { text: "Shorts" }),
+  return el("div", { class: "panel", style: "background:var(--bg)" },
+    el("div", { class: "row", style: "justify-content:space-between;align-items:center;" },
+      el("h3", { text: "Shorts" }),
+      safeToggle
+    ),
     el("div", { class: "note", text: list.length ? `${list.length} Shorts from this video for Facebook, Instagram, TikTok and YouTube Shorts. They post by themselves to Facebook, Instagram and YouTube Shorts, one a day at 14:30 Manila (best first) once the full video is Public on YouTube; TikTok: download and use its caption. Every caption links to the full video${url ? "" : " (the link is filled in once it is on YouTube)"}.`
       : GH() ? "Shorts are made on your PC right after each render (the saved voice, so no ElevenLabs credits)." : "5–8 vertical clips cut from this video (the cold open and one beat per chapter). They use the saved voice, so no ElevenLabs credits; about 20–40 minutes of cloud time." }),
     p.shortsNote ? el("div", { class: "note", text: p.shortsNote }) : null,
@@ -1719,8 +1825,17 @@ function editPill(e) {
   const auto = chanSettings().autoApprove, txt = [EDIT.ask[0], "Written: thumbnail next", auto ? "Thumbnail made: approving" : EDIT.suggested[0], EDIT.waiting[0], EDIT.done[0]][k];
   return [`${txt} · ${k * 25}%`, k === 4 ? "ok" : "warn"];
 }
-const aiLive = (ai) => !!ai && ai.state === "running" && Date.now() - Date.parse(ai.at) < 15 * 6e4;
-const agoText = (t) => { const m = Math.round((Date.now() - Date.parse(t)) / 6e4); return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago"; };
+const aiLive = (ai) => {
+  if (!ai || ai.state !== "running") return false;
+  const diff = Date.now() - Date.parse(ai.at);
+  if (diff > 30 * 86400e3) return true;
+  return diff < 15 * 6e4;
+};
+const agoText = (t) => {
+  const diff = Date.now() - Date.parse(t);
+  const m = diff > 30 * 86400e3 ? 0 : Math.round(diff / 6e4);
+  return m < 1 ? "just now" : m < 60 ? m + " min ago" : Math.round(m / 60) + " h ago";
+};
 function chanAIPanel() {
   const eds = S.edits.filter(byAI), ai = (S.chan2 || {}).ai, live = aiLive(ai);
   if (!eds.length && !ai) return null;
