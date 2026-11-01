@@ -443,6 +443,66 @@ setInterval(() => document.querySelectorAll("[data-progress]").forEach((e) => { 
 // now first, then rushed ones, then by when each was asked for (tools/docu.mjs next)
 const voiceReady = (p) => !!(p.narration && (p.narration.kind === "ai-stock" || p.narration.kind === "elevenlabs" || (p.narration.parts && p.narration.parts.length)));
 const canRender = (p) => !!(p.plan && p.plan.scenes && p.plan.scenes.length && factsReady(p) && voiceReady(p));
+const hasVideo = (p) => !!(p && p.result && (p.result.renderedAt || p.result.pcFile || (p.result.release && p.result.release.tag) || (p.result.parts && p.result.parts.length)));
+
+const normTrend = (s) => String(s || "").toLowerCase().replace(/[^\p{L}\p{N}]+/gu, " ").trim();
+const STOP_WORDS = new Set("the a an of and in on to s who how why what when vs versus chess world championship champion title match game grandmaster story".split(" "));
+const toksTrend = (s) => new Set(normTrend(s).split(" ").filter((w) => w && !STOP_WORDS.has(w)));
+const sameStoryTrend = (a, b) => {
+  const shared = [...a].filter((w) => b.has(w));
+  return shared.length >= 3 || (shared.length >= 2 && shared.some((w) => /^\d{4}$/.test(w)));
+};
+
+function matchTrendProject(t) {
+  if (!t) return null;
+  const tTitle = normTrend(t.title || t.topic || "");
+  const tWords = toksTrend(tTitle);
+  for (const p of S.projects) {
+    if (t.project && t.project === p.id) return p;
+    const pTitle = normTrend(p.title || "");
+    const pTopic = normTrend(p.topic || "");
+    for (const k of [pTitle, pTopic]) {
+      if (k.length >= 8 && tTitle.length >= 8) {
+        if (k === tTitle || k.includes(tTitle) || tTitle.includes(k)) return p;
+        if (sameStoryTrend(tWords, toksTrend(k))) return p;
+      }
+    }
+    const sl = slugify(tTitle);
+    if (sl.length >= 6 && (p.id.includes(sl) || sl.includes(p.id))) return p;
+  }
+  return null;
+}
+
+function stageBadges(p) {
+  if (!p) return [];
+  const badges = [];
+  const scenes = (p.plan && p.plan.scenes) || [];
+  if (scenes.length > 0) {
+    badges.push(el("span", { class: "pill ok", text: "Script ready (" + scenes.length + " scenes)" }));
+  } else if (p.status === "writing") {
+    badges.push(el("span", { class: "pill warn", text: "Writing script..." }));
+  }
+
+  if (!hasVideo(p) && scenes.length > 0) {
+    const fOk = factsReady(p);
+    badges.push(el("span", { class: "pill" + (fOk ? " ok" : " warn"), text: fOk ? "Facts checked" : "Facts need review" }));
+    const vOk = voiceReady(p);
+    badges.push(el("span", { class: "pill" + (vOk ? " ok" : " warn"), text: vOk ? "Voice ready" : "Voice needed" }));
+  }
+
+  if (hasVideo(p)) {
+    badges.push(el("span", { class: "pill ok", text: "Video rendered" + (p.result.seconds ? " (" + Math.round(p.result.seconds / 60) + "m)" : "") }));
+  } else if (["waiting", "rendering"].includes(p.status)) {
+    badges.push(el("span", { class: "pill warn", text: p.status === "rendering" ? "Rendering video..." : "Queued for render" }));
+  } else {
+    badges.push(el("span", { class: "pill", text: "Not rendered yet" }));
+  }
+
+  if (p.result && p.result.youtube && p.result.youtube.url) {
+    badges.push(el("a", { class: "pill ok", href: safeUrl(p.result.youtube.url), target: "_blank", rel: "noopener", text: "On YouTube (" + (p.result.youtube.privacy || "live") + ")" }));
+  }
+  return badges;
+}
 const QUALITY = { standard: ["Standard", "smaller files, about 3.5 Mbps"], high: ["High", "about 6-7 Mbps, sharper on YouTube (recommended)"], max: ["Maximum", "about 10+ Mbps, the biggest files and slowest uploads"] };
 const pcQueue = () => S.projects.filter((p) => GH() && (p.status === "rendering" || (p.status === "waiting" && p.renderOn === "pc")))
   .sort((a, b) => (a.status === "rendering" ? 0 : 1) - (b.status === "rendering" ? 0 : 1) || (b.rush ? 1 : 0) - (a.rush ? 1 : 0) || String(a.requestedAt).localeCompare(String(b.requestedAt)));
@@ -466,19 +526,36 @@ const FORMATS = {
 };
 
 // ---------- capabilities (the page works without them, features light up when they arrive) ----------
-const S = { view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, projects: [], music: [], cur: null, busy: false, health: null, edits: [] };
+const S = { view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, projects: [], music: [], cur: null, busy: false, health: null, edits: [], prefill: null, draftForm: null };
+try { const d = localStorage.getItem("docu.draftForm"); if (d) S.draftForm = JSON.parse(d); } catch (e) {}
+
+function clearDraft() {
+  S.prefill = null;
+  S.draftForm = null;
+  try { localStorage.removeItem("docu.draftForm"); } catch (e) {}
+  const top = $("#topic"), ang = $("#angle");
+  if (top) top.value = "";
+  if (ang) ang.value = "";
+}
+
+function saveDraft(data) {
+  S.draftForm = Object.assign(S.draftForm || {}, data);
+  try { localStorage.setItem("docu.draftForm", JSON.stringify(S.draftForm)); } catch (e) {}
+}
 (async () => {
   const c = window.claude; if (!c) { say("Open this page in Claude to use it."); return render(); }
   const [db, sample, assets, downloads, perms, actions] = await Promise.all(["db", "sample", "assets", "downloads", "permissions", "actions"].map((n) => c.use(n).catch(() => null)));
   Object.assign(S, { db, sample, assets, downloads, perms, actions });
+  if (S.actions && !S.actions.run && S.actions.dispatch) S.actions.run = S.actions.dispatch;
+  const shouldSkipRenderOnSnapshot = () => S.view === "write" && !S.cur && document.activeElement && document.activeElement.closest && document.activeElement.closest("#newform");
   if (!db) say("Sign in to Claude to save projects.");
   if (db) {
-    db.collection("projects").onSnapshot((snap) => { S.projects = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur; render(); }, () => {});
-    db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if (S.view === "music" || S.cur) render(); }, () => {});
-    db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; render(); }, () => {});
-        db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog"), ai: g("ai"), after: g("after") }; if (S.view === "channel") render(); }, () => {});
-        db.collection("ytedits").onSnapshot((snap) => { S.edits = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.view === "channel") render(); }, () => {});
-      }
+    db.collection("projects").onSnapshot((snap) => { S.projects = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if ((S.view === "music" || S.cur) && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog"), ai: g("ai"), after: g("after") }; if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("ytedits").onSnapshot((snap) => { S.edits = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+  }
   render();
 })();
 document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => { S.view = b.dataset.view; if (S.view !== "projects") S.cur = S.view === "write" ? S.cur : null; render(); }));
@@ -505,14 +582,98 @@ function render() {
 
 function viewTrends() {
   const t = S.trends;
-  const box = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "What chess fans care about now" }), t ? el("span", { class: "note", text: "Updated " + new Date(t.at).toLocaleString() }) : null));
-  if (!t || !(t.topics || []).length) { box.append(el("div", { class: "empty", text: "The trend radar runs every morning in the cloud and lists ranked topics here, each with an angle and sources. You can also start your own topic in Write." })); return box; }
-  t.topics.forEach((x) => box.append(el("article", { class: "topic" },
-    el("div", { class: "row", style: "justify-content:space-between" }, el("h3", { text: x.title }), el("span", { class: "pill" + (x.kind === "evergreen" ? " ok" : ""), text: x.kind === "evergreen" ? "Evergreen" : "Timely" })),
-    x.angle ? el("div", { text: x.angle }) : null,
-    x.why ? el("div", { class: "note", text: "Why now: " + x.why }) : null,
-    (x.sources || []).length ? el("div", { class: "note" }, "Sources: ", ...(x.sources || []).flatMap((s, i) => [i ? " · " : "", el("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener", text: s.title || s.url })])) : null,
-    el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", text: "Make this video", onclick: () => { S.view = "write"; S.cur = null; S.prefill = x; render(); } })))));
+  const headerRight = el("div", { class: "row", style: "gap:12px; align-items:center;" },
+    GH() ? el("button", { class: "btn", type: "button", id: "refresh-trends", text: "Refresh trends", onclick: async () => {
+      say("Refreshing trends on GitHub Actions (~30s)...");
+      try {
+        if (S.actions && (S.actions.run || S.actions.dispatch)) {
+          await (S.actions.run || S.actions.dispatch).call(S.actions, "trends.yml", {});
+          say("Trends refresh dispatched to GitHub Actions (~30s).");
+        } else say("GitHub actions not connected.");
+      } catch (e) { say("Could not refresh trends: " + (e.message || e.code)); }
+      render();
+    } }) : null,
+    t ? el("span", { class: "note", text: "Updated " + new Date(t.at).toLocaleString() }) : null
+  );
+
+  const box = el("section", { class: "panel" },
+    el("div", { class: "row", style: "justify-content:space-between; align-items:center;" },
+      el("h2", { text: "What chess fans care about now" }),
+      headerRight
+    )
+  );
+
+  if (!t || !(t.topics || []).length) {
+    box.append(el("div", { class: "empty", text: "The trend radar runs every morning in the cloud and lists ranked topics here, each with an angle and sources. You can also start your own topic in Write." }));
+  } else {
+    t.topics.forEach((x) => {
+      const mp = matchTrendProject(x);
+      const actionRow = el("div", { class: "row" });
+      if (mp) {
+        actionRow.append(el("button", { class: "btn primary", type: "button", text: "Open project", onclick: () => { S.cur = mp; S.view = "write"; render(); } }));
+        if (!hasVideo(mp) && canRender(mp)) {
+          actionRow.append(el("button", { class: "btn", type: "button", text: "Render video", onclick: () => queueRender(mp).then(() => { say("Queued."); render(); }) }));
+        }
+        if (mp.result && mp.result.youtube && mp.result.youtube.url) {
+          actionRow.append(el("a", { class: "btn", href: safeUrl(mp.result.youtube.url), target: "_blank", rel: "noopener", text: "Watch on YouTube" }));
+        }
+      } else {
+        actionRow.append(el("button", { class: "btn primary", type: "button", text: "Make this video", onclick: () => {
+          S.prefill = x;
+          S.draftForm = { title: x.title || "", angle: x.angle || "", sources: x.sources || [] };
+          try { localStorage.setItem("docu.draftForm", JSON.stringify(S.draftForm)); } catch (e) {}
+          S.view = "write";
+          S.cur = null;
+          render();
+        } }));
+      }
+
+      box.append(el("article", { class: "topic" },
+        el("div", { class: "row", style: "justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;" },
+          el("h3", { text: x.title }),
+          el("div", { class: "row", style: "gap:6px; flex-wrap:wrap;" },
+            el("span", { class: "pill" + (x.kind === "evergreen" ? " ok" : ""), text: x.kind === "evergreen" ? "Evergreen" : "Timely" }),
+            ...(mp ? stageBadges(mp) : [])
+          )
+        ),
+        x.angle ? el("div", { text: x.angle }) : null,
+        x.why ? el("div", { class: "note", text: "Why now: " + x.why }) : null,
+        (x.sources || []).length ? el("div", { class: "note" }, "Sources: ", ...(x.sources || []).flatMap((s, i) => [i ? " · " : "", el("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener", text: s.title || s.url })])) : null,
+        actionRow
+      ));
+    });
+  }
+
+  // Already in your Studio section
+  if (S.projects && S.projects.length) {
+    const studioBox = el("div", { style: "margin-top:28px; padding-top:20px; border-top:1px solid #333;" },
+      el("h3", { text: "Already in your Studio", style: "margin-bottom:12px;" })
+    );
+    S.projects.forEach((p) => {
+      const actRow = el("div", { class: "row" },
+        el("button", { class: "btn primary", type: "button", text: "Open project", onclick: () => { S.cur = p; S.view = "write"; render(); } })
+      );
+      if (!hasVideo(p) && canRender(p)) {
+        actRow.append(el("button", { class: "btn", type: "button", text: "Render video", onclick: () => queueRender(p).then(() => { say("Queued."); render(); }) }));
+      }
+      if (p.result && p.result.youtube && p.result.youtube.url) {
+        actRow.append(el("a", { class: "btn", href: safeUrl(p.result.youtube.url), target: "_blank", rel: "noopener", text: "Watch on YouTube" }));
+      }
+      studioBox.append(el("article", { class: "topic", style: "background:rgba(255,255,255,0.02);" },
+        el("div", { class: "row", style: "justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;" },
+          el("h3", { text: p.title }),
+          el("div", { class: "row", style: "gap:6px; flex-wrap:wrap;" },
+            statusPill(p),
+            ...stageBadges(p)
+          )
+        ),
+        el("div", { class: "note", text: p.minutes + " min · " + ((p.plan && p.plan.scenes) || []).length + " scenes · updated " + new Date(p.updatedAt).toLocaleDateString() }),
+        actRow
+      ));
+    });
+    box.append(studioBox);
+  }
+
   return box;
 }
 
@@ -523,24 +684,67 @@ function viewWrite() {
 }
 
 function newForm() {
-  const pre = S.prefill || {}; S.prefill = null;
+  const pre = S.prefill || S.draftForm || {};
   const f = el("form", { class: "panel", id: "newform" },
     el("h2", { text: "New documentary" }),
-    el("label", {}, "Topic", el("input", { id: "topic", required: true, value: pre.title || "", placeholder: "e.g. Eugenio Torre, Asia's first grandmaster" })),
-    el("label", {}, "Angle (optional)", el("input", { id: "angle", value: pre.angle || "", placeholder: "What makes this story worth 10 minutes?" })),
+    el("label", {}, "Topic", el("input", { id: "topic", required: true, value: pre.title || pre.topic || "", placeholder: "e.g. Eugenio Torre, Asia's first grandmaster", oninput: (e) => saveDraft({ title: e.target.value, topic: e.target.value }) })),
+    el("label", {}, "Angle (optional)", el("input", { id: "angle", value: pre.angle || "", placeholder: "What makes this story worth 10 minutes?", oninput: (e) => saveDraft({ angle: e.target.value }) })),
     el("div", { class: "grid2" },
-      el("label", {}, "AI Brain", el("select", { id: "ai-brain", onchange: () => { const go = $("#go"); if (go) go.disabled = !S.db || ($("#ai-brain").value !== "antigravity" && !(S.sample || ghWriter())); } },
-        el("option", { value: "github", selected: true, text: "GitHub Copilot (Cloud — PC can stay off)" }),
-        el("option", { value: "antigravity", text: "Antigravity Gemini 4 Argon (PC — free)" }))),
-      el("label", {}, "Length", el("select", { id: "length" }, ...[5, 8, 10, 12, 15].map((m) => el("option", { value: m, selected: m === 10, text: m + " minutes" })))),
-      el("label", {}, "Music", el("select", { id: "music" }, ...MUSIC.map(([id, t]) => el("option", { value: id, text: t })))),
-      el("label", {}, "Format", el("select", { id: "format" }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, title: how, text: name }))))),
-    el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit", id: "go", disabled: !(S.sample || ghWriter()) || !S.db, text: "Write the script" }),
+      el("label", {}, "AI Brain", el("select", { id: "ai-brain", onchange: (e) => { saveDraft({ brain: e.target.value }); const go = $("#go"); if (go) go.disabled = !S.db || ($("#ai-brain").value !== "antigravity" && !(S.sample || ghWriter())); } },
+        el("option", { value: "github", selected: (pre.brain || "github") === "github", text: "GitHub Copilot (Cloud — PC can stay off)" }),
+        el("option", { value: "antigravity", selected: pre.brain === "antigravity", text: "Antigravity Gemini 4 Argon (PC — free)" }))),
+      el("label", {}, "Length", el("select", { id: "length", onchange: (e) => saveDraft({ minutes: +e.target.value }) }, ...[5, 8, 10, 12, 15].map((m) => el("option", { value: m, selected: m === +(pre.minutes || 10), text: m + " minutes" })))),
+      el("label", {}, "Music", el("select", { id: "music", onchange: (e) => saveDraft({ music: e.target.value }) }, ...MUSIC.map(([id, t]) => el("option", { value: id, selected: id === (pre.music || "km-long-note-four"), text: t })))),
+      el("label", {}, "Format", el("select", { id: "format", onchange: (e) => saveDraft({ format: e.target.value }) }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, selected: k === (pre.format || "story"), title: how, text: name }))))),
+    el("div", { class: "row", style: "gap:8px; align-items:center;" },
+      el("button", { class: "btn primary", type: "submit", id: "go", disabled: !(S.sample || ghWriter()) || !S.db, text: "Write the script" }),
+      el("button", { class: "btn", type: "button", id: "save-draft", disabled: !S.db, text: "Save draft to Projects", onclick: async () => {
+        const topEl = $("#topic"), angEl = $("#angle");
+        const topic = (topEl ? topEl.value : "").trim();
+        if (!topic) return say("Enter a topic first.");
+        const opt = {
+          topic,
+          angle: (angEl ? angEl.value : "").trim(),
+          minutes: +($("#length") ? $("#length").value : 10),
+          music: $("#music") ? $("#music").value : "km-long-note-four",
+          format: $("#format") ? $("#format").value : "story",
+          sources: (S.prefill && S.prefill.sources) || (S.draftForm && S.draftForm.sources) || []
+        };
+        const id = slugify(topic) + "-" + Date.now().toString(36).slice(-4);
+        const stamp = new Date().toISOString();
+        const p = {
+          id,
+          title: topic,
+          topic,
+          angle: opt.angle,
+          minutes: opt.minutes,
+          format: opt.format,
+          status: "draft",
+          factsChecked: false,
+          claimsRequired: true,
+          sources: opt.sources,
+          createdAt: stamp,
+          updatedAt: stamp,
+          titles: [topic],
+          plan: { scenes: [] }
+        };
+        try {
+          await S.db.collection("projects").doc(id).set(p);
+          clearDraft();
+          S.cur = p;
+          S.projects = [p, ...S.projects.filter((x) => x.id !== id)];
+          say("Draft saved to Projects.");
+          render();
+        } catch (e) {
+          say("Could not save draft: " + (e.message || e.code));
+        }
+      } }),
+      el("button", { class: "btn", type: "button", text: "Clear", onclick: () => { clearDraft(); render(); } }),
       el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes."
         : ghWriter() ? "GitHub writes it with Copilot (Claude Opus 5.5) on your subscription, so your PC can stay off. It shows in Projects in a few minutes and is finished in about 15–40 minutes."
         : "Writing needs Claude in this page, or Copilot in VS Code: ask the Docu writer agent (tools/ai-write.mjs)." })),
     el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
-  f.addEventListener("submit", (e) => { e.preventDefault(); const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, sources: pre.sources || [] };
+  f.addEventListener("submit", (e) => { e.preventDefault(); const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, sources: (S.prefill && S.prefill.sources) || (S.draftForm && S.draftForm.sources) || [] };
     if ($("#ai-brain") && $("#ai-brain").value === "antigravity") agyQueueWrite(opt);
     else if (S.sample) write(opt);
     else ghWrite(opt); });
@@ -630,6 +834,7 @@ async function writeChapters(p, set = (k, m) => say(m)) {
     catch (e) { /* the script is saved; the score plan can be written later from the Music section */ }
   }
   if (S.sample) { set(0.99, "Listing the facts to check…"); try { await listClaims(p); } catch (e) { /* List the claims in Check the facts tries again */ } }
+  clearDraft();
   set(1, "Script ready, with an original score plan. Read it through, check the facts, then record your narration.");
   S.view = "write"; render();
 }
@@ -654,6 +859,7 @@ async function agyQueueWrite(opt) {
   };
   try {
     await S.db.doc("projects/" + id).set(p);
+    clearDraft();
     S.projects = [p, ...S.projects.filter((x) => x.id !== id)];
     S.cur = p;
     S.view = "write";
@@ -672,8 +878,8 @@ async function ghWrite(opt) {
   try {
     const sources = (opt.sources || []).filter((s) => s && s.url).slice(0, 12).map((s) => ({ title: String(s.title || ""), url: String(s.url) }));
     await S.actions.dispatch("write.yml", { topic: opt.topic, angle: opt.angle || "", minutes: String(opt.minutes), music: opt.music || "", format: opt.format || "story", sources: sources.length ? JSON.stringify(sources) : "" });
+    clearDraft();
     say(`GitHub is writing "${opt.topic}" with Copilot. It shows in Projects as Writing in a few minutes; your PC can be off.`);
-    $("#topic").value = ""; $("#angle").value = "";
   } catch (e) { say("Could not start the writing on GitHub: " + (e.message || e.code)); }
   finally { S.busy = false; const g = $("#go"); if (g) g.disabled = false; }
 }
@@ -773,7 +979,7 @@ function claimRow(p, c) {
 }
 function factsBox(p) {
   const g = factGate(p), live = (p.claims || []).filter((c) => !g.changed.includes(c.scene) && factScenes(p).some((s) => s.id === c.scene));
-  const list = g.changed.length ? el("button", { class: "btn primary", type: "button", disabled: S.busy || !(S.sample || ghWriter()), text: Array.isArray(p.claims) ? `List the claims of ${g.changed.length} changed scene(s)` : "List the claims", onclick: () => (!S.sample && ghWriter() ? ghContinue(p) : pressListClaims(p)) }) : null;
+  const list = g.changed.length ? el("button", { class: "btn primary", type: "button", disabled: S.busy || !S.sample, title: S.sample ? "" : "Listing claims needs Claude in this page", text: Array.isArray(p.claims) ? `List the claims of ${g.changed.length} changed scene(s)` : "List the claims", onclick: () => pressListClaims(p) }) : null;
   if (!g.required) return el("div", {}, el("label", { class: "row", style: "display:flex;gap:8px;color:var(--fg)" }, el("input", { type: "checkbox", id: "facts", checked: !!p.factsChecked, style: "width:auto", onchange: (e) => save(p, { factsChecked: e.target.checked }).then(render) }), "I checked the facts"), list);
   const order = (c) => (claimDone(c) ? 2 : c.risk === "high" ? 0 : 1);
   // the claims the source check verified with a quote found in the source: Mark confirms them in one go after reading
@@ -1775,8 +1981,16 @@ function viewProjects() {
   S.projects.forEach((p) => { const live = ["waiting", "rendering"].includes(p.status), rel = GH() && p.result && p.result.release && p.result.release.tag, qn = queueNote(p);
     const again = !live && !BUSY.includes(p.status) && canRender(p) && ["draft", "review", "done", "failed"].includes(p.status);
     list.append(el("div", { class: "proj" },
-      el("div", {}, el("div", { class: "t", text: p.title }), el("div", { class: "note", text: p.minutes + " min · " + (p.plan && p.plan.scenes || []).length + " scenes · updated " + new Date(p.updatedAt).toLocaleString() + (qn ? " · " + qn : "") }), progressLine(p, null)),
-      el("div", { class: "row" }, statusPill(p),
+      el("div", {},
+        el("div", { class: "t", text: p.title }),
+        el("div", { class: "note", text: p.minutes + " min · " + (p.plan && p.plan.scenes || []).length + " scenes · updated " + new Date(p.updatedAt).toLocaleString() + (qn ? " · " + qn : "") }),
+        progressLine(p, null),
+        el("div", { class: "row", style: "gap:6px; flex-wrap:wrap; margin-top:6px;" },
+          statusPill(p),
+          ...stageBadges(p)
+        )
+      ),
+      el("div", { class: "row" },
         live ? stopButton(p, null) : null,
         again ? el("button", { class: "btn", type: "button", text: ["draft", "failed"].includes(p.status) ? "Render" : "Render again", title: "Queue it behind the others", onclick: () => queueRender(p).then(() => { say("Queued."); render(); }) }) : null,
         rel ? el("a", { class: "btn", href: "https://github.com/" + window.claude.repo + "/releases/tag/" + rel, target: "_blank", rel: "noopener", text: "Video" }) : null,
