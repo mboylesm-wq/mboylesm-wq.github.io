@@ -315,6 +315,7 @@ Accuracy: only facts you are confident are true and can source; never invent quo
   // the visuals Claude may pick: the outline gets the core ones, a chapter both
   visCore: `Visual JSON per scene (pick one):
 photo {"type":"photo","search":"<Wikimedia Commons search: person or place + year>","motion":"zoomIn|zoomOut|panLeft|panRight|punchIn","label":"<short place/date tag, optional>"} real people and places, most scenes
+video {"type":"video","query":"<2-4 words for stock b-roll: place or mood, e.g. Manila city streets, crowded tournament hall, night lights>","search":"<same 2-4 words>"} atmospheric B-roll video scenes (about 1 per chapter)
 words {"type":"words"} the scene's own narration as huge kinetic text: punchlines of 4-14 words only
 geo {"type":"geo","title":"...","highlight":["<Natural Earth country name>"],"points":[{"name":"Baguio","lon":120.60,"lat":16.41,"note":"..."}]} every new place, real coordinates
 title {"type":"title","title":"...","subtitle":"..."}
