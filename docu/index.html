@@ -529,6 +529,9 @@ function newForm() {
     el("label", {}, "Topic", el("input", { id: "topic", required: true, value: pre.title || "", placeholder: "e.g. Eugenio Torre, Asia's first grandmaster" })),
     el("label", {}, "Angle (optional)", el("input", { id: "angle", value: pre.angle || "", placeholder: "What makes this story worth 10 minutes?" })),
     el("div", { class: "grid2" },
+      el("label", {}, "AI Brain", el("select", { id: "ai-brain", onchange: () => { const go = $("#go"); if (go) go.disabled = !S.db || ($("#ai-brain").value !== "antigravity" && !(S.sample || ghWriter())); } },
+        el("option", { value: "github", selected: true, text: "GitHub Copilot (Cloud — PC can stay off)" }),
+        el("option", { value: "antigravity", text: "Antigravity Gemini 4 Argon (PC — free)" }))),
       el("label", {}, "Length", el("select", { id: "length" }, ...[5, 8, 10, 12, 15].map((m) => el("option", { value: m, selected: m === 10, text: m + " minutes" })))),
       el("label", {}, "Music", el("select", { id: "music" }, ...MUSIC.map(([id, t]) => el("option", { value: id, text: t })))),
       el("label", {}, "Format", el("select", { id: "format" }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, title: how, text: name }))))),
@@ -538,7 +541,9 @@ function newForm() {
         : "Writing needs Claude in this page, or Copilot in VS Code: ask the Docu writer agent (tools/ai-write.mjs)." })),
     el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
   f.addEventListener("submit", (e) => { e.preventDefault(); const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, sources: pre.sources || [] };
-    S.sample ? write(opt) : ghWrite(opt); });
+    if ($("#ai-brain") && $("#ai-brain").value === "antigravity") agyQueueWrite(opt);
+    else if (S.sample) write(opt);
+    else ghWrite(opt); });
   return f;
 }
 
@@ -629,6 +634,35 @@ async function writeChapters(p, set = (k, m) => say(m)) {
   S.view = "write"; render();
 }
 // Docu Studio on GitHub: GitHub's write.yml writes it (tools/write-auto.mjs, Copilot CLI on Mark's subscription)
+async function agyQueueWrite(opt) {
+  if (!opt.topic || !S.db) return;
+  const id = slugify(opt.topic) + "-" + Math.random().toString(36).slice(2, 6);
+  const stamp = new Date().toISOString();
+  const p = {
+    id,
+    title: opt.topic,
+    topic: opt.topic,
+    minutes: opt.minutes,
+    status: "writing",
+    writeWith: "antigravity",
+    writeRequest: opt,
+    plan: { title: opt.topic, scenes: [] },
+    sources: opt.sources || [],
+    note: "Queued for Antigravity (Gemini 4 Argon): run 'node tools/ai-write.mjs new ...' in Antigravity",
+    createdAt: stamp,
+    updatedAt: stamp
+  };
+  try {
+    await S.db.doc("projects/" + id).set(p);
+    S.projects = [p, ...S.projects.filter((x) => x.id !== id)];
+    S.cur = p;
+    S.view = "write";
+    say(`Queued "${opt.topic}" for Antigravity (Gemini 4 Argon).`);
+    render();
+  } catch (e) {
+    say("Could not queue for Antigravity: " + (e.message || e.code));
+  }
+}
 const ghWriter = () => GH() && !!S.actions;
 const GH_WRITING_MIN = 20; // write-auto notes every prompt (ghWriteAt); quiet this long means the run stopped
 const ghWriting = (p) => !!(p.ghWriteAt && Date.now() - Date.parse(p.ghWriteAt) < GH_WRITING_MIN * 60000);
@@ -673,13 +707,24 @@ async function rewriteChapter(p, i, note) {
 // "Rewrite chapter": asks for an optional note inside the page, then rewrites
 function rewriteControl(p, i) {
   const wrap = el("span", { class: "row" });
-  const ask = el("button", { class: "btn", type: "button", text: "Rewrite chapter", disabled: S.busy || !S.sample || BUSY.includes(p.status) });
+  const ask = el("button", { class: "btn", type: "button", text: "Rewrite chapter", disabled: S.busy || !(S.sample || ghWriter()) || BUSY.includes(p.status) });
   ask.addEventListener("click", () => {
-    const inp = el("input", { placeholder: "What to change (optional), e.g. shorter, more on the final game", "aria-label": "What to change in chapter " + (i + 1), style: "min-width:260px;flex:1" });
+    const how = el("input", { placeholder: "What to change (optional), e.g. shorter, more on the final game", "aria-label": "What to change in chapter " + (i + 1), style: "min-width:260px;flex:1" });
     wrap.textContent = "";
-    wrap.append(inp, el("button", { class: "btn primary", type: "button", text: "Rewrite", onclick: () => rewriteChapter(p, i, inp.value.trim()) }),
+    wrap.append(how, el("button", { class: "btn primary", type: "button", text: "Rewrite", onclick: async () => {
+      const note = how.value.trim();
+      if (!S.sample && ghWriter()) {
+        try {
+          await S.actions.dispatch("write.yml", { id: p.id, rewrite_chapter: String(i + 1), rewrite_note: note });
+          await save(p, { note: "GitHub is rewriting chapter " + (i + 1), ghWriteAt: new Date().toISOString() });
+          say("GitHub is rewriting chapter " + (i + 1) + ". The updated chapter will show here.");
+        } catch (e) { say("Could not start rewrite on GitHub: " + (e.message || e.code)); }
+      } else {
+        rewriteChapter(p, i, note);
+      }
+    } }),
       el("button", { class: "btn", type: "button", text: "Cancel", onclick: () => { wrap.textContent = ""; wrap.append(ask); } }));
-    inp.focus();
+    how.focus();
   });
   wrap.append(ask);
   return wrap;
@@ -728,7 +773,7 @@ function claimRow(p, c) {
 }
 function factsBox(p) {
   const g = factGate(p), live = (p.claims || []).filter((c) => !g.changed.includes(c.scene) && factScenes(p).some((s) => s.id === c.scene));
-  const list = g.changed.length ? el("button", { class: "btn primary", type: "button", disabled: S.busy || !S.sample, text: Array.isArray(p.claims) ? `List the claims of ${g.changed.length} changed scene(s)` : "List the claims", onclick: () => pressListClaims(p) }) : null;
+  const list = g.changed.length ? el("button", { class: "btn primary", type: "button", disabled: S.busy || !(S.sample || ghWriter()), text: Array.isArray(p.claims) ? `List the claims of ${g.changed.length} changed scene(s)` : "List the claims", onclick: () => (!S.sample && ghWriter() ? ghContinue(p) : pressListClaims(p)) }) : null;
   if (!g.required) return el("div", {}, el("label", { class: "row", style: "display:flex;gap:8px;color:var(--fg)" }, el("input", { type: "checkbox", id: "facts", checked: !!p.factsChecked, style: "width:auto", onchange: (e) => save(p, { factsChecked: e.target.checked }).then(render) }), "I checked the facts"), list);
   const order = (c) => (claimDone(c) ? 2 : c.risk === "high" ? 0 : 1);
   // the claims the source check verified with a quote found in the source: Mark confirms them in one go after reading
@@ -736,6 +781,49 @@ function factsBox(p) {
   const bulk = verified.length ? el("button", { class: "btn", type: "button", text: `Confirm the ${verified.length} claim(s) the source check verified`, title: "Read each one and its quote first", onclick: () => { verified.forEach((c) => Object.assign(c, { status: "supported" })); save(p, { claims: p.claims }).then(render); } }) : null;
   return el("div", {}, el("div", { class: "row" }, el("span", { class: "pill" + (g.ok ? " ok" : " warn"), text: g.ok ? "Facts checked" : `${g.total - g.open} of ${g.total} checked` }), list, bulk),
     el("ul", { class: "claims" }, [...live].sort((a, b) => order(a) - order(b)).map((c) => claimRow(p, c))));
+}
+
+function miniBoardEl(vis) {
+  if (!vis || vis.type !== "board") return null;
+  const GLYPHS = { K: "♔", Q: "♕", R: "♖", B: "♗", N: "♘", P: "♙", k: "♚", q: "♛", r: "♜", b: "♝", n: "♞", p: "♟" };
+  const fenField = String(vis.fen || "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1").trim().split(/\s+/)[0];
+  const rawRanks = fenField.split("/").map((rankStr) => {
+    const row = [];
+    for (const ch of rankStr) {
+      if (ch >= "1" && ch <= "8") for (let k = 0; k < +ch; k++) row.push("");
+      else row.push(GLYPHS[ch] || ch);
+    }
+    return row;
+  });
+  const flipped = !!(vis.flip || vis.orientation === "black");
+  const ranks = flipped ? rawRanks.slice().reverse().map((r) => r.slice().reverse()) : rawRanks;
+  const board = el("div", { class: "miniboard-grid", style: "display:grid;grid-template-columns:repeat(8,26px);grid-template-rows:repeat(8,26px);width:208px;height:208px;border:1px solid var(--line);border-radius:4px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.12);" });
+  for (let r = 0; r < 8; r++) {
+    for (let c = 0; c < 8; c++) {
+      const piece = (ranks[r] && ranks[r][c]) || "";
+      const isLight = (r + c) % 2 === 0;
+      const isWhitePiece = "♔♕♖♗♘♙K".includes(piece);
+      const sq = el("div", {
+        style: `display:flex;align-items:center;justify-content:center;background:${isLight ? "#e5cfa8" : "#98673a"};font-size:18px;line-height:1;user-select:none;color:${isWhitePiece ? "#fff" : "#1a130b"};text-shadow:${isWhitePiece ? "0 1px 2px rgba(0,0,0,0.85)" : "none"};font-weight:bold;`,
+        text: piece
+      });
+      board.append(sq);
+    }
+  }
+  const movesCount = (vis.moves || []).length;
+  const viewBadge = vis.view === "3d" ? "3D Board" : "2D Board";
+  const wName = vis.white || "White", bName = vis.black || "Black";
+  const header = el("div", { class: "row", style: "justify-content:space-between;font-size:12px;font-family:var(--mono);color:var(--dim);margin-bottom:2px;" },
+    el("span", { style: "font-weight:600;color:var(--fg);", text: `${wName} vs ${bName}` }),
+    el("div", { class: "row", style: "gap:4px;" },
+      movesCount ? el("span", { class: "pill", style: "font-size:10px;padding:1px 5px;", text: `${movesCount} move${movesCount === 1 ? "" : "s"}` }) : null,
+      el("span", { class: "pill ok", style: "font-size:10px;padding:1px 5px;", text: viewBadge })
+    )
+  );
+  return el("div", { class: "miniboard-wrap", style: "padding:6px 10px;background:var(--panel);border:1px solid var(--line);border-radius:8px;display:inline-grid;gap:4px;width:fit-content;margin-top:4px;" },
+    header,
+    board
+  );
 }
 
 // ---------- project editor ----------
@@ -816,7 +904,7 @@ function projectEditor(p) {
     const meta = el("div", { class: "meta" }, el("span", { text: `${i + 1}. ${s.visual.type}${s.visual.search ? ": " + s.visual.search : ""}` }), el("span", { text: words(s.text) + " words" }));
     t.addEventListener("change", () => { s.text = t.value; save(p, { plan: p.plan, factsChecked: false }); meta.lastChild.textContent = words(t.value) + " words"; });
     vj.addEventListener("change", () => { try { const nv = JSON.parse(vj.value); if (!nv || typeof nv !== "object" || typeof nv.type !== "string") throw new Error("no type"); s.visual = nv; vj.style.borderColor = ""; save(p, { plan: p.plan }); } catch (e) { vj.style.borderColor = "var(--bad)"; say("That visual is not valid JSON with a type; it was not saved."); } });
-    ch.append(el("div", { class: "scene" }, meta, i === 0 && !s.text ? el("div", { class: "note", text: "Title card (3 seconds, no narration)" }) : t, vj));
+    ch.append(el("div", { class: "scene" }, meta, i === 0 && !s.text ? el("div", { class: "note", text: "Title card (3 seconds, no narration)" }) : t, vj, s.visual && s.visual.type === "board" ? miniBoardEl(s.visual) : null));
   });
   return el("div", { style: "display:grid;gap:18px" }, top, steps, musicBox(p), script);
 }
@@ -1099,10 +1187,10 @@ function scoreBox(p, locked) {
       (c.arc || []).length ? el("div", { class: "note", text: "Timed to the story: " + c.arc.map((a) => `${a.at} ${String(a.text).split("\n")[0]}`).join(" → ") }) : null);
   });
   wrap.append(el("div", { class: "row" },
-    el("button", { class: "btn" + (sc.length ? "" : " primary"), type: "button", disabled: locked || S.busy || !S.sample, text: S.busy ? "Writing…" : sc.length ? "Rewrite the briefs" : "Write the score briefs", onclick: () => writeScore(p) }),
+    el("button", { class: "btn" + (sc.length ? "" : " primary"), type: "button", disabled: locked || S.busy || !(S.sample || ghWriter()), text: S.busy ? "Writing…" : sc.length ? "Rewrite the briefs" : "Write the score briefs", onclick: () => (!S.sample && ghWriter() ? ghContinue(p) : writeScore(p)) }),
     sc.length ? el("button", { class: "btn", type: "button", disabled: locked, text: "Use the original score everywhere",
       onclick: () => { useScoreEverywhere(p); save(p, { plan }).then(() => { say("Original score chosen for every section. It is composed at the next render."); render(); }); } }) : null,
-    S.sample ? null : el("span", { class: "note", text: "Writing briefs needs Claude in this page, or Copilot in VS Code (tools/ai-write.mjs next <id>)." })));
+    S.sample || ghWriter() ? null : el("span", { class: "note", text: "Writing briefs needs Claude in this page, or Copilot in VS Code (tools/ai-write.mjs next <id>)." })));
   return wrap;
 }
 function useScoreEverywhere(p) {
@@ -1245,7 +1333,13 @@ function shortsBox(p) {
       onclick: async () => {
         // remaking: the old clips leave storage first (the new set replaces them)
         if (list.length && S.assets) for (const s of list) if (s.asset) await S.assets.delete(s.asset).catch(() => {});
-        await save(p, { shortsRequest: "waiting", ...(list.length ? { shorts: null } : {}) }); say("Shorts will be made at the next cloud worker run."); render(); } })));
+        await save(p, { shortsRequest: "waiting", ...(list.length ? { shorts: null } : {}) }); say("Shorts will be made at the next cloud worker run."); render(); } }),
+      ghWriter() && list.length ? el("button", { class: "btn", type: "button", text: "Post next Short now", onclick: async () => {
+        try {
+          await S.actions.dispatch("post-shorts.yml", { now: "true", id: p.id });
+          say("Started Post Shorts on GitHub Actions for " + p.id);
+        } catch (e) { say("Could not start Post Shorts: " + (e.message || e.code)); }
+      } }) : null));
 }
 
 // ---------- Music tab: your own library of original tracks (Eleven Music), made once, reused in every video ----------
@@ -1467,8 +1561,79 @@ function chanSetupPanel(h) {
       d.status === "waiting" ? null : ask));
   return p;
 }
+function chanSocialCard() {
+  const counts = { facebook: 0, instagram: 0, youtube: 0, tiktok: 0 };
+  const links = { facebook: [], instagram: [], youtube: [], tiktok: [] };
+  (S.projects || []).forEach((p) => {
+    (p.shorts || []).forEach((s) => {
+      if (s.posted) {
+        for (const [k, url] of Object.entries(s.posted)) {
+          if (url && counts[k] != null) {
+            counts[k]++;
+            links[k].push({ title: s.title || p.title, url });
+          }
+        }
+      }
+    });
+  });
+  const total = counts.facebook + counts.instagram + counts.youtube + counts.tiktok;
+
+  const schedItems = [
+    { time: "05:00", what: "Channel AI (PC)", detail: "tools/channel-auto.mjs" },
+    { time: "06:17", what: "YouTube Autopilot", detail: "apply up to 80 changes" },
+    { time: "12:00, 17:00, 20:00", what: "Chess Reels", detail: "pnoychess-reel-studio" },
+    { time: "14:30", what: "Documentary Short", detail: "post-shorts.yml" }
+  ];
+
+  const sched = el("div", { class: "row", style: "gap:10px;font-size:13px;flex-wrap:wrap;color:var(--fg)" },
+    ...schedItems.map((item) => el("span", { style: "display:inline-flex;gap:5px;align-items:center;background:var(--bg);padding:4px 8px;border-radius:6px;border:1px solid var(--line)" },
+      el("strong", { style: "color:var(--gold);font-family:var(--mono)", text: item.time }),
+      el("span", { text: item.what }),
+      el("span", { class: "dim", style: "font-size:11px", text: `(${item.detail})` })
+    ))
+  );
+
+  const plats = [["facebook", "Facebook"], ["instagram", "Instagram"], ["youtube", "YouTube"], ["tiktok", "TikTok"]];
+  const postSummary = el("div", { class: "row", style: "gap:8px;align-items:center;flex-wrap:wrap" },
+    el("span", { style: "font-weight:600;font-size:13px", text: `Shorts Posted (${total}):` }),
+    ...plats.map(([k, name]) => {
+      const c = counts[k];
+      const latest = links[k][links[k].length - 1];
+      return el("span", { class: "pill" + (c > 0 ? " ok" : "") },
+        latest ? el("a", { href: safeUrl(latest.url), target: "_blank", rel: "noopener", text: `${name}: ${c}`, style: "color:inherit;text-decoration:none" }) : `${name}: ${c}`
+      );
+    })
+  );
+
+  const runBtn = el("button", {
+    class: "btn",
+    type: "button",
+    disabled: !S.actions,
+    title: S.actions ? "Dispatch post-shorts.yml on GitHub Actions" : "Only available when signed in to GitHub",
+    text: "Run Post Shorts now",
+    onclick: async () => {
+      try {
+        await S.actions.dispatch("post-shorts.yml", { now: "true" });
+        say("Started Post Shorts on GitHub Actions.");
+      } catch (e) {
+        say("Could not start Post Shorts: " + (e.message || e.code));
+      }
+    }
+  });
+
+  return el("section", { class: "panel", id: "chan-social" },
+    el("div", { class: "row", style: "justify-content:space-between;align-items:center" },
+      el("h2", { text: "Social Schedule & System Health" }),
+      runBtn
+    ),
+    sched,
+    postSummary
+  );
+}
+
 function viewChannel() {
   const h = S.health, st = chState(), wrap = el("div", { style: "display:grid;gap:18px" });
+  wrap.append(chanSocialCard());
   const check = el("button", { class: "btn", type: "button", id: "chan-check", disabled: !S.actions, title: S.actions ? "" : "Only the GitHub page can start this", text: "Check the channel now", onclick: () => runChannel("audit") });
   const top = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Channel health" + (h ? ": " + h.score + "/100" : "") }), check));
   wrap.append(top);
