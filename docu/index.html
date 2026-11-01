@@ -1319,7 +1319,7 @@ function chanAIPanel() {
   const n = (k) => eds.filter((e) => aiStage(e) === k).length, failed = eds.filter((e) => e.status === "failed").length, inFlow = eds.length - failed;
   const pctDone = inFlow ? Math.round((100 * eds.reduce((s, e) => s + (aiStage(e) ?? 0), 0)) / (4 * inFlow)) : 100;
   const left = n(0) + n(1) + n(2), toSend = left + n(3), mornings = Math.ceil(toSend / 80);
-  const phase = { writing: `writing the suggestions (${(ai && ai.batches) || 0} batch(es) of 8 done)`, thumbnails: `making the thumbnails (${(ai && ai.thumbs) || 0} done, 3 looks each, the best kept)`, approving: "approving the suggestions" };
+  const phase = { subtitles: `reading what is said in each video (YouTube's subtitles, free: ${(ai && ai.subs) || 0} of ${(ai && ai.subsOf) || "?"})`, writing: `writing the suggestions (${(ai && ai.batches) || 0} batch(es) of 8 done)`, thumbnails: `making the thumbnails (${(ai && ai.thumbs) || 0} done, 3 looks each, the best kept)`, approving: "approving the suggestions" };
   const state = live ? `Running now on your PC: ${phase[ai.phase] || ai.phase}. Last update ${agoText(ai.at)}. Nothing to press: it saves as it goes, and pressing Ask AI again would not start a second run.`
     : ai && ai.state === "failed" ? `The last run stopped ${agoText(ai.at)}: ${ai.note || "see .cache\\channel-ai.log on the PC"}. It tries again at 5:00 am, or double-click channel-ai.cmd.`
     : left ? `Not running now. ${left} video(s) still need the AI: it starts by itself at 5:00 am when your PC is on, or double-click channel-ai.cmd in C:\\PnoyChess\\docu.`
