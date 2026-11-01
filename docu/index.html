@@ -393,7 +393,12 @@ const factScenes = (p) => { const pl = (p && p.plan) || {}, t = pl.thumbnail || 
   return [...(pl.scenes || []), { id: "_film", text: "", film: [...new Set([p && p.title, pl.title, ...((p && p.titles) || [])].filter(Boolean)), t.text, t.small, pl.next].filter(Boolean).join("\n") }]; };
 // the source check (tools/ai-write.mjs) found this claim's own source dead or saying something else: not confirmable
 const sourceBad = (c) => !!(c.check && c.check.source === c.source && (c.check.verdict === "dead-link" || c.check.verdict === "contradicts"));
-const claimDone = (c) => (c.status === "supported" && /^https?:\/\/\S+$/.test(String(c.source || "").trim()) && !sourceBad(c)) || (c.status === "waived" && !!String(c.note || "").trim());
+// well-known chess sources (and Wikipedia, any language): a claim citing one is confirmed automatically (Mark's choice,
+// 2026-11-01) unless the source check found it dead or saying otherwise; Undo sets "doubted" so Mark decides himself
+const TRUSTED_SOURCES = ["chess.com", "lichess.org", "chessbase.com", "chessbase.in", "theweekinchess.com", "wikipedia.org", "fide.com", "chessgames.com", "365chess.com", "chess24.com", "chess-results.com", "uschess.org", "newinchess.com", "worldchess.com", "chessprogramming.org"];
+const trustedSource = (u) => { const m = /^https?:\/\/([^/?#:]+)/i.exec(String(u || "").trim()), h = m ? m[1].toLowerCase() : ""; return !!h && TRUSTED_SOURCES.some((d) => h === d || h.endsWith("." + d)); };
+const autoConfirmed = (c) => (!c.status || c.status === "pending") && trustedSource(c.source);
+const claimDone = (c) => ((c.status === "supported" || autoConfirmed(c)) && /^https?:\/\/\S+$/.test(String(c.source || "").trim()) && !sourceBad(c)) || (c.status === "waived" && !!String(c.note || "").trim());
 const factGate = (p) => {
   const required = !!p.claimsRequired || Array.isArray(p.claims), scenes = factScenes(p).filter(factText), scan = p.factScan || {};
   const changed = scenes.filter((s) => scan[s.id] !== factKey(s)).map((s) => s.id);
@@ -712,9 +717,9 @@ function claimRow(p, c) {
   const decide = (patch) => { Object.assign(c, patch); return save(p, { claims: p.claims }).then(render); };
   const head = el("div", {}, c.text, el("div", { class: "note", text: `${c.scene === "_film" ? "Title, thumbnail or end card" : "Scene " + c.scene}${c.risk === "high" ? " · high risk" : ""}` }), checkNote(c));
   if (claimDone(c)) return el("li", { class: "claim" }, head,
-    el("div", { class: "row" }, el("span", { class: "pill ok", text: c.status === "waived" ? "Waived" : "Confirmed" }),
+    el("div", { class: "row" }, el("span", { class: "pill ok", text: c.status === "waived" ? "Waived" : autoConfirmed(c) ? "Confirmed automatically (trusted chess source)" : "Confirmed" }),
       c.status === "waived" ? el("span", { class: "note", text: c.note }) : el("a", { href: c.source, target: "_blank", rel: "noopener", text: "Source" }),
-      el("button", { class: "btn", type: "button", text: "Undo", onclick: () => decide({ status: "pending" }) })));
+      el("button", { class: "btn", type: "button", text: "Undo", onclick: () => decide({ status: autoConfirmed(c) ? "doubted" : "pending" }) })));
   const url = el("input", { type: "url", value: c.source || "", placeholder: "Source URL", "aria-label": "Source for: " + c.text, style: "min-width:220px;flex:1", onchange: (e) => { c.source = e.target.value.trim(); save(p, { claims: p.claims }); } }); // kept when another claim redraws the list
   const why = el("input", { placeholder: "Why it needs no source", "aria-label": "Reason to waive: " + c.text, style: "min-width:180px;flex:1" });
   return el("li", { class: "claim" }, head,
@@ -727,7 +732,7 @@ function factsBox(p) {
   if (!g.required) return el("div", {}, el("label", { class: "row", style: "display:flex;gap:8px;color:var(--fg)" }, el("input", { type: "checkbox", id: "facts", checked: !!p.factsChecked, style: "width:auto", onchange: (e) => save(p, { factsChecked: e.target.checked }).then(render) }), "I checked the facts"), list);
   const order = (c) => (claimDone(c) ? 2 : c.risk === "high" ? 0 : 1);
   // the claims the source check verified with a quote found in the source: Mark confirms them in one go after reading
-  const verified = live.filter((c) => c.status !== "supported" && c.status !== "waived" && c.check && c.check.source === c.source && c.check.verdict === "supports" && c.check.quote);
+  const verified = live.filter((c) => !claimDone(c) && c.status !== "waived" && c.check && c.check.source === c.source && c.check.verdict === "supports" && c.check.quote);
   const bulk = verified.length ? el("button", { class: "btn", type: "button", text: `Confirm the ${verified.length} claim(s) the source check verified`, title: "Read each one and its quote first", onclick: () => { verified.forEach((c) => Object.assign(c, { status: "supported" })); save(p, { claims: p.claims }).then(render); } }) : null;
   return el("div", {}, el("div", { class: "row" }, el("span", { class: "pill" + (g.ok ? " ok" : " warn"), text: g.ok ? "Facts checked" : `${g.total - g.open} of ${g.total} checked` }), list, bulk),
     el("ul", { class: "claims" }, [...live].sort((a, b) => order(a) - order(b)).map((c) => claimRow(p, c))));
