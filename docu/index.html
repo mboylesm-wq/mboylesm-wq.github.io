@@ -435,8 +435,25 @@ const ago = (iso) => { const s = Math.max(0, Math.round((Date.now() - Date.parse
 function paintProgress(e, p) {
   const g = p && p.status === "rendering" && p.progress; e.hidden = !g; if (!g) return;
   const age = (Date.now() - Date.parse(g.at)) / 60000, quiet = age > STALE_MIN;
-  e.textContent = g.step + (g.pct != null ? " " + g.pct + "%" : "") + " ? updated " + ago(g.at) + " ago" + (quiet ? ". Nothing from your PC for a while: it may have stopped or lost the internet. Press Stop, then Render again." : "");
+  const pctVal = g.pct != null ? Math.max(0, Math.min(100, Math.round(g.pct))) : 0;
+  const txt = g.step + (g.pct != null ? " " + pctVal + "%" : " 0%") + " · updated " + ago(g.at) + " ago" + (quiet ? ". Nothing from your PC for a while: it may have stopped or lost the internet. Press Stop, then Render again." : "");
+  e.textContent = "";
+  e.append(
+    el("div", { text: txt }),
+    el("div", { class: "bar", style: "margin-top:4px" }, el("i", { style: "width:" + pctVal + "%" }))
+  );
   e.style.color = quiet ? "var(--warn)" : "";
+}
+function errorBox(p) {
+  if (!p || (p.status !== "failed" && !p.errorDetail)) return null;
+  const d = p.errorDetail || {};
+  const head = "Error details" + (d.step ? " · step: " + d.step : "") + (d.pct != null ? " (" + d.pct + "%)" : "") + (d.at ? " · " + new Date(d.at).toLocaleString() : "");
+  const body = d.detail || p.note || "Unknown error";
+  return el("div", { class: "note check-bad", style: "margin-top:6px;padding:8px 10px;border:1px solid var(--bad);border-radius:6px;background:rgba(229,38,43,0.08);" },
+    el("div", { style: "font-weight:600;color:var(--bad);", text: head }),
+    p.note && p.note !== body ? el("div", { style: "margin-top:2px;", text: p.note }) : null,
+    el("pre", { style: "margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:11px;max-height:180px;overflow:auto;", text: body })
+  );
 }
 const progressLine = (p, id = "progress-line") => { const e = el("div", { class: "note", id: id || null, "data-progress": p.id, "aria-live": "polite" }); paintProgress(e, p); return e; };
 setInterval(() => document.querySelectorAll("[data-progress]").forEach((e) => { const p = S.projects.find((x) => x.id === e.dataset.progress); if (p) paintProgress(e, p); }), 15000);
@@ -691,14 +708,13 @@ function newForm() {
     el("label", {}, "Topic", el("input", { id: "topic", required: true, value: pre.title || pre.topic || "", placeholder: "e.g. Eugenio Torre, Asia's first grandmaster", oninput: (e) => saveDraft({ title: e.target.value, topic: e.target.value }) })),
     el("label", {}, "Angle (optional)", el("input", { id: "angle", value: pre.angle || "", placeholder: "What makes this story worth 10 minutes?", oninput: (e) => saveDraft({ angle: e.target.value }) })),
     el("div", { class: "grid2" },
-      el("label", {}, "AI Brain", el("select", { id: "ai-brain", onchange: (e) => { saveDraft({ brain: e.target.value }); const go = $("#go"); if (go) go.disabled = !S.db || ($("#ai-brain").value !== "antigravity" && !(S.sample || ghWriter())); } },
-        el("option", { value: "github", selected: (pre.brain || "github") === "github", text: "GitHub Copilot (Cloud — PC can stay off)" }),
-        el("option", { value: "antigravity", selected: pre.brain === "antigravity", text: "Antigravity Gemini 4 Argon (PC — free)" }))),
+      el("label", {}, "AI Brain", el("select", { id: "ai-brain", onchange: (e) => saveDraft({ brain: e.target.value }) },
+        el("option", { value: "antigravity", selected: true, text: "Antigravity Gemini 4 Argon (PC — free)" }))),
       el("label", {}, "Length", el("select", { id: "length", onchange: (e) => saveDraft({ minutes: +e.target.value }) }, ...[5, 8, 10, 12, 15].map((m) => el("option", { value: m, selected: m === +(pre.minutes || 10), text: m + " minutes" })))),
       el("label", {}, "Music", el("select", { id: "music", onchange: (e) => saveDraft({ music: e.target.value }) }, ...MUSIC.map(([id, t]) => el("option", { value: id, selected: id === (pre.music || "km-long-note-four"), text: t })))),
       el("label", {}, "Format", el("select", { id: "format", onchange: (e) => saveDraft({ format: e.target.value }) }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, selected: k === (pre.format || "story"), title: how, text: name }))))),
     el("div", { class: "row", style: "gap:8px; align-items:center;" },
-      el("button", { class: "btn primary", type: "submit", id: "go", disabled: !(S.sample || ghWriter()) || !S.db, text: "Write the script" }),
+      el("button", { class: "btn primary", type: "submit", id: "go", disabled: !S.db, text: "Write the script" }),
       el("button", { class: "btn", type: "button", id: "save-draft", disabled: !S.db, text: "Save draft to Projects", onclick: async () => {
         const topEl = $("#topic"), angEl = $("#angle");
         const topic = (topEl ? topEl.value : "").trim();
@@ -742,13 +758,11 @@ function newForm() {
       } }),
       el("button", { class: "btn", type: "button", text: "Clear", onclick: () => { clearDraft(); render(); } }),
       el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes."
-        : ghWriter() ? "GitHub writes it with Copilot (Claude Opus 5.5) on your subscription, so your PC can stay off. It shows in Projects in a few minutes and is finished in about 15–40 minutes."
-        : "Writing needs Claude in this page, or Copilot in VS Code: ask the Docu writer agent (tools/ai-write.mjs)." })),
+        : "Antigravity (Gemini 4 Argon) writes it on your PC for free with sources and fact checks." })),
     el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
   f.addEventListener("submit", (e) => { e.preventDefault(); const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, sources: (S.prefill && S.prefill.sources) || (S.draftForm && S.draftForm.sources) || [] };
-    if ($("#ai-brain") && $("#ai-brain").value === "antigravity") agyQueueWrite(opt);
-    else if (S.sample) write(opt);
-    else ghWrite(opt); });
+    if (S.sample) write(opt);
+    else agyQueueWrite(opt); });
   return f;
 }
 
@@ -890,10 +904,10 @@ async function ghWrite(opt) {
   finally { S.busy = false; const g = $("#go"); if (g) g.disabled = false; }
 }
 async function ghContinue(p) {
-  if (S.busy || !ghWriter() || ghWriting(p)) return;
+  if (S.busy || ghWriting(p)) return;
   S.busy = true; render();
-  try { await S.actions.dispatch("write.yml", { id: p.id }); await save(p, { note: "GitHub is writing it with Copilot: starting", ghWriteAt: new Date().toISOString() }); say("GitHub is continuing the writing. Every finished chapter shows here."); }
-  catch (e) { say("Could not start the writing on GitHub: " + (e.message || e.code)); }
+  try { await save(p, { writeWith: "antigravity", note: "Queued for Antigravity (Gemini 4 Argon): run 'node tools/ai-write.mjs next " + p.id + "' in Antigravity", ghWriteAt: new Date().toISOString() }); say("Queued for Antigravity (Gemini 4 Argon) to continue writing."); }
+  catch (e) { say("Could not queue for Antigravity: " + (e.message || e.code)); }
   finally { S.busy = false; render(); }
 }
 async function continueWriting(p) {
@@ -925,12 +939,11 @@ function rewriteControl(p, i) {
     wrap.textContent = "";
     wrap.append(how, el("button", { class: "btn primary", type: "button", text: "Rewrite", onclick: async () => {
       const note = how.value.trim();
-      if (!S.sample && ghWriter()) {
+      if (!S.sample) {
         try {
-          await S.actions.dispatch("write.yml", { id: p.id, rewrite_chapter: String(i + 1), rewrite_note: note });
-          await save(p, { note: "GitHub is rewriting chapter " + (i + 1), ghWriteAt: new Date().toISOString() });
-          say("GitHub is rewriting chapter " + (i + 1) + ". The updated chapter will show here.");
-        } catch (e) { say("Could not start rewrite on GitHub: " + (e.message || e.code)); }
+          await save(p, { writeWith: "antigravity", rewriteRequest: { chapter: i + 1, note }, note: "Queued for Antigravity (Gemini 4 Argon): rewrite chapter " + (i + 1) + (note ? " (" + note + ")" : ""), ghWriteAt: new Date().toISOString() });
+          say("Queued chapter " + (i + 1) + " rewrite for Antigravity (Gemini 4 Argon).");
+        } catch (e) { say("Could not queue rewrite: " + (e.message || e.code)); }
       } else {
         rewriteChapter(p, i, note);
       }
@@ -1160,6 +1173,7 @@ function projectEditor(p) {
         stopButton(p),
         p.note ? el("span", { class: "note", text: p.note }) : null),
       GH() ? progressLine(p) : null,
+      errorBox(p),
       p.status === "pc" ? pcBox(p) : null)),
     el("div", { class: "step" + (["approved", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Watch it, change the music if you like, approve" }), resultBox(p))),
     el("div", { class: "step" + (p.status === "done" && p.result && p.result.youtube ? " done" : "") }, el("div", {}, el("h3", { text: "On YouTube (Private), you publish" }),
@@ -2214,7 +2228,9 @@ function viewProjects() {
       el("div", {},
         el("div", { class: "t", text: p.title }),
         el("div", { class: "note", text: p.minutes + " min · " + (p.plan && p.plan.scenes || []).length + " scenes · updated " + new Date(p.updatedAt).toLocaleString() + (qn ? " · " + qn : "") }),
+        p.note && p.status !== "failed" ? el("div", { class: "note", text: p.note }) : null,
         progressLine(p, null),
+        errorBox(p),
         el("div", { class: "row", style: "gap:6px; flex-wrap:wrap; margin-top:6px;" },
           statusPill(p),
           ...stageBadges(p)
