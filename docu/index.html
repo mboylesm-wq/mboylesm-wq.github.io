@@ -521,10 +521,13 @@ function newForm() {
       el("label", {}, "Length", el("select", { id: "length" }, ...[5, 8, 10, 12, 15].map((m) => el("option", { value: m, selected: m === 10, text: m + " minutes" })))),
       el("label", {}, "Music", el("select", { id: "music" }, ...MUSIC.map(([id, t]) => el("option", { value: id, text: t })))),
       el("label", {}, "Format", el("select", { id: "format" }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, title: how, text: name }))))),
-    el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit", id: "go", disabled: !S.sample || !S.db, text: "Write the script" }),
-      el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes." : "Writing needs Claude in this page, or Copilot in VS Code: ask the Docu writer agent (tools/ai-write.mjs)." })),
+    el("div", { class: "row" }, el("button", { class: "btn primary", type: "submit", id: "go", disabled: !(S.sample || ghWriter()) || !S.db, text: "Write the script" }),
+      el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes."
+        : ghWriter() ? "GitHub writes it with Copilot (Claude Opus 5.5) on your subscription, so your PC can stay off. It shows in Projects in a few minutes and is finished in about 15–40 minutes."
+        : "Writing needs Claude in this page, or Copilot in VS Code: ask the Docu writer agent (tools/ai-write.mjs)." })),
     el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
-  f.addEventListener("submit", (e) => { e.preventDefault(); write({ topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, sources: pre.sources || [] }); });
+  f.addEventListener("submit", (e) => { e.preventDefault(); const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, sources: pre.sources || [] };
+    S.sample ? write(opt) : ghWrite(opt); });
   return f;
 }
 
@@ -614,8 +617,31 @@ async function writeChapters(p, set = (k, m) => say(m)) {
   set(1, "Script ready, with an original score plan. Read it through, check the facts, then record your narration.");
   S.view = "write"; render();
 }
+// Docu Studio on GitHub: GitHub's write.yml writes it (tools/write-auto.mjs, Copilot CLI on Mark's subscription)
+const ghWriter = () => GH() && !!S.actions;
+const GH_WRITING_MIN = 20; // write-auto notes every prompt (ghWriteAt); quiet this long means the run stopped
+const ghWriting = (p) => !!(p.ghWriteAt && Date.now() - Date.parse(p.ghWriteAt) < GH_WRITING_MIN * 60000);
+async function ghWrite(opt) {
+  if (!opt.topic || S.busy || !ghWriter()) return;
+  S.busy = true; $("#go").disabled = true;
+  try {
+    const sources = (opt.sources || []).filter((s) => s && s.url).slice(0, 12).map((s) => ({ title: String(s.title || ""), url: String(s.url) }));
+    await S.actions.dispatch("write.yml", { topic: opt.topic, angle: opt.angle || "", minutes: String(opt.minutes), music: opt.music || "", format: opt.format || "story", sources: sources.length ? JSON.stringify(sources) : "" });
+    say(`GitHub is writing "${opt.topic}" with Copilot. It shows in Projects as Writing in a few minutes; your PC can be off.`);
+    $("#topic").value = ""; $("#angle").value = "";
+  } catch (e) { say("Could not start the writing on GitHub: " + (e.message || e.code)); }
+  finally { S.busy = false; const g = $("#go"); if (g) g.disabled = false; }
+}
+async function ghContinue(p) {
+  if (S.busy || !ghWriter() || ghWriting(p)) return;
+  S.busy = true; render();
+  try { await S.actions.dispatch("write.yml", { id: p.id }); await save(p, { note: "GitHub is writing it with Copilot: starting", ghWriteAt: new Date().toISOString() }); say("GitHub is continuing the writing. Every finished chapter shows here."); }
+  catch (e) { say("Could not start the writing on GitHub: " + (e.message || e.code)); }
+  finally { S.busy = false; render(); }
+}
 async function continueWriting(p) {
-  if (S.busy || !S.sample) return;
+  if (!S.sample) return ghContinue(p);
+  if (S.busy) return;
   S.busy = true; render();
   try { await writeChapters(p); } catch (e) { say("Writing stopped: " + errText(e) + " Press Continue writing to go on."); }
   finally { S.busy = false; render(); }
@@ -711,7 +737,8 @@ function projectEditor(p) {
     el("div", { class: "note", text: `Mark's take: ${scenes.filter((s) => s.take).length} of ${scenes.filter((s) => s.chapter).length} chapters have a first-person scene` }),
     el("div", { class: "row" }, el("button", { class: "btn", type: "button", text: "← All projects", onclick: () => { S.cur = null; S.view = "projects"; render(); } }), deleteControl(p)),
     p.status === "writing" ? el("div", { class: "row" }, el("span", { class: "note", text: `Chapters written: ${(p.writing && p.writing.next) || 0} of ${chapterList(p).length}. Every finished chapter is saved.` }),
-      el("button", { class: "btn primary", type: "button", disabled: S.busy || !S.sample, text: S.busy ? "Writing…" : "Continue writing", onclick: () => continueWriting(p) })) : null);
+      el("button", { class: "btn primary", type: "button", id: "continue-writing", disabled: S.busy || !(S.sample || ghWriter()) || ghWriting(p), text: S.busy || ghWriting(p) ? "Writing…" : "Continue writing", onclick: () => continueWriting(p) }),
+      p.note && !S.sample && ghWriter() ? el("span", { class: "note", text: p.note }) : null) : null);
   // steps
   const steps = el("section", { class: "panel steps" });
   const aiVoice = !!(p.narration && p.narration.kind === "ai-stock"), elVoice = !!(p.narration && p.narration.kind === "elevenlabs");
