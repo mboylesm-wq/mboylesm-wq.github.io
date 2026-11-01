@@ -465,7 +465,7 @@ const S = { view: "trends", db: null, sample: null, assets: null, downloads: nul
     db.collection("projects").onSnapshot((snap) => { S.projects = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur; render(); }, () => {});
     db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if (S.view === "music" || S.cur) render(); }, () => {});
     db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; render(); }, () => {});
-        db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog"), ai: g("ai") }; if (S.view === "channel") render(); }, () => {});
+        db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog"), ai: g("ai"), after: g("after") }; if (S.view === "channel") render(); }, () => {});
         db.collection("ytedits").onSnapshot((snap) => { S.edits = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.view === "channel") render(); }, () => {});
       }
   render();
@@ -1324,7 +1324,7 @@ function chanAIPanel() {
     bar, el("div", { class: "note", style: "margin-top:8px", "aria-live": "polite", text: state }),
     el("div", { class: "note", text: `${eds.length} video(s): ${n(0)} queued · ${n(1)} written, thumbnail next · ${n(2)} thumbnail made · ${n(3)} approved, waiting for YouTube · ${n(4)} on YouTube${failed ? ` · ${failed} failed` : ""}` }),
     toSend ? el("div", { class: "note", text: `GitHub sends up to 80 a day at 6:17 am (YouTube's free limit): about ${mornings} more morning(s); your PC does not need to be on for that.` }) : null,
-    el("div", { class: "note", text: "Where to see them: each video in the list below shows its old thumbnail → the new one and its progress; the Changes list at the bottom has the new title, description and tags." }));
+    el("div", { class: "note", text: "Where to see them: each video in the list below shows its old thumbnail → the new one, the AI's new title and description (tap \"Show the full new text\" for all of it and the tags), and its score now → after the change. The Changes list at the bottom lets you edit them." }));
 }
 const pct = (x, d = 1) => (x == null ? "–" : Number(x).toFixed(d) + "%");
 const scoreCls = (n) => (n >= 80 ? "ok" : n >= 60 ? "warn" : "bad");
@@ -1494,6 +1494,17 @@ function viewChannel() {
   if (!vids.length) list.append(el("div", { class: "empty", text: "No videos match." }));
   vids.forEach((v) => {
     const fails = (v.checks || []).filter((x) => !x.ok), ed = editOf(v.id), [el1, cls] = ed ? editPill(ed) : [];
+    const aft = ed && ed.status !== "done" && ((S.chan2 || {}).after || {}).videos ? S.chan2.after.videos[v.id] : null, es = (ed && ed.status !== "ask" && ed.status !== "done" && ed.set) || {};
+    const desc = es.description != null ? String(es.description) : null;
+    const aiText = Object.keys(es).length ? el("div", { style: "margin-top:6px;padding:8px 10px;border-left:3px solid var(--gold);background:rgba(0,0,0,.03);border-radius:4px" },
+      el("div", { class: "note", style: "font-weight:600", text: ed.status === "waiting" ? "The AI's new version (approved, goes to YouTube soon):" : "The AI's new version:" }),
+      es.title != null ? el("div", { class: "t", text: es.title }) : null,
+      desc != null ? el("div", { class: "note", text: desc.length > 160 ? desc.slice(0, 160).trim() + "…" : desc }) : null,
+      el("details", {}, el("summary", { class: "note", text: "Show the full new text" + (es.tags ? ` and ${es.tags.length} tags` : "") }),
+        desc != null ? el("div", { class: "note", style: "white-space:pre-wrap", text: desc }) : null,
+        es.tags ? el("div", { class: "note", text: "Tags: " + es.tags.join(", ") }) : null,
+        es.tlTitle != null ? el("div", { class: "note", text: "Filipino title: " + es.tlTitle }) : null,
+        ed.why ? el("div", { class: "note", text: "Why: " + ed.why }) : null)) : null;
     const newThumb = ed && ed.thumb && ed.status !== "done" ? el("span", { class: "row", style: "gap:4px;align-items:center" }, el("span", { "aria-hidden": "true", text: "→" }),
       el("img", { src: "/_blob/" + ed.thumb, alt: "New thumbnail", title: "New thumbnail" + (ed.thumbScore != null ? `: ${ed.thumbScore}/100 at phone size` : ""), width: 120, height: 68, loading: "lazy", style: "border-radius:4px;outline:2px solid var(--gold)" })) : null;
     list.append(el("div", { class: "proj", "data-video": v.id },
@@ -1502,9 +1513,12 @@ function viewChannel() {
         v.thumb ? el("img", { src: safeUrl(v.thumb), alt: "", width: 120, height: 68, loading: "lazy", style: "border-radius:4px" }) : null, newThumb,
         el("div", {}, el("a", { class: "t", href: "https://youtu.be/" + encodeURIComponent(v.id), target: "_blank", rel: "noopener", text: v.title }),
           el("div", { class: "note", text: `${v.short ? "Short" : mmss(v.seconds)} · ${v.privacy} · ${new Date(v.publishedAt).toLocaleDateString()} · ${v.views} views · click rate ${pct(v.ctr)} · watched ${pct(v.avgViewPct, 0)}` }),
-          fails.length ? el("div", { class: "note", text: "Missing: " + fails.map((x) => x.label).join(" · "), title: fails.map((x) => x.fix).join("\n") }) : null,
+          fails.length ? el("div", { class: "note", text: (aft ? "Missing now: " : "Missing: ") + fails.map((x) => x.label).join(" · "), title: fails.map((x) => x.fix).join("\n") }) : null,
+          aft ? el("div", { class: "note", text: aft.missing.length ? "Still missing after the change: " + aft.missing.join(" · ") + " (not fixed by this change)" : "After the change: nothing missing" }) : null,
+          aiText,
           ...(v.flags || []).map((f) => el("div", { class: "note", style: "color:var(--warn)", text: f })))),
-      el("div", { class: "row" }, ed ? el("span", { class: "pill " + cls, text: el1 }) : null, el("span", { class: "pill " + scoreCls(v.score), text: v.score + "/100" }))));
+      el("div", { class: "row" }, ed ? el("span", { class: "pill " + cls, text: el1 }) : null,
+        el("span", { class: "pill " + scoreCls(aft ? aft.score : v.score), title: aft ? `Now ${v.score}/100; ${aft.score}/100 once the change is on YouTube` : "", text: aft && aft.score !== v.score ? `${v.score} → ${aft.score}/100` : v.score + "/100" }))));
   });
   wrap.append(list);
 
