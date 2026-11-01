@@ -100,7 +100,7 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
   const textB64 = (t) => toB64(new TextEncoder().encode(t));
   const clone = (x) => JSON.parse(JSON.stringify(x));
 
-  function makeBackend({ fetch, token, repo = REPO, branch = BRANCH, api = "https://api.github.com", onAuthError = () => {} }) {
+  function makeBackend({ fetch, token, repo = REPO, branch = BRANCH, api = "https://api.github.com", onAuthError = () => {}, progressive = false }) {
     const base = `${api}/repos/${repo}`;
     async function call(path, { method = "GET", body, accept = "application/vnd.github+json", etag } = {}) {
       const headers = { Authorization: "Bearer " + token, Accept: accept, "X-GitHub-Api-Version": "2022-11-28" };
@@ -153,16 +153,22 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
       if (list.notModified && c.loaded) return;
       if (list.notModified) list = await list1(null); // nothing shown yet: a 304 has no folder to show
       if (!Array.isArray(list.body)) throw new Error(`GitHub sent no listing for db/${name}`);
-      const seen = new Set(), now = Date.now(); let pinned = false;
+      const seen = new Set(), now = Date.now(), todo = []; let pinned = false;
       for (const f of list.body) {
         if (f.type !== "file" || !f.name.endsWith(".json")) continue;
         const id = f.name.slice(0, -5), cur = c.files.get(id); seen.add(id);
         if (cur && cur.sha === f.sha) continue;
         // GitHub's listing can lag a few seconds behind a write: this page's own saves and deletes win for a minute
         if ((cur && cur.own && now - cur.own < 60000) || (c.gone.has(id) && now - c.gone.get(id) < 60000)) { pinned = true; continue; }
-        const blob = (await json(`/git/blobs/${f.sha}`)).body;
-        try { c.files.set(id, { sha: f.sha, data: JSON.parse(new TextDecoder().decode(fromB64(blob.content))) }); } catch (e) { /* not JSON: skipped */ }
+        todo.push([id, f.sha]);
       }
+      // hundreds of files (the channel's changes): 10 reads at a time; the page (progressive) fills in as they arrive,
+      // the PC's tools wait for the whole folder
+      let next = 0, done = 0;
+      const worker = async () => { while (next < todo.length) { const [id, sha] = todo[next++]; const blob = (await json(`/git/blobs/${sha}`)).body;
+        try { c.files.set(id, { sha, data: JSON.parse(new TextDecoder().decode(fromB64(blob.content))) }); } catch (e) { /* not JSON: skipped */ }
+        if (progressive && ++done % 50 === 0 && done < todo.length) notify(name); } };
+      await Promise.all(Array.from({ length: Math.min(10, todo.length) }, worker));
       for (const id of [...c.files.keys()]) { const f = c.files.get(id); if (seen.has(id)) continue; if (f.own && now - f.own < 60000) { pinned = true; continue; } c.files.delete(id); }
       // only a listing read in full counts as seen: a skipped entry or a failed read is looked at again next poll
       c.etag = pinned ? null : list.etag;
@@ -269,7 +275,7 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
 
   if (!token) { signIn(); window.claude = { use: () => Promise.reject(new Error("not signed in")) }; return; }
   let warned = false;
-  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, onAuthError: () => { if (warned) return; warned = true; try { localStorage.removeItem(KEY); } catch (e) {} signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
+  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, progressive: true, onAuthError: () => { if (warned) return; warned = true; try { localStorage.removeItem(KEY); } catch (e) {} signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
   const realFetch = window.fetch.bind(window);
   window.fetch = (input, init) => { const u = typeof input === "string" ? input : input && input.url; const m = /^\/_blob\/([^/?#]+)$/.exec(u || ""); return m ? backend.blob(decodeURIComponent(m[1])) : realFetch(input, init); };
   // <img src="/_blob/…"> never goes through fetch: load it with the key and show it from memory
