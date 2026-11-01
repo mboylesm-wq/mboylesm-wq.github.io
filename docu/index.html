@@ -398,7 +398,7 @@ const sourceBad = (c) => !!(c.check && c.check.source === c.source && (c.check.v
 const TRUSTED_SOURCES = ["chess.com", "lichess.org", "chessbase.com", "chessbase.in", "theweekinchess.com", "wikipedia.org", "fide.com", "chessgames.com", "365chess.com", "chess24.com", "chess-results.com", "uschess.org", "newinchess.com", "worldchess.com", "chessprogramming.org"];
 const trustedSource = (u) => { const m = /^https?:\/\/([^/?#:]+)/i.exec(String(u || "").trim()), h = m ? m[1].toLowerCase() : ""; return !!h && TRUSTED_SOURCES.some((d) => h === d || h.endsWith("." + d)); };
 const autoConfirmed = (c) => (!c.status || c.status === "pending") && trustedSource(c.source);
-const claimDone = (c) => ((c.status === "supported" || autoConfirmed(c)) && /^https?:\/\/\S+$/.test(String(c.source || "").trim()) && !sourceBad(c)) || (c.status === "waived" && !!String(c.note || "").trim());
+const claimDone = (c) => ((c.status === "supported" || autoConfirmed(c)) && /^https?:\/\/\S+$/.test(String(c.source || "").trim()) && (!sourceBad(c) || c.userConfirmed)) || (c.status === "waived" && !!String(c.note || "").trim());
 const factGate = (p) => {
   const required = !!p.claimsRequired || Array.isArray(p.claims), scenes = factScenes(p).filter(factText), scan = p.factScan || {};
   const changed = scenes.filter((s) => scan[s.id] !== factKey(s)).map((s) => s.id);
@@ -974,7 +974,7 @@ function claimRow(p, c) {
   const url = el("input", { type: "url", value: c.source || "", placeholder: "Source URL", "aria-label": "Source for: " + c.text, style: "min-width:220px;flex:1", onchange: (e) => { c.source = e.target.value.trim(); save(p, { claims: p.claims }); } }); // kept when another claim redraws the list
   const why = el("input", { placeholder: "Why it needs no source", "aria-label": "Reason to waive: " + c.text, style: "min-width:180px;flex:1" });
   return el("li", { class: "claim" }, head,
-    el("div", { class: "row" }, url, el("button", { class: "btn primary", type: "button", text: "Confirmed", onclick: () => { const source = url.value.trim(); if (!/^https?:\/\/\S+$/.test(source)) return say("Paste the link of the source you read first."); decide({ status: "supported", source }); } })),
+    el("div", { class: "row" }, url, el("button", { class: "btn primary", type: "button", text: "Confirmed", onclick: () => { const source = url.value.trim(); if (!/^https?:\/\/\S+$/.test(source)) return say("Paste the link of the source you read first."); const patch = { status: "supported", source, userConfirmed: true }; if (c.check && (c.check.verdict === "contradicts" || c.check.verdict === "dead-link")) patch.check = { ...c.check, verdict: "supports", note: "Confirmed by user" }; decide(patch); } })),
     el("div", { class: "row" }, why, el("button", { class: "btn", type: "button", text: "Waive", onclick: () => { const note = why.value.trim(); if (!note) return say("Write why this claim needs no source first."); decide({ status: "waived", note }); } })));
 }
 function factsBox(p) {
@@ -984,9 +984,36 @@ function factsBox(p) {
   const order = (c) => (claimDone(c) ? 2 : c.risk === "high" ? 0 : 1);
   // the claims the source check verified with a quote found in the source: Mark confirms them in one go after reading
   const verified = live.filter((c) => !claimDone(c) && c.status !== "waived" && c.check && c.check.source === c.source && c.check.verdict === "supports" && c.check.quote);
-  const bulk = verified.length ? el("button", { class: "btn", type: "button", text: `Confirm the ${verified.length} claim(s) the source check verified`, title: "Read each one and its quote first", onclick: () => { verified.forEach((c) => Object.assign(c, { status: "supported" })); save(p, { claims: p.claims }).then(render); } }) : null;
+  const bulk = verified.length ? el("button", { class: "btn", type: "button", text: `Confirm the ${verified.length} claim(s) the source check verified`, title: "Read each one and its quote first", onclick: () => { verified.forEach((c) => Object.assign(c, { status: "supported", userConfirmed: true })); save(p, { claims: p.claims }).then(render); } }) : null;
   return el("div", {}, el("div", { class: "row" }, el("span", { class: "pill" + (g.ok ? " ok" : " warn"), text: g.ok ? "Facts checked" : `${g.total - g.open} of ${g.total} checked` }), list, bulk),
     el("ul", { class: "claims" }, [...live].sort((a, b) => order(a) - order(b)).map((c) => claimRow(p, c))));
+}
+
+function parseChessInput(raw) {
+  const text = String(raw || "").trim();
+  if (!text) return null;
+  const headers = {};
+  for (const m of text.matchAll(/\[(\w+)\s+"([^"]*)"\]/g)) {
+    headers[m[1]] = m[2];
+  }
+  let body = text.replace(/\[\w+\s+"[^"]*"\]/g, " ").replace(/\{[^}]*\}/g, " ").replace(/;[^\r\n]*/g, " ");
+  let fen = headers.FEN || null;
+  const fenMatch = (!fen) && text.match(/\b([rnbqkpRNBQKP1-8]+\/){7}[rnbqkpRNBQKP1-8]+(\s+[wb]\s+[KQkq-]+\s+[a-h1-8-]+\s+\d+\s+\d+)?\b/);
+  if (!fen && fenMatch) {
+    fen = fenMatch[0];
+    body = body.replace(fen, " ");
+  }
+  body = body.replace(/\b\d+\.+/g, " ").replace(/\$\d+/g, " ").replace(/\b(1-0|0-1|1\/2-1\/2|\*)\b/g, " ");
+  const tokens = body.split(/\s+/).filter(Boolean);
+  const moves = tokens.filter((t) => /^[NBRQK]?[a-h]?[1-8]?x?[a-h][1-8](=[NBRQK])?[+#]?$|^O-O(-O)?[+#]?$|^[a-h][1-8][a-h][1-8][qrbn]?$/i.test(t));
+  return {
+    headers,
+    fen: fen || undefined,
+    moves: moves.length ? moves : undefined,
+    white: headers.White || undefined,
+    black: headers.Black || undefined,
+    title: headers.Event || (headers.White && headers.Black ? `${headers.White} vs ${headers.Black}` : undefined)
+  };
 }
 
 function miniBoardEl(vis) {
@@ -1110,7 +1137,75 @@ function projectEditor(p) {
     const meta = el("div", { class: "meta" }, el("span", { text: `${i + 1}. ${s.visual.type}${s.visual.search ? ": " + s.visual.search : ""}` }), el("span", { text: words(s.text) + " words" }));
     t.addEventListener("change", () => { s.text = t.value; save(p, { plan: p.plan, factsChecked: false }); meta.lastChild.textContent = words(t.value) + " words"; });
     vj.addEventListener("change", () => { try { const nv = JSON.parse(vj.value); if (!nv || typeof nv !== "object" || typeof nv.type !== "string") throw new Error("no type"); s.visual = nv; vj.style.borderColor = ""; save(p, { plan: p.plan }); } catch (e) { vj.style.borderColor = "var(--bad)"; say("That visual is not valid JSON with a type; it was not saved."); } });
-    ch.append(el("div", { class: "scene" }, meta, i === 0 && !s.text ? el("div", { class: "note", text: "Title card (3 seconds, no narration)" }) : t, vj, s.visual && s.visual.type === "board" ? miniBoardEl(s.visual) : null));
+    const boardHolder = el("div", { id: "board-wrap-" + s.id });
+    const updateBoardPreview = () => {
+      boardHolder.textContent = "";
+      if (s.visual && s.visual.type === "board") boardHolder.append(miniBoardEl(s.visual));
+    };
+    updateBoardPreview();
+    const importWrap = el("div", { style: "margin-top:4px" });
+    const importBtn = el("button", {
+      class: "btn",
+      type: "button",
+      style: "font-size:12px;padding:3px 8px;",
+      text: s.visual && s.visual.type === "board" ? "Import FEN / Moves" : "Make board scene & Import FEN",
+      onclick: () => {
+        importWrap.textContent = "";
+        const box = el("div", { style: "display:grid;gap:6px;padding:8px;background:var(--panel);border:1px solid var(--line);border-radius:6px;margin:6px 0;" });
+        const area = el("textarea", {
+          rows: 3,
+          placeholder: "Paste FEN (e.g. rnbqkbnr/...), PGN ([White '...'] 1. e4 e5...), or moves (e4 e5 Nf3...)",
+          style: "width:100%;box-sizing:border-box;font-family:var(--mono);font-size:12px;"
+        });
+        const applyBtn = el("button", {
+          class: "btn primary",
+          type: "button",
+          text: "Apply",
+          onclick: () => {
+            const parsed = parseChessInput(area.value);
+            if (!parsed || (!parsed.fen && !parsed.moves)) {
+              return say("Could not find a valid FEN or moves in that input.");
+            }
+            const vis = {
+              type: "board",
+              ...(s.visual && s.visual.type === "board" ? s.visual : {})
+            };
+            if (parsed.fen) vis.fen = parsed.fen;
+            if (parsed.moves) vis.moves = parsed.moves;
+            if (parsed.white) vis.white = parsed.white;
+            if (parsed.black) vis.black = parsed.black;
+            if (parsed.title) vis.title = parsed.title;
+            s.visual = vis;
+            vj.value = JSON.stringify(s.visual, null, 1);
+            meta.firstChild.textContent = `${i + 1}. board${vis.title ? ": " + vis.title : ""}`;
+            updateBoardPreview();
+            save(p, { plan: p.plan });
+            say("Board position and moves updated.");
+            importWrap.textContent = "";
+            importWrap.append(importBtn);
+          }
+        });
+        const cancelBtn = el("button", {
+          class: "btn",
+          type: "button",
+          text: "Cancel",
+          onclick: () => {
+            importWrap.textContent = "";
+            importWrap.append(importBtn);
+          }
+        });
+        box.append(
+          el("div", { class: "note", text: "Paste a FEN string, PGN, or space-separated moves:" }),
+          area,
+          el("div", { class: "row" }, applyBtn, cancelBtn)
+        );
+        importWrap.append(box);
+        area.focus();
+      }
+    });
+    importWrap.append(importBtn);
+    vj.addEventListener("change", () => { updateBoardPreview(); });
+    ch.append(el("div", { class: "scene" }, meta, i === 0 && !s.text ? el("div", { class: "note", text: "Title card (3 seconds, no narration)" }) : t, vj, importWrap, boardHolder));
   });
   return el("div", { style: "display:grid;gap:18px" }, top, steps, musicBox(p), script);
 }
@@ -1521,7 +1616,15 @@ function shortsBox(p) {
     const blob = async () => new Blob([await (await fetch("/_blob/" + s.asset)).blob()], { type: "video/mp4" });
     const plat = s.captions ? [["facebook", "Facebook"], ["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube Shorts"]].filter(([k]) => s.captions[k]) : [];
     holder.append(el("div", { style: "display:grid;gap:6px;border-top:1px solid var(--line);padding-top:8px" },
-      el("div", { class: "row", style: "justify-content:space-between" }, el("strong", { text: `${i + 1}. ${s.title}` }), el("span", { class: "note", text: `${Math.round(s.seconds || 0)} s` })),
+      el("div", { class: "row", style: "align-items:center;gap:8px" },
+        el("span", { style: "font-weight:bold", text: `${i + 1}.` }),
+        el("input", { value: s.title || "", placeholder: "Short title", "aria-label": `Short ${i + 1} title`, style: "font-weight:600;flex:1", onchange: (e) => { s.title = e.target.value.trim(); save(p, { shorts: p.shorts }); say("Short title saved."); } }),
+        el("span", { class: "note", text: `${Math.round(s.seconds || 0)} s` })
+      ),
+      el("div", { class: "row", style: "align-items:center;gap:8px" },
+        el("span", { class: "note", text: "Hook:" }),
+        el("input", { value: s.hook || "", placeholder: "Opening hook / question (optional)", "aria-label": `Short ${i + 1} hook`, style: "font-size:13px;flex:1", onchange: (e) => { s.hook = e.target.value.trim(); save(p, { shorts: p.shorts }); say("Short hook saved."); } })
+      ),
       el("div", { class: "row" },
         s.asset ? el("button", { class: "btn", type: "button", text: "Watch", onclick: async () => { try { const b = await blob(); player.textContent = ""; player.append(el("video", { src: URL.createObjectURL(b), controls: true, playsinline: true, style: "max-width:320px" })); } catch (e) { say("Could not load the Short."); } } }) : null,
         s.asset ? el("button", { class: "btn", type: "button", text: "Download", onclick: async () => { try { await saveFile(`${p.id}-short-${i + 1}.mp4`, await blob(), player); } catch (e) { say("Download failed."); } } })
@@ -1639,7 +1742,7 @@ function chanAIPanel() {
 }
 const pct = (x, d = 1) => (x == null ? "–" : Number(x).toFixed(d) + "%");
 const scoreCls = (n) => (n >= 80 ? "ok" : n >= 60 ? "warn" : "bad");
-const chState = () => S.chan || (S.chan = { kind: "all", sort: "score", check: "", sel: new Set() });
+const chState = () => S.chan || (S.chan = { kind: "all", sort: "score", check: "", q: "", status: "all", sel: new Set() });
 async function runChannel(mode) {
   try { if (!S.actions) throw new Error("this page cannot start GitHub jobs"); await S.actions.dispatch("channel.yml", { mode });
     say(mode === "apply" ? "Sending the approved changes to YouTube. The list updates in a few minutes." : "Checking the channel. The new score appears here in a few minutes."); }
@@ -1859,7 +1962,18 @@ function viewChannel() {
   wrap.append(chanAutoPanel(h), chanPlaylistsPanel(h), chanSetupPanel(h));
 
   // ---- the videos
-  const vids = (h.videos || []).filter((v) => (st.kind === "all" || (st.kind === "short") === !!v.short) && (!st.check || (v.checks || []).some((x) => x.id === st.check && !x.ok)));
+  const query = (st.q || "").trim().toLowerCase();
+  const matchStatus = (v) => {
+    if (!st.status || st.status === "all") return true;
+    const ed = editOf(v.id);
+    if (st.status === "queued") return ed && ed.status === "waiting";
+    if (st.status === "draft") return ed && ["suggested", "draft", "ask"].includes(ed.status);
+    if (st.status === "done") return ed && ed.status === "done";
+    if (st.status === "none") return !ed;
+    return true;
+  };
+  const matchSearch = (v) => !query || (v.title || "").toLowerCase().includes(query) || (v.id || "").toLowerCase().includes(query);
+  const vids = (h.videos || []).filter((v) => (st.kind === "all" || (st.kind === "short") === !!v.short) && (!st.check || (v.checks || []).some((x) => x.id === st.check && !x.ok)) && matchStatus(v) && matchSearch(v));
   const by = { score: (a, b) => a.score - b.score, new: (a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)), views: (a, b) => b.views - a.views, ctr: (a, b) => (a.ctr ?? 99) - (b.ctr ?? 99) };
   vids.sort(by[st.sort] || by.score);
   const pick = (id, label, val, opts, on) => el("label", {}, label, el("select", { id, onchange: (e) => { on(e.target.value); render(); } }, ...opts.map(([v, t]) => el("option", { value: v, text: t, selected: v === val }))));
@@ -1924,7 +2038,7 @@ function viewChannel() {
       say(n ? n + " draft(s) made: check them below, then Approve." : "Nothing would change."); render(); } })));
 
   // ---- the changes
-  const eds = S.edits.filter((e) => e.status !== "done" || (e.before && Date.now() - Date.parse(e.appliedAt || e.updatedAt) < 30 * 864e5));
+  const eds = S.edits.filter((e) => e.status !== "done" || (e.before && Math.abs(Date.now() - Date.parse(e.appliedAt || e.updatedAt)) < 365 * 864e5));
   const waiting = S.edits.filter((e) => e.status === "waiting").length;
   const box = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Changes" }),
     el("button", { class: "btn primary", type: "button", id: "chan-apply", disabled: !waiting || !S.actions, title: S.actions ? "" : "Only the GitHub page can start this", text: `Apply ${waiting} approved on YouTube`, onclick: () => runChannel("apply") })));
