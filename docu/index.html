@@ -808,7 +808,7 @@ function deleteControl(p) {
 async function deleteProject(p) {
   if (!S.db) return say("Deleting needs Claude sign-in.");
   const r = p.result || {};
-  const ids = [...(r.parts || []), ...(r.previewParts || []), ...(r.thumbs || []), ...(r.contact ? [r.contact] : []), ...((p.narration && p.narration.parts) || []), ...(p.musicUploads || []).flatMap((u) => u.parts || []), ...(p.shorts || []).map((s) => s.asset)];
+  const ids = [...(r.parts || []), ...(r.previewParts || []), ...(r.thumbs || []), ...(r.contact ? [r.contact] : []), ...((p.narration && p.narration.parts) || []), ...(p.musicUploads || []).flatMap((u) => u.parts || []), ...(p.shorts || []).map((s) => s.asset).filter(Boolean)];
   say(`Deleting "${p.title}"…`);
   try {
     if (S.assets) for (const id of ids) await S.assets.delete(id).catch(() => {});
@@ -1172,32 +1172,40 @@ function resultBox(p) {
       r.contact ? el("details", {}, el("summary", { text: "Every scene at a glance" }), el("img", { src: "/_blob/" + r.contact, alt: "One frame from every scene", style: "width:100%;border-radius:8px" })) : null) : null,
     ["review", "approved", "done"].includes(p.status) ? shortsBox(p) : null,
     el("pre", { class: "desc", text: r.description || "" }),
-    p.status !== "done" ? null : el("div", { class: "row" }, el("button", { class: "btn", type: "button", disabled: !S.assets, text: "Free storage (after it is on YouTube)", title: "Deletes the video, preview, thumbnails, recording and Shorts from Docu Studio", onclick: async () => { for (const id of [...r.parts, ...(r.previewParts || []), ...(r.thumbs || []), ...(r.contact ? [r.contact] : []), ...((p.narration && p.narration.parts) || []), ...(p.shorts || []).map((s) => s.asset)]) await S.assets.delete(id).catch(() => {}); await save(p, { result: { ...r, freed: true }, shorts: null }); render(); } }))].forEach((x) => x != null && box.append(x));
+    p.status !== "done" ? null : el("div", { class: "row" }, el("button", { class: "btn", type: "button", disabled: !S.assets, text: "Free storage (after it is on YouTube)", title: "Deletes the video, preview, thumbnails, recording and Shorts from Docu Studio", onclick: async () => { for (const id of [...r.parts, ...(r.previewParts || []), ...(r.thumbs || []), ...(r.contact ? [r.contact] : []), ...((p.narration && p.narration.parts) || []), ...(p.shorts || []).map((s) => s.asset).filter(Boolean)]) await S.assets.delete(id).catch(() => {}); await save(p, { result: { ...r, freed: true }, shorts: (p.shorts || []).some((s) => !s.asset) ? p.shorts.filter((s) => !s.asset) : null }); render(); } }))].forEach((x) => x != null && box.append(x));
   return box;
 }
 
-// ---------- Shorts: vertical clips cut from the finished video (the cloud makes them on request) ----------
+// ---------- Shorts: vertical clips cut from the finished video (made on the PC after every render; the cloud makes them on request) ----------
+// captions keep "{link}" until the video is on YouTube; the copy buttons put the full video's link in
+const SHORT_LINK_WAIT = "(YouTube link: after the upload)";
+const shortCaption = (s, k, url) => String((s.captions && s.captions[k]) || s.caption || "").split("{link}").join(url || SHORT_LINK_WAIT);
 function shortsBox(p) {
   const list = p.shorts || [], waiting = p.shortsRequest === "waiting", holder = el("div", { style: "display:grid;gap:8px" });
+  const url = p.result && p.result.youtube && p.result.youtube.url;
+  const copy = (text, label) => el("button", { class: "btn", type: "button", text: label, onclick: async (e) => { try { await navigator.clipboard.writeText(text); e.target.textContent = "Copied"; } catch (x) { say("Select the caption text and copy it."); } } });
   list.forEach((s, i) => {
     const player = el("div");
     const blob = async () => new Blob([await (await fetch("/_blob/" + s.asset)).blob()], { type: "video/mp4" });
+    const plat = s.captions ? [["facebook", "Facebook"], ["instagram", "Instagram"], ["tiktok", "TikTok"], ["youtube", "YouTube Shorts"]].filter(([k]) => s.captions[k]) : [];
     holder.append(el("div", { style: "display:grid;gap:6px;border-top:1px solid var(--line);padding-top:8px" },
       el("div", { class: "row", style: "justify-content:space-between" }, el("strong", { text: `${i + 1}. ${s.title}` }), el("span", { class: "note", text: `${Math.round(s.seconds || 0)} s` })),
       el("div", { class: "row" },
-        el("button", { class: "btn", type: "button", text: "Watch", onclick: async () => { try { const b = await blob(); player.textContent = ""; player.append(el("video", { src: URL.createObjectURL(b), controls: true, playsinline: true, style: "max-width:320px" })); } catch (e) { say("Could not load the Short."); } } }),
-        el("button", { class: "btn", type: "button", text: "Download", onclick: async () => { try { await saveFile(`${p.id}-short-${i + 1}.mp4`, await blob(), player); } catch (e) { say("Download failed."); } } }),
-        el("button", { class: "btn", type: "button", text: "Copy caption", onclick: async (e) => { try { await navigator.clipboard.writeText(s.caption || ""); e.target.textContent = "Copied"; } catch (x) { say("Select the caption text and copy it."); } } })),
-      el("div", { class: "note", text: s.caption || "" }), player));
+        s.asset ? el("button", { class: "btn", type: "button", text: "Watch", onclick: async () => { try { const b = await blob(); player.textContent = ""; player.append(el("video", { src: URL.createObjectURL(b), controls: true, playsinline: true, style: "max-width:320px" })); } catch (e) { say("Could not load the Short."); } } }) : null,
+        s.asset ? el("button", { class: "btn", type: "button", text: "Download", onclick: async () => { try { await saveFile(`${p.id}-short-${i + 1}.mp4`, await blob(), player); } catch (e) { say("Download failed."); } } })
+          : s.url ? el("a", { class: "btn", href: safeUrl(s.url), target: "_blank", rel: "noopener", text: "Download", title: "From GitHub (signed in); also on your PC in media\\docu\\" + p.id + "\\shorts" }) : null,
+        ...(plat.length ? plat.map(([k, name]) => copy(shortCaption(s, k, url), "Copy for " + name)) : [copy(shortCaption(s, "facebook", url), "Copy caption")])),
+      el("div", { class: "note", style: "white-space:pre-wrap", text: shortCaption(s, "facebook", url) }), player));
   });
   return el("div", { class: "panel", style: "background:var(--bg)" }, el("h3", { text: "Shorts" }),
-    el("div", { class: "note", text: list.length ? `${list.length} Shorts from this video. Watch each, download it, and upload it in YouTube Studio as a Short with its caption: they bring viewers to the full video.`
-      : "5–8 vertical clips cut from this video (the cold open and one beat per chapter). They use the saved voice, so no ElevenLabs credits; about 20–40 minutes of cloud time." }),
+    el("div", { class: "note", text: list.length ? `${list.length} Shorts from this video for Facebook, Instagram, TikTok and YouTube Shorts. Download each and post it with the caption for that app: every caption links to the full video${url ? "" : " (the link is filled in once it is on YouTube)"}.`
+      : GH() ? "Shorts are made on your PC right after each render (the saved voice, so no ElevenLabs credits)." : "5–8 vertical clips cut from this video (the cold open and one beat per chapter). They use the saved voice, so no ElevenLabs credits; about 20–40 minutes of cloud time." }),
+    p.shortsNote ? el("div", { class: "note", text: p.shortsNote }) : null,
     holder,
     el("div", { class: "row" }, el("button", { class: "btn" + (list.length ? "" : " primary"), type: "button", disabled: waiting || !S.db || BUSY.includes(p.status) || GH(), title: GH() ? "Not on the GitHub page yet: use the Claude page for this" : "", text: waiting ? "Making Shorts at the next cloud run…" : list.length ? "Make the Shorts again" : "Make Shorts",
       onclick: async () => {
         // remaking: the old clips leave storage first (the new set replaces them)
-        if (list.length && S.assets) for (const s of list) await S.assets.delete(s.asset).catch(() => {});
+        if (list.length && S.assets) for (const s of list) if (s.asset) await S.assets.delete(s.asset).catch(() => {});
         await save(p, { shortsRequest: "waiting", ...(list.length ? { shorts: null } : {}) }); say("Shorts will be made at the next cloud worker run."); render(); } })));
 }
 
