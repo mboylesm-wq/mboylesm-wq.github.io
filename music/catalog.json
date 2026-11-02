@@ -1,0 +1,122 @@
+[
+ {
+  "id": "calm-study",
+  "name": "Calm Study",
+  "mood": "Gentle piano and pads. Explanations, history, quiet moments.",
+  "bpm": 72,
+  "file": "assets/music/calm-study.mp3",
+  "credit": "Music: \"Calm Study\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "grandmaster",
+  "name": "Grandmaster",
+  "mood": "Cinematic, slow and grand. Openings of big stories, champions.",
+  "bpm": 76,
+  "file": "assets/music/grandmaster.mp3",
+  "credit": "Music: \"Grandmaster\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "tension",
+  "name": "Tension",
+  "mood": "Dark pulse and ticking. Blunders, time trouble, dramatic games.",
+  "bpm": 92,
+  "file": "assets/music/tension.mp3",
+  "credit": "Music: \"Tension\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "victory",
+  "name": "Victory",
+  "mood": "Bright and uplifting. Wins, comebacks, happy endings.",
+  "bpm": 104,
+  "file": "assets/music/victory.mp3",
+  "credit": "Music: \"Victory\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "old-era",
+  "name": "Old Era",
+  "mood": "A music-box waltz. The 1800s, cafés, Morphy and Steinitz.",
+  "bpm": 96,
+  "file": "assets/music/old-era.mp3",
+  "credit": "Music: \"Old Era\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "night-lofi",
+  "name": "Night Lo-fi",
+  "mood": "Relaxed jazzy chords and soft beat. Long analysis, chill stories.",
+  "bpm": 76,
+  "file": "assets/music/night-lofi.mp3",
+  "credit": "Music: \"Night Lo-fi\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "epic-clash",
+  "name": "Epic Clash",
+  "mood": "Driving chords and energetic pulse. Major rivalries and peak championship moments.",
+  "bpm": 84,
+  "file": "assets/music/epic-clash.mp3",
+  "credit": "Music: \"Epic Clash\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "manila-pulse",
+  "name": "Manila Pulse",
+  "mood": "Warm marimba-like plucks and soft strings. Filipino stories, pride, home crowds.",
+  "bpm": 96,
+  "file": "assets/music/manila-pulse.mp3",
+  "credit": "Music: \"Manila Pulse\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "clock-ticking",
+  "name": "Clock Ticking",
+  "mood": "A ticking clock over a low drone. Blitz, time trouble, the last seconds.",
+  "bpm": 120,
+  "file": "assets/music/clock-ticking.mp3",
+  "credit": "Music: \"Clock Ticking\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "fallen-king",
+  "name": "Fallen King",
+  "mood": "Slow, sad piano over cello-like pads. Tragic lives, losses, farewells.",
+  "bpm": 60,
+  "file": "assets/music/fallen-king.mp3",
+  "credit": "Music: \"Fallen King\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "mystery-gambit",
+  "name": "Mystery Gambit",
+  "mood": "Dark harp-like arpeggios and a deep drone. Secrets, Cold War intrigue, unsolved questions.",
+  "bpm": 70,
+  "file": "assets/music/mystery-gambit.mp3",
+  "credit": "Music: \"Mystery Gambit\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "rising-prodigy",
+  "name": "Rising Prodigy",
+  "mood": "Hopeful flowing piano and warm pads. Young talents, first titles, new dreams.",
+  "bpm": 88,
+  "file": "assets/music/rising-prodigy.mp3",
+  "credit": "Music: \"Rising Prodigy\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "soviet-school",
+  "name": "Soviet School",
+  "mood": "A solemn minor waltz with brass-like pads. Soviet chess, Botvinnik, Moscow halls.",
+  "bpm": 84,
+  "file": "assets/music/soviet-school.mp3",
+  "credit": "Music: \"Soviet School\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "endgame-triumph",
+  "name": "Endgame Triumph",
+  "mood": "Big rising chords that resolve. Comebacks, final games, the title won.",
+  "bpm": 92,
+  "file": "assets/music/endgame-triumph.mp3",
+  "credit": "Music: \"Endgame Triumph\" by PnoyChess (original, made in code)"
+ },
+ {
+  "id": "quiet-endgame",
+  "name": "Quiet Endgame",
+  "mood": "Sparse, thoughtful notes and air. Deep analysis, reflection, the closing words.",
+  "bpm": 66,
+  "file": "assets/music/quiet-endgame.mp3",
+  "credit": "Music: \"Quiet Endgame\" by PnoyChess (original, made in code)"
+ }
+]
