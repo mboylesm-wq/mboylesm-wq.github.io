@@ -145,6 +145,19 @@
         R.doc.edited = Object.fromEntries(Object.keys(r.captions).map((k) => [k, 1])); R.M = null; saveRec(); paint(box);
         say(`Captions updated${fc.dropped ? `; ${fc.dropped} dropped by the fact check (the original stays)` : ""}.`); } }));
 
+    // YouTube copy and its SEO score from the one SEO engine (tools/seo.mjs, published as seo.mjs next to the page)
+    const seoBox = el("div", { class: "note" }, "Checking the YouTube copy…");
+    import(new URL("seo.mjs", document.baseURI).href).then((SEO) => {
+      const m = r.meta || {}, text = post.value || "", item = { text, title: m.name, white: C.displayName(m.white), black: C.displayName(m.black), pod: (r.archive && (r.archive.tags || []).includes("Puzzle of the Day")) };
+      const meta = SEO.shortMeta(item), opening = ((text.match(/^Opening:\s*([^\n,]+)/m) || [])[1] || "").trim();
+      const sc = SEO.scoreVideo({ ...meta, short: true, caption: false, playlists: 1, lang: "en", audioLang: "en", kids: false, chess: { players: [item.white, item.black].filter(Boolean), opening } }, { filipino: false });
+      const bad = sc.checks.filter((c) => !c.ok);
+      seoBox.textContent = ""; seoBox.className = "";
+      seoBox.append(el("div", { class: "row", style: "gap:8px;align-items:center" }, el("span", { class: "pill " + (sc.score >= 80 ? "ok" : sc.score >= 60 ? "warn" : "bad"), text: "YouTube SEO " + sc.score + "/100" }), el("span", { class: "mono note", text: meta.title })),
+        bad.length ? el("ul", { class: "note", style: "margin:6px 0 0;padding-left:18px" }, ...bad.map((c) => el("li", { text: c.fix }))) : el("div", { class: "note", text: "Everything YouTube reads is in place." }));
+    }, () => { seoBox.textContent = "The SEO check could not load."; });
+    post.addEventListener("change", () => R.reel && paint(box));
+
     const prog = el("span", { class: "note" });
     const mp4 = el("button", { class: "btn primary", type: "button", text: "Make MP4" });
     mp4.onclick = async () => { stop(); mp4.disabled = true; try { const b = await makeMp4((f) => { prog.textContent = "Making the video… " + Math.round(f * 100) + "%"; }); prog.textContent = "Done: " + (b.size / 1048576).toFixed(1) + " MB"; download(b, fileName("mp4")); } catch (e) { prog.textContent = ""; say(e.message || String(e)); } finally { mp4.disabled = false; } };
@@ -160,7 +173,7 @@
           el("div", { class: "reel-sets" }, sel("Cut", "cut", C.CUTS.map((c) => [c, CUT_NAMES[c] || c])), sel("Format", "fmt", Object.entries(FMT_NAMES)), sel("Board", "theme", THEME_NAMES), sel("Music", "mood", [["auto", "Auto"], ...Object.keys(C.MOODS).map((x) => [x, x[0].toUpperCase() + x.slice(1)]), ["none", "None"]])),
           el("div", { class: "row" }, mp4, cover, prog),
           el("h3", { text: "Captions" }), caps, ai,
-          el("h3", { text: "Post text" }), post)));
+          el("h3", { text: "Post text" }), post, el("h3", { text: "YouTube" }), seoBox)));
     show();
   }
 
