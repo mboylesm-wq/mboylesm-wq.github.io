@@ -2575,7 +2575,7 @@ function viewChannel() {
         es.tlTitle != null ? el("div", { class: "note", text: "Filipino title: " + es.tlTitle }) : null,
         ed.why ? el("div", { class: "note", text: "Why: " + ed.why }) : null)) : null;
     const newThumb = ed && ed.thumb && ed.status !== "done" ? el("span", { class: "row", style: "gap:4px;align-items:center" }, el("span", { "aria-hidden": "true", text: "→" }),
-      el("img", { src: "/_blob/" + ed.thumb, alt: "New thumbnail", title: "New thumbnail" + (ed.thumbScore != null ? `: ${ed.thumbScore}/100 at phone size` : ""), width: 120, height: 68, loading: "lazy", style: "border-radius:4px;outline:2px solid var(--gold)" })) : null;
+      el("img", { src: "/_blob/" + ed.thumb, alt: "New thumbnail", title: "New thumbnail" + (ed.thumbScore != null ? `: ${ed.thumbScore}/100 at phone size` : ""), width: ed.thumbShort ? 38 : 120, height: 68, loading: "lazy", style: "border-radius:4px;outline:2px solid var(--gold)" })) : null;
     list.append(el("div", { class: "proj", "data-video": v.id },
       el("label", { class: "row", style: "align-items:flex-start;gap:10px" },
         el("input", { type: "checkbox", checked: st.sel.has(v.id), "aria-label": "Select " + v.title, onchange: (e) => { e.target.checked ? st.sel.add(v.id) : st.sel.delete(v.id); render(); } }),
@@ -2615,6 +2615,14 @@ function viewChannel() {
   const waiting = S.edits.filter((e) => e.status === "waiting").length;
   const box = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Changes" }),
     el("button", { class: "btn primary", type: "button", id: "chan-apply", disabled: !waiting || !S.actions, title: S.actions ? "" : "Only the GitHub page can start this", text: `Apply ${waiting} approved on YouTube`, onclick: () => runChannel("apply") })));
+  // the vertical Shorts thumbnails (tools/shorts-thumbs.mjs) wait for Mark only: one button approves them all after a look
+  const vts = S.edits.filter((e) => e.needsMark && e.thumbShort && e.status === "suggested" && !Object.keys(e.set || {}).length);
+  if (vts.length) box.append(el("div", { class: "row", style: "gap:8px;align-items:center;flex-wrap:wrap;margin:6px 0" },
+    el("span", { class: "note", text: `${vts.length} new vertical Shorts thumbnail(s) below, made from each Short's own frame. Look through them, then:` }),
+    el("button", { class: "btn primary", type: "button", disabled: !S.db, text: `Approve all ${vts.length} Shorts thumbnails`, onclick: async (ev) => {
+      ev.target.disabled = true; let n = 0;
+      for (const e of vts) { const v = ((S.health || {}).videos || []).find((x) => x.id === e.video) || { id: e.video, title: e.title }; try { await saveEdit(v, { status: "waiting", note: "" }); n++; ev.target.textContent = `Approving… ${n}/${vts.length}`; } catch (x) { /* the next */ } }
+      say(`${n} Shorts thumbnail(s) approved: the 6:17 autopilot sends them to YouTube (about 80 a day; the old ones are kept for Undo).`); render(); } })));
   if (!eds.length) box.append(el("div", { class: "empty", text: "No changes yet. Select videos above and ask the AI or make drafts." }));
   eds.forEach((e) => {
     const v = (h.videos || []).find((x) => x.id === e.video) || { id: e.video, title: e.title || e.video, description: "", tags: [] }, set = e.set || {}, open = ["suggested", "draft", "failed"].includes(e.status);
@@ -2638,8 +2646,8 @@ function viewChannel() {
         fil ? el("div", { class: "grid2" }, field("tlTitle", "Filipino title", v.tl && v.tl.title), field("tlDescription", "Filipino description", v.tl && v.tl.description, true)) : null,
         v.short ? el("div", { class: "note", style: "margin:8px 0" }, "Shorts use YouTube's native vertical video frame (16:9 custom thumbnails get cropped).") :
         el("div", {},
-          e.thumb ? el("figure", { style: "margin:8px 0" }, el("img", { src: "/_blob/" + e.thumb, alt: "New thumbnail for " + v.title, width: 320, height: 180, loading: "lazy", style: "border-radius:6px;max-width:100%;height:auto" }),
-            el("figcaption", { class: "note", text: "New thumbnail" + (e.thumbScore != null ? ` (the best of 3 looks: ${e.thumbScore}/100 at phone size)` : "") + (v.thumb ? "; the current one is in the list above" : "") })) : null,
+          e.thumb ? el("figure", { style: "margin:8px 0" }, el("img", { src: "/_blob/" + e.thumb, alt: "New thumbnail for " + v.title, width: e.thumbShort ? 180 : 320, height: e.thumbShort ? 320 : 180, loading: "lazy", style: "border-radius:6px;max-width:100%;height:auto" }),
+            el("figcaption", { class: "note", text: (e.thumbShort ? "New vertical Shorts thumbnail (what the Shorts grid shows)" : "New thumbnail") + (e.thumbScore != null ? ` (the best of 3 looks: ${e.thumbScore}/100 at phone size)` : "") + (v.thumb ? "; the current one is in the list above" : "") })) : null,
           el("div", { class: "grid2" }, el("label", {}, "Thumbnail words", tsIn.text), el("label", {}, "Small tag", tsIn.small)), el("label", {}, "Number badge", tsIn.badge),
           el("div", { class: "row" }, makeThumb, e.thumbWant ? el("span", { class: "pill warn", text: "Waiting for your PC (render-pc)" }) : null),
           el("label", {}, "Or upload your own thumbnail" + (e.thumb ? " (added)" : ""), thumbIn))),
