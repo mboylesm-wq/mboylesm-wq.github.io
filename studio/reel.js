@@ -38,11 +38,17 @@
   }
   const recipeOf = (rec, r) => ({ ...rec, title: (r.meta && r.meta.name) || rec.title || "Chess reel", style: { fmt: r.style.fmt, theme: r.style.theme, cut: r.style.cut, mood: r.style.mood },
     captions: rec.edited ? Object.fromEntries(Object.keys(rec.edited).map((k) => [k, r.captions[k]])) : rec.captions, captionOrigin: rec.edited ? Object.fromEntries(Object.keys(rec.edited).map((k) => [k, "edited"])) : rec.captionOrigin });
-  async function saveRec() {
-    if (!R.doc || !S.db) return;
-    const d = { ...recipeOf(R.doc, R.reel), kind: "reel", updatedAt: new Date().toISOString() }; delete d.edited;
-    try { await S.db.doc("reels/" + R.doc.id).set(d); R.doc.saved = true; } catch (e) { say("Could not save the reel: " + (e.message || e)); }
+  // Each save is a commit on GitHub: changes are collected for 4 s and saved once, and only when something changed.
+  let saveT = 0, lastSaved = "";
+  function saveRec() { clearTimeout(saveT); saveT = setTimeout(saveNow, 4000); }
+  async function saveNow() {
+    clearTimeout(saveT);
+    if (!R.doc || !R.reel || !S.db) return;
+    const d = { ...recipeOf(R.doc, R.reel), kind: "reel" }; delete d.edited; delete d.saved;
+    const key = JSON.stringify(d); if (key === lastSaved) return;
+    try { await S.db.doc("reels/" + R.doc.id).set({ ...d, updatedAt: new Date().toISOString() }); lastSaved = key; } catch (e) { say("Could not save the reel: " + (e.message || e)); }
   }
+  window.addEventListener("pagehide", () => { if (saveT) saveNow(); });
 
   // ---------- preview ----------
   function prepared() { if (!R.M) R.M = R.eng.C.prepare(R.reel); return R.M; }
@@ -147,7 +153,7 @@
     const m = r.meta || {};
     box.append(
       el("div", { class: "row", style: "justify-content:space-between" }, el("div", {}, el("h2", { text: m.name || "Chess reel" }), el("div", { class: "note", text: [C.displayName(m.white) + " vs " + C.displayName(m.black), m.event || m.place, m.year, m.opening].filter(Boolean).join(" · ") })),
-        el("button", { class: "btn", type: "button", text: "Pick another game", onclick: () => { stop(); R.reel = null; R.doc = null; paint(box); } })),
+        el("button", { class: "btn", type: "button", text: "Pick another game", onclick: async () => { stop(); await saveNow(); R.reel = null; R.doc = null; lastSaved = ""; paint(box); } })),
       el("div", { class: "reel-grid" },
         el("div", { class: "reel-stage" }, cv, el("div", { class: "row" }, play, scrub, time)),
         el("div", { class: "reel-side" },
@@ -205,5 +211,5 @@
         return { type: "board", fen: r.startFen || undefined, moves: r.moves.slice(), players: { white: C.displayName(m.white), black: C.displayName(m.black) }, event: [m.event, m.year].filter(Boolean).join(" "), title: c.name, orientation: c.flip ? "black" : "white", eval: false, source: c.source || "" }; },
     };
   }
-  window.ReelStudio = { view, stop, build, recipeOf, library };
+  window.ReelStudio = { view, stop: () => { stop(); if (saveT) saveNow(); }, build, recipeOf, library };
 })();
