@@ -509,7 +509,7 @@ const mins = (w) => (w / 150).toFixed(1);
 const slugify = (s) => String(s).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "video";
 const PART = 19 * 1024 * 1024;
 const MUSIC = [["km-long-note-four", "Long Note Four (mystery, documentary)"], ["chopin-nocturne-9-2", "Chopin, Nocturne Op. 9 No. 2 (calm)"], ["km-clean-soul", "Clean Soul (calm)"], ["satie-gymnopedie-1", "Erik Satie, Gymnopédie No. 1 (calm)"], ["km-fluidscape", "Fluidscape (calm)"], ["km-gymnopedie-no-1", "Gymnopedie No 1 (calm)"], ["km-lightless-dawn", "Lightless Dawn (calm)"], ["km-ancient-rite", "Ancient Rite (epic)"], ["km-crusade", "Crusade (epic)"], ["km-echoes-of-time", "Echoes of Time (epic)"], ["km-five-armies", "Five Armies (epic)"], ["km-impact-prelude", "Impact Prelude (epic)"], ["km-prelude-and-action", "Prelude and Action (epic)"], ["km-rising-tide", "Rising Tide (epic)"], ["km-sovereign", "Sovereign (epic)"], ["km-ascending-the-vale", "Ascending the Vale (hopeful)"], ["km-dreams-become-real", "Dreams Become Real (hopeful)"], ["km-healing", "Healing (hopeful)"], ["km-inspired", "Inspired (hopeful)"], ["bach-air", "J.S. Bach, Air (Orchestral Suite No. 3) (hopeful)"], ["km-comfortable-mystery", "Comfortable Mystery (mystery)"], ["km-crypto", "Crypto (mystery)"], ["km-investigations", "Investigations (mystery)"], ["km-unanswered-questions", "Unanswered Questions (mystery)"], ["km-thinking-music", "Thinking Music (playful)"], ["km-bossa-antigua", "Bossa Antigua (retro)"], ["km-covert-affair", "Covert Affair (retro)"], ["km-dark-times", "Dark Times (sad)"], ["km-heartbreaking", "Heartbreaking (sad)"], ["km-long-note-two", "Long Note Two (sad)"], ["km-ossuary-6-air", "Ossuary 6 - Air (sad)"], ["km-darkest-child", "Darkest Child (tension)"], ["km-gathering-darkness", "Gathering Darkness (tension)"], ["grieg-mountain-king", "Grieg, In the Hall of the Mountain King (tension)"], ["km-hidden-agenda", "Hidden Agenda (tension)"], ["km-impact-allegretto", "Impact Allegretto (tension)"], ["km-impact-moderato", "Impact Moderato (tension)"], ["km-interloper", "Interloper (tension)"], ["mussorgsky-bald-mountain", "Mussorgsky, Night on Bald Mountain (tension)"], ["km-spy-glass", "Spy Glass (tension)"], ["km-volatile-reaction", "Volatile Reaction (tension)"], ["km-despair-and-triumph", "Despair and Triumph (triumphant)"], ["tchaikovsky-1812", "Tchaikovsky, 1812 Overture (triumphant)"], ["grandmaster", "Grandmaster (code-made)"], ["calm-study", "Calm Study (code-made)"], ["tension", "Tension (code-made)"], ["victory", "Victory (code-made)"], ["old-era", "Old Era (code-made)"], ["night-lofi", "Night Lo-fi (code-made)"], ["epic-clash", "Epic Clash (code-made)"], ["manila-pulse", "Manila Pulse (code-made)"], ["clock-ticking", "Clock Ticking (code-made)"], ["fallen-king", "Fallen King (code-made)"], ["mystery-gambit", "Mystery Gambit (code-made)"], ["rising-prodigy", "Rising Prodigy (code-made)"], ["soviet-school", "Soviet School (code-made)"], ["endgame-triumph", "Endgame Triumph (code-made)"], ["quiet-endgame", "Quiet Endgame (code-made)"]];
-const STATUS = { writing: ["Writing", "warn"], draft: ["Draft", ""], waiting: ["Waiting for render", "warn"], rendering: ["Rendering", "warn"], review: ["Ready for your review", "warn"], approved: ["Approved: uploading", "warn"], pc: ["Ready for your PC", "warn"], done: ["Done", "ok"], failed: ["Failed", "bad"] };
+const STATUS = { analyse: ["Waiting for your PC: engine analysis", "warn"], writing: ["Writing", "warn"], draft: ["Draft", ""], waiting: ["Waiting for render", "warn"], rendering: ["Rendering", "warn"], review: ["Ready for your review", "warn"], approved: ["Approved: uploading", "warn"], pc: ["Ready for your PC", "warn"], done: ["Done", "ok"], failed: ["Failed", "bad"] };
 const BUSY = ["waiting", "rendering", "writing", "approved"]; // a cloud run or Claude is working on it
 // Docu Studio on GitHub (studio/github.js): this PC renders, GitHub uploads; Claude's cloud worker never sees these projects
 const GH = () => !!(window.claude && window.claude.github);
@@ -693,11 +693,11 @@ async function save(p, patch) {
 // ---------- views ----------
 function render() {
   try { localStorage.setItem("docu.view", S.view); } catch (e) {}
-  const tab = S.view === "write" || S.view === "reel" ? "projects" : S.view;
+  const tab = S.view === "write" || S.view === "reel" || S.view === "gamereview" ? "projects" : S.view;
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === tab)));
   if (S.view !== "reel" && window.ReelStudio) window.ReelStudio.stop();
   const v = $("#view"); v.textContent = "";
-  v.append(S.view === "trends" ? viewTrends() : S.view === "write" ? viewWrite() : S.view === "reel" ? viewReel() : S.view === "review" ? viewReview() : S.view === "publish" ? viewPublish()
+  v.append(S.view === "trends" ? viewTrends() : S.view === "write" ? viewWrite() : S.view === "gamereview" ? viewGameReview() : S.view === "reel" ? viewReel() : S.view === "review" ? viewReview() : S.view === "publish" ? viewPublish()
     : S.view === "music" ? viewMusic() : S.view === "channel" ? viewChannel() : S.view === "health" ? viewHealth() : viewProjects());
 }
 
@@ -1229,6 +1229,7 @@ function projectEditor(p) {
     p.status === "writing" ? el("div", { class: "row" }, el("span", { class: "note", text: `Chapters written: ${(p.writing && p.writing.next) || 0} of ${chapterList(p).length}. Every finished chapter is saved.` }),
       el("button", { class: "btn primary", type: "button", id: "continue-writing", disabled: S.busy || !(S.sample || ghWriter()) || ghWriting(p), text: S.busy || ghWriting(p) ? "Writing…" : "Continue writing", onclick: () => continueWriting(p) }),
       p.note && !S.sample && ghWriter() ? el("span", { class: "note", text: p.note }) : null) : null);
+  if (p.kind === "review") top.append(reviewInfo(p));
   // steps
   const steps = el("section", { class: "panel steps" });
   const aiVoice = !!(p.narration && p.narration.kind === "ai-stock"), elVoice = !!(p.narration && p.narration.kind === "elevenlabs");
@@ -2824,12 +2825,52 @@ function reelList() {
   return list;
 }
 
+// ---------- game reviews (tools/game-review.mjs builds the plan on the PC with Stockfish) ----------
+// One PGN → a project of kind "review". The PC worker (render-pc.cmd) analyses it and writes the plan back as a draft:
+// read it like a script, confirm the game facts, then Render as usual. Nothing here calls Claude.
+function viewGameReview() {
+  const box = el("section", { class: "panel", id: "gamereview" },
+    el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "New game review" }), el("button", { class: "btn", type: "button", text: "← All projects", onclick: () => { S.view = "projects"; render(); } })),
+    el("div", { class: "note", text: "Paste one game's PGN (with the annotator's notes and variations if it has them). Your PC analyses it with Stockfish, then the review script appears here as a draft. Every sentence says where it comes from: the game, the engine, or the notes." }));
+  const pgn = el("textarea", { id: "gr-pgn", class: "code", rows: "12", "aria-label": "PGN", placeholder: '[Event "..."]\n[White "..."]\n[Black "..."]\n\n1. e4 e5 2. Nf3 ...' });
+  const file = el("input", { type: "file", id: "gr-file", accept: ".pgn,.txt", "aria-label": "PGN file" });
+  file.addEventListener("change", async () => { const f = file.files && file.files[0]; if (f) pgn.value = await f.text(); });
+  const src = el("input", { id: "gr-source", type: "url", placeholder: "https://… (where the game is published: Lichess, chessgames, Wikipedia…)", "aria-label": "Source link" });
+  const depth = el("select", { id: "gr-depth", "aria-label": "Engine depth" }, ...[["16", "Normal (depth 16)"], ["20", "Deep (depth 20, slower)"], ["12", "Quick (depth 12)"]].map(([v, t]) => el("option", { value: v, text: t })));
+  const eng = el("input", { type: "checkbox", id: "gr-engine", checked: true });
+  box.append(el("label", { text: "PGN" }), pgn, el("div", { class: "row" }, file),
+    el("label", { text: "Source of the game (shown as the fact source)" }), src,
+    el("div", { class: "row", style: "gap:12px; align-items:center" }, el("label", { text: "Engine" }), depth, el("label", {}, eng, " use Stockfish")),
+    el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", id: "gr-go", disabled: !S.db, text: "Analyse on my PC", onclick: async () => {
+      const text = pgn.value.trim(); if (!/\d\.\s*\S/.test(text)) return say("Paste a PGN with its moves first.");
+      const h = (k) => { const m = new RegExp("\\[" + k + '\\s+"([^"]*)"\\]').exec(text); return m ? m[1] : ""; };
+      const title = [h("White") || "White", "vs", h("Black") || "Black"].join(" ") + (h("Event") ? ", " + h("Event") : "") + ": Game Review";
+      const id = slugify("review-" + (h("White") || "") + "-" + (h("Black") || "")) + "-" + Date.now().toString(36).slice(-4), stamp = new Date().toISOString();
+      const doc = { id, title, kind: "review", status: "analyse", minutes: 0, titles: [title], plan: { scenes: [] }, claimsRequired: true, createdAt: stamp, updatedAt: stamp,
+        review: { pgn: text, source: src.value.trim() || null, depth: +depth.value, engine: eng.checked, requestedAt: stamp },
+        note: "Waiting for your PC: double-click render-pc.cmd (it analyses the game first, free)." };
+      try { await S.db.collection("projects").doc(id).set(doc); S.projects = [doc, ...S.projects.filter((x) => x.id !== id)]; S.cur = doc; S.view = "projects"; say("Saved. Double-click render-pc.cmd on your PC: it analyses the game and writes the review."); render(); }
+      catch (e) { say("Could not save: " + (e.message || e.code)); } } })));
+  return box;
+}
+// the review's own facts on the editor: opening, critical moments, engine, and where each scene's words come from
+function reviewInfo(p) {
+  const st = (p.review && p.review.stats) || {}, src = {}; (p.plan.scenes || []).forEach((s) => { const k = s.source || "game"; src[k] = (src[k] || 0) + 1; });
+  return el("div", { class: "note", id: "review-info" },
+    el("div", { text: ["Game review", st.opening ? st.opening.eco + " " + st.opening.name : "", st.moves ? st.moves + " moves" : "", st.engine || (p.status === "analyse" ? "" : "no engine")].filter(Boolean).join(" · ") }),
+    st.critical && st.critical.length ? el("div", { text: "Critical moments: " + st.critical.join(", ") }) : null,
+    Object.keys(src).length ? el("div", { text: "Scenes by source: " + Object.entries(src).map(([k, n]) => k + " " + n).join(", ") }) : null,
+    (st.problems || []).length ? el("div", { class: "bad", text: "PGN problems: " + st.problems.join("; ") }) : null,
+    ["draft", "failed"].includes(p.status) ? el("button", { class: "btn", type: "button", id: "review-again", text: "Analyse again on my PC", title: "Rebuilds the review from the PGN (your edits to its scenes are replaced)", onclick: async () => { await save(p, { status: "analyse", note: "Waiting for your PC: double-click render-pc.cmd." }); render(); } }) : null);
+}
+
 function viewProjects() {
   if (S.cur) return projectEditor(S.cur);
   const box = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Create" }),
     el("div", { class: "row" },
       el("button", { class: "btn primary", type: "button", text: "New reel", title: "A chess reel, puzzle or highlight from a verified game or your PGN (made in the browser)", onclick: () => { S.reelOpen = null; S.view = "reel"; render(); } }),
-      el("button", { class: "btn primary", type: "button", text: "New documentary", title: "A long-form documentary (voice and render on your PC)", onclick: () => { S.view = "write"; S.cur = null; render(); } }))));
+      el("button", { class: "btn primary", type: "button", text: "New documentary", title: "A long-form documentary (voice and render on your PC)", onclick: () => { S.view = "write"; S.cur = null; render(); } }),
+      el("button", { class: "btn primary", type: "button", id: "new-review", text: "New game review", title: "A long-form review of one game from its PGN: Stockfish on your PC, the same voice, music, render and upload as the documentaries", onclick: () => { S.view = "gamereview"; S.cur = null; render(); } }))));
   const reels = reelList();
   if (!S.projects.length && !reels) { box.append(el("div", { class: "empty", text: S.db ? "Nothing yet. Start a reel or a documentary, or pick a topic in Ideas." : "Your reels and documentaries appear here once you are signed in." })); return box; }
   if (reels) box.append(el("h3", { text: "Reels" }), reels);
@@ -2847,7 +2888,7 @@ function viewProjects() {
     list.append(el("div", { class: "proj" },
       el("div", {},
         el("div", { class: "t", text: p.title }),
-        el("div", { class: "note", text: p.minutes + " min · " + (p.plan && p.plan.scenes || []).length + " scenes · updated " + new Date(p.updatedAt).toLocaleString() + (qn ? " · " + qn : "") }),
+        el("div", { class: "note", text: (p.kind === "review" ? "Game review · " : "") + p.minutes + " min · " + (p.plan && p.plan.scenes || []).length + " scenes · updated " + new Date(p.updatedAt).toLocaleString() + (qn ? " · " + qn : "") }),
         p.note && p.status !== "failed" ? el("div", { class: "note", text: p.note }) : null,
         progressLine(p, null),
         errorBox(p),
