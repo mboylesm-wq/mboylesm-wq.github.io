@@ -1349,6 +1349,19 @@ function projectEditor(p) {
         }, el("option", { value: "", text: "Load a famous game..." }),
         ...FAMOUS_GAMES.map((g, idx) => el("option", { value: String(idx), text: g.name })));
         box.append(gameSelect);
+        // the one game library: the 1,014 verified games the reels use (full games, with their source)
+        const libQ = el("input", { type: "search", placeholder: "Search the 1,014 verified games (player, opening, year)…", "aria-label": "Search the game library", style: "font-size:12px;padding:4px;" });
+        const libList = el("div", { style: "display:grid;gap:4px;max-height:180px;overflow:auto;" });
+        let lib = null;
+        const libFill = () => { if (!lib) return; libList.textContent = ""; lib.search(libQ.value, 12).forEach((g) => libList.append(el("button", { class: "btn", type: "button", style: "font-size:12px;padding:4px 8px;text-align:left;",
+          text: [g.name, g.year, g.opening].filter(Boolean).join(" · "), onclick: () => {
+            const vis = lib.board(g.id); if (!vis) return;
+            s.visual = vis; vj.value = JSON.stringify(s.visual, null, 1); meta.firstChild.textContent = `${i + 1}. board: ${g.name}`;
+            updateBoardPreview(); save(p, { plan: p.plan }); say(`Loaded ${g.name} (${vis.moves.length} plies, full game${vis.source ? "; source " + vis.source : ""}). Trim the moves in the JSON if the scene needs fewer.`);
+            importWrap.textContent = ""; importWrap.append(importBtn); } }))); };
+        libQ.addEventListener("focus", () => { if (lib) return; libList.textContent = "Loading the game library…"; loadOnce("reel.js").then(() => window.ReelStudio.library()).then((l) => { lib = l; libFill(); }, (e) => { libList.textContent = e.message; }); });
+        libQ.addEventListener("input", libFill);
+        box.append(libQ, libList);
         const area = el("textarea", {
           rows: 3,
           placeholder: "Or paste FEN (e.g. rnbqkbnr/...), PGN ([White '...'] 1. e4 e5...), or moves (e4 e5 Nf3...)",

@@ -163,7 +163,7 @@
     const q = el("input", { type: "search", placeholder: "Search 1,014 verified games: player, opening, year, tournament", "aria-label": "Search games", value: R.q });
     const list = el("div", { class: "reel-list" });
     const fill = () => {
-      R.q = q.value; const t = q.value.trim().toLowerCase(), hit = (c) => !t || [c.name, c.year, c.opening && c.opening.name, ...(c.tags || []), c.pgn.slice(0, 400)].join(" ").toLowerCase().includes(t);
+      R.q = q.value; const ws = q.value.toLowerCase().split(/\s+/).filter(Boolean), hit = (c) => { const x = [c.name, c.year, c.opening && c.opening.name, ...(c.tags || []), c.pgn.slice(0, 400)].join(" ").toLowerCase(); return ws.every((w) => x.includes(w)); };
       const found = C.CLASSICS.filter(hit); list.textContent = "";
       found.slice(0, 24).forEach((c) => list.append(el("button", { class: "proj reel-pick", type: "button", onclick: () => open({ id: "r-" + c.id, classic: c.id, title: c.name, style: {} }, box) },
         el("div", {}, el("div", { class: "t", text: c.name }), el("div", { class: "note", text: [c.year, c.opening && c.opening.name, (c.tags || []).slice(0, 2).join(", ")].filter(Boolean).join(" · ") })))));
@@ -192,5 +192,18 @@
     boot().then((eng) => { R.eng = eng; if (rec && (!R.doc || R.doc.id !== rec.id)) return open(rec, box); paint(box); }, (e) => { box.textContent = ""; box.append(el("div", { class: "empty", text: "The chess engine did not load: " + e.message })); });
     return box;
   }
-  window.ReelStudio = { view, stop, build, recipeOf };
+  // ---------- the one game library (also used by documentary board scenes in Write) ----------
+  // search(q) -> [{id, name, year, opening, tags}] over the 1,014 verified games; board(id) -> a Docu board visual with
+  // the full game, the players, the event and its source (for the fact gate).
+  async function library() {
+    const { C } = await boot();
+    const text = (c) => [c.name, c.year, c.opening && c.opening.name, ...(c.tags || []), c.pgn.slice(0, 400)].join(" ").toLowerCase();
+    return {
+      count: C.CLASSICS.length,
+      search: (q, n = 20) => { const ws = String(q || "").toLowerCase().split(/\s+/).filter(Boolean); return C.CLASSICS.filter((c) => { const x = text(c); return ws.every((w) => x.includes(w)); }).slice(0, n).map((c) => ({ id: c.id, name: c.name, year: c.year, opening: c.opening && c.opening.name, tags: c.tags || [] })); },
+      board: (id) => { const c = C.CLASSICS.find((x) => x.id === id); if (!c) return null; const r = C.classicReel(c, {}), m = r.meta || {};
+        return { type: "board", fen: r.startFen || undefined, moves: r.moves.slice(), players: { white: C.displayName(m.white), black: C.displayName(m.black) }, event: [m.event, m.year].filter(Boolean).join(" "), title: c.name, orientation: c.flip ? "black" : "white", eval: false, source: c.source || "" }; },
+    };
+  }
+  window.ReelStudio = { view, stop, build, recipeOf, library };
 })();
