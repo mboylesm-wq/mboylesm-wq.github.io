@@ -646,7 +646,7 @@ const VISUAL_STYLES = {
 };
 
 // ---------- capabilities (the page works without them, features light up when they arrive) ----------
-const S = { reels: [], reelOpen: null, view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, projects: [], music: [], cur: null, busy: false, health: null, edits: [], prefill: null, draftForm: null, sysHealth: null };
+const S = { reels: [], reelOpen: null, view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, trendGames: null, projects: [], music: [], cur: null, busy: false, health: null, edits: [], prefill: null, draftForm: null, sysHealth: null };
 try { const d = localStorage.getItem("docu.draftForm"); if (d) S.draftForm = JSON.parse(d); } catch (e) {}
 
 function clearDraft() {
@@ -674,6 +674,7 @@ function saveDraft(data) {
     db.collection("projects").onSnapshot((snap) => { S.projects = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if ((S.view === "music" || S.cur) && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("trendgames").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trendGames = snap.docs[0] ? snap.docs[0].data() : null; if (S.view === "gamereview" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("health").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "status"); S.sysHealth = d ? d.data() : null; if (S.view === "health" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     S._ensureChannel = () => {
       if (S._channelSub) return;
@@ -2855,6 +2856,16 @@ function viewGameReview() {
   const src = el("input", { id: "gr-source", type: "url", placeholder: "https://… (where the game is published: Lichess, chessgames, Wikipedia…)", "aria-label": "Source link" });
   const depth = el("select", { id: "gr-depth", "aria-label": "Engine depth" }, ...[["16", "Normal (depth 16)"], ["20", "Deep (depth 20, slower)"], ["12", "Quick (depth 12)"]].map(([v, t]) => el("option", { value: v, text: t })));
   const eng = el("input", { type: "checkbox", id: "gr-engine", checked: true });
+  // trending games (tools/trend-games.mjs, weekly with the trend radar): this week's top events from Lichess broadcasts
+  { const tg = S.trendGames, games = (tg && tg.games) || [], list = el("div", { id: "gr-trending", class: "stack" });
+    games.slice(0, 15).forEach((g, i) => list.append(el("div", { class: "row", style: "justify-content:space-between; gap:8px; border-top:1px solid var(--line, #ddd); padding:6px 0" },
+      el("div", {}, el("div", { text: `${g.phi ? "🇵🇭 " : ""}${g.white}${g.whiteElo ? " (" + g.whiteElo + ")" : ""} vs ${g.black}${g.blackElo ? " (" + g.blackElo + ")" : ""} · ${g.result} · ${g.moves} moves` }),
+        el("div", { class: "note", text: [g.event, g.round ? "round " + g.round : "", g.opening, g.why].filter(Boolean).join(" · ") })),
+      el("button", { class: "btn", type: "button", id: "gr-use-" + i, text: "Use this game", onclick: () => { pgn.value = g.pgn; src.value = g.source || ""; say(`${g.white} vs ${g.black} is in the form: check it, then Analyse on my PC.`); pgn.scrollIntoView({ block: "center" }); } }))));
+    box.append(el("h3", { text: "Trending games" }),
+      el("div", { class: "note", text: games.length ? `This week's top over-the-board games from Lichess broadcasts (updated ${new Date(tg.at).toLocaleString()}): decisive, high-rated games first, Filipino players on top. Pick one, or paste your own PGN below.` : "No trending games yet: they come with the weekly trend radar (or press Refresh)." }),
+      list, GH() && S.actions ? el("div", { class: "row" }, el("button", { class: "btn", type: "button", id: "gr-refresh", text: "Refresh trending games", onclick: async () => {
+        try { await S.actions.dispatch("trends.yml", {}); say("Asked GitHub for this week's games (about a minute). They appear here by themselves."); } catch (e) { say("Could not start it: " + (e.message || e.code)); } } })) : null); }
   box.append(el("label", { text: "PGN" }), pgn, el("div", { class: "row" }, file),
     el("label", { text: "Source of the game (shown as the fact source)" }), src,
     el("div", { class: "row", style: "gap:12px; align-items:center" }, el("label", { text: "Engine" }), depth, el("label", {}, eng, " use Stockfish")),
