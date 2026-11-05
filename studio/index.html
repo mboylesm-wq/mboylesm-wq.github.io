@@ -2869,7 +2869,10 @@ function viewGameReview() {
   box.append(el("label", { text: "PGN" }), pgn, el("div", { class: "row" }, file),
     el("label", { text: "Source of the game (shown as the fact source)" }), src,
     el("div", { class: "row", style: "gap:12px; align-items:center" }, el("label", { text: "Engine" }), depth, el("label", {}, eng, " use Stockfish")),
-    el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", id: "gr-go", disabled: !S.db, text: "Analyse on my PC", onclick: async () => {
+    el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", id: "gr-go", disabled: !S.db, text: S.db ? "Analyse on my PC" : "Analyse on my PC (sign in first)", onclick: async () => {
+      // every message also shows next to the button (the status line is at the top of the page, out of sight here)
+      const say = (m) => { $("#status").textContent = m || ""; const n = document.getElementById("gr-msg"); if (n) n.textContent = m || ""; };
+      say("Saving…");
       const text = pgn.value.trim(); if (!/\d\.\s*\S/.test(text)) return say("Paste a PGN with its moves first.");
       const h = (k) => { const m = new RegExp("\\[" + k + '\\s+"([^"]*)"\\]').exec(text); return m ? m[1] : ""; };
       const title = [h("White") || "White", "vs", h("Black") || "Black"].join(" ") + (h("Event") ? ", " + h("Event") : "") + ": Game Review";
@@ -2879,7 +2882,7 @@ function viewGameReview() {
         review: { pgn: text, source: src.value.trim() || null, depth: +depth.value, engine: eng.checked, requestedAt: stamp },
         note: "Waiting for your PC: double-click render-pc.cmd (it analyses the game first, free)." };
       try { await S.db.doc("projects/" + id).set(doc); S.projects = [doc, ...S.projects.filter((x) => x.id !== id)]; S.cur = doc; S.view = "projects"; say("Saved. Double-click render-pc.cmd on your PC: it analyses the game and writes the review."); render(); }
-      catch (e) { say("Could not save: " + (e.message || e.code)); } } })));
+      catch (e) { say("Could not save: " + (e.message || e.code)); } } }), el("span", { id: "gr-msg", class: "note", role: "status" })));
   return box;
 }
 // the review's own facts on the editor: opening, critical moments, engine, and where each scene's words come from
