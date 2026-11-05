@@ -332,7 +332,7 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
 // version: add 1 whenever the wording changes and say why in CHANGELOG.md. They are functions because they use
 // FORMATS and MOODS further down; `npm test` runs them through tests/page-harness.html.
 const PROMPTS = {
-  version: 6,
+  version: 7,
   // the house style, sent with the outline and every chapter
   rules: `You write narration for "PnoyChess", a Filipino chess YouTube channel making documentaries in English.
 Style: stakes in the first 15 seconds, no channel intro; short spoken sentences; a new visual every 1-2 sentences; never three photos in a row; explain chess so beginners follow.
@@ -355,7 +355,11 @@ board {"type":"board","title":"...","moves":["e4","e5"],"arrows":[{"from":"e2","
 race {"type":"race","title":"First to six wins","left":{"name":"...","wins":[<game numbers>]},"right":{"name":"...","wins":[...]},"upto":<game>} real game numbers only
 video {"type":"video","search":"<2-4 plain English words for stock footage: the place or mood, e.g. Singapore skyline night, Toronto street, crowded tournament hall>","fallback":{"type":"photo","search":"..."}} modern atmosphere b-roll (licensed clips): about one per chapter, especially when the story arrives in a new city; every clip search different; never a specific person or event
 archival {"type":"video","archival":true,"search":"<2-4 plain English words for real old film: place or subject + decade, e.g. Moscow street 1950s, Soviet Union 1960s, Amsterdam 1930s, chess tournament 1950s>","fallback":{"type":"photo","search":"..."}} real newsreel or old film of the era: about two per chapter for anything before 1990, none for stories after 2000; every search different; it shows the time and place, so the narration never claims it shows a specific person or event
-end {"type":"end"} the final scene only: a one-line thank-you and "follow PnoyChess"
+profile {"type":"profile","name":"<full name>","kicker":"Player profile","facts":[{"k":"Born","v":"..."},{"k":"Hometown","v":"..."}]} the first real introduction of a person (3-4 sourced facts)
+bracket {"type":"bracket","title":"...","semis":[{"a":"...","b":"...","score":"13 – 5","winner":"a"}],"final":{"a":"...","b":"..."},"focus":"semi1"} knockout rounds; leave "final" out until the story gets there
+chess960 {"type":"chess960","mode":"rules|shuffle","fen":"<rules: a legal Chess960 start FEN>"} explaining Fischer Random (rules) or "a new start every game" (shuffle)
+champion {"type":"champion","name":"...","title":"<the exact title won>","line":"<place · date · score>"} the moment a title is won
+end {"type":"end"} the last narrated scene: the closing line of the story (a closing shot); never "follow", "subscribe" or a thank-you in any scene, the follow card is added after the last word by itself
 Optional per scene: "ambience":"hall|crowd|wind|city|night|rain|none" (quiet background from that scene on).`,
   visExplainer: `Visual JSON per scene (pick one):
 (EXPLAINER / CODE-ONLY MODE: Strictly vector Remotion procedural graphics. NEVER use photo or video searches. Zero external stock photos.)
@@ -369,13 +373,14 @@ geo {"type":"geo","title":"...","highlight":["<Natural Earth country name>"],"po
 words {"type":"words"} the scene's own narration as huge kinetic text: punchlines of 4-14 words only
 title {"type":"title","title":"...","subtitle":"..."}
 race {"type":"race","title":"...","left":{"name":"...","wins":[1,3]},"right":{"name":"...","wins":[2]},"upto":6}
-end {"type":"end"} the final scene only: a one-line thank-you and "follow PnoyChess"
+end {"type":"end"} the last narrated scene: the closing line of the story (a closing shot); never "follow", "subscribe" or a thank-you in any scene, the follow card is added after the last word by itself
 Optional per scene: "ambience":"hall|crowd|wind|city|night|rain|none".
 EXPLAINER RULE: Strictly vector Remotion procedural graphics only. NEVER use photo or video visuals. Zero external stock media.`,
   visTactical: `Visual JSON per scene (pick one):
 (TACTICAL MASTERCLASS MODE: The chessboard is the hero element for ~70% of scenes. Zero external stock photos.)
 board {"type":"board","title":"...","moves":["e4","e5"],"arrows":[{"from":"e2","to":"e4","afterMove":0}],"players":{"white":"...","black":"..."},"eval":true} dynamic move by move, legal SAN moves only, tactical threat arrows (#F59E0B gold threat, #06B6D4 cyan idea, #EF4444 blunder refutation), eval bar
 compare {"type":"compare","title":"Head to Head","left":{"name":"Player A","lines":["GM, 2750","White"]},"right":{"name":"Player B","lines":["GM, 2780","Black"]}} player card matchup
+versus {"type":"versus","event":"...","year":"...","white":{"name":"...","elo":2750,"title":"GM"},"black":{"name":"...","elo":2780}} fight card before a game (faces only from the player vault with a credit, otherwise their king and initials)
 counter {"type":"counter","value":5,"label":"Seconds to find the winning move","prefix":"","suffix":"s"} puzzle countdown
 words {"type":"words"} decisive move exclamation or punchline (4-14 words only)
 timeline {"type":"timeline","title":"Tournament Standings","items":[{"year":"R1","text":"..."},{"year":"R2","text":"..."}],"highlight":1}
@@ -544,7 +549,11 @@ const progressLine = (p, id = "progress-line") => { const e = el("div", { class:
 setInterval(() => document.querySelectorAll("[data-progress]").forEach((e) => { const p = S.projects.find((x) => x.id === e.dataset.progress); if (p) paintProgress(e, p); }), 15000);
 // what a project needs before it can be rendered (the same two rules as the Render step), and how the PC queue runs: the video rendering
 // now first, then rushed ones, then by when each was asked for (tools/docu.mjs next)
-const voiceReady = (p) => !!(p.narration && (p.narration.kind === "ai-stock" || p.narration.kind === "elevenlabs" || (p.narration.parts && p.narration.parts.length)));
+const voiceReady = (p) => !!(p.narration && (p.narration.kind === "ai-stock" || p.narration.kind === "kokoro" || p.narration.kind === "elevenlabs" || (p.narration.parts && p.narration.parts.length)));
+// the free offline voice (Kokoro-82M on Mark's PC, tools/tts-kokoro.mjs): game reviews use it until his own voice is ready
+// personalities (tools/tts-kokoro.mjs KOKORO_PRESETS: blended stock voices with their own pace), then the plain voices
+const KOKORO_VOICES = [["hype", "Hype Commentator: fast, punchy, big reactions"], ["storyteller", "Calm Storyteller: relaxed and friendly"], ["broadcaster", "Classic Broadcaster: TV-sports host"], ["analyst", "Deep Analyst: low and serious"], ["trailer", "Movie Trailer: deep and dramatic"], ["teacher", "Warm Teacher: warm and clear"], ["presenter", "Bright Presenter: upbeat and quick"], ["nighthost", "Smooth Night Host: soft, late-night"], ["duo", "Neutral Host: modern podcast"],
+  ["af_heart", "Heart (female, US): best quality"], ["af_bella", "Bella (female, US)"], ["am_michael", "Michael (male, US)"], ["am_fenrir", "Fenrir (male, US)"], ["am_puck", "Puck (male, US)"]];
 const canRender = (p) => !!(p.plan && p.plan.scenes && p.plan.scenes.length && factsReady(p) && voiceReady(p));
 const hasVideo = (p) => !!(p && p.result && (p.result.renderedAt || p.result.pcFile || (p.result.release && p.result.release.tag) || (p.result.parts && p.result.parts.length)));
 
@@ -1201,7 +1210,7 @@ function miniBoardEl(vis) {
 function planIssues(p) {
   const issues = [];
   const scenes = (p && p.plan && p.plan.scenes) || [];
-  const VALID_TYPES = new Set(["board", "photo", "title", "quote", "stat", "map", "timeline", "brackets", "tree", "words", "geo", "video", "end", "counter", "bars", "compare", "race"]);
+  const VALID_TYPES = new Set(["board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph"]);
   scenes.forEach((s, idx) => {
     const v = s.visual;
     if (!v || !v.type || !VALID_TYPES.has(v.type)) {
@@ -1232,8 +1241,8 @@ function projectEditor(p) {
   if (p.kind === "review") top.append(reviewInfo(p));
   // steps
   const steps = el("section", { class: "panel steps" });
-  const aiVoice = !!(p.narration && p.narration.kind === "ai-stock"), elVoice = !!(p.narration && p.narration.kind === "elevenlabs");
-  const factsDone = factsReady(p), voiceDone = aiVoice || elVoice || !!(p.narration && p.narration.parts && p.narration.parts.length);
+  const aiVoice = !!(p.narration && p.narration.kind === "ai-stock"), elVoice = !!(p.narration && p.narration.kind === "elevenlabs"), kkVoice = !!(p.narration && p.narration.kind === "kokoro");
+  const factsDone = factsReady(p), voiceDone = aiVoice || elVoice || kkVoice || !!(p.narration && p.narration.parts && p.narration.parts.length);
   steps.append(
     el("div", { class: "step" + (factsDone ? " done" : "") }, el("div", {}, el("h3", { text: "Check the facts" }),
       el("div", { class: "note", text: "Read each claim against its source, then press Confirmed, or Waive it with a reason. Fix a wrong fact in the script below: that scene's claims are listed again. Claude only finds the facts; you approve them, and nothing renders or goes to YouTube until every claim is done." }),
@@ -1249,7 +1258,12 @@ function projectEditor(p) {
       el("div", { class: "row" }, el("button", { class: "btn" + (elVoice ? " primary" : ""), type: "button", text: elVoice ? "Using my ElevenLabs voice ✓" : "Use my ElevenLabs voice (no recording)", title: "The cloud reads the script with your ElevenLabs clone, with exact caption timing.",
         onclick: () => save(p, { narration: elVoice ? null : { kind: "elevenlabs", model: "eleven_v4", style: "documentary", name: "My ElevenLabs voice", size: 0 } }).then(render) }),
         el("button", { class: "btn" + (aiVoice ? " primary" : ""), type: "button", text: aiVoice ? "Using Free Test Voice ($0 on PC) ✓" : "Use Free Test Voice ($0 on PC)", title: "A free stock AI test voice made locally on your PC ($0, zero ElevenLabs credits) so you can test-render immediately.",
-        onclick: () => save(p, { narration: aiVoice ? null : { kind: "ai-stock", voice: "af_heart", name: "Free Test Voice ($0 on PC)", size: 0 } }).then(render) })),
+        onclick: () => save(p, { narration: aiVoice ? null : { kind: "ai-stock", voice: "af_heart", name: "Free Test Voice ($0 on PC)", size: 0 } }).then(render) }),
+        el("button", { class: "btn" + (kkVoice ? " primary" : ""), type: "button", id: "offline-voice", text: kkVoice ? "Using the offline voice ✓" : "Use the offline voice (free)", title: "Kokoro, the best free voice that runs offline on your PC: no credits, no internet after the first run.",
+        onclick: () => save(p, { narration: kkVoice ? null : { kind: "kokoro", voice: "hype", name: "Offline voice (Hype Commentator)", size: 0 } }).then(render) })),
+      kkVoice ? el("label", { style: "max-width:420px" }, "Offline voice",
+        el("select", { "aria-label": "Offline voice", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, voice: e.target.value } }).then(() => { say("Voice saved. Your PC makes the narration again at the next render (free)."); render(); }) },
+          ...KOKORO_VOICES.map(([v, t]) => el("option", { value: v, selected: (p.narration.voice || "hype") === v, text: t })))) : null,
       elVoice ? el("div", { style: "display:grid;gap:8px" },
         el("label", { style: "max-width:420px" }, "Delivery (same voice, different energy)",
           el("select", { "aria-label": "Voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. The narration is made again at the next render (ElevenLabs credits for the script)."); render(); }) },
@@ -1258,6 +1272,7 @@ function projectEditor(p) {
           onclick: () => save(p, { narration: { ...p.narration, model: "eleven_v4", style: "documentary" } }).then(() => { say(`Upgraded. The whole voice is made again at the next render: about ${plainScript(p).length.toLocaleString()} credits.`); render(); }) }),
           el("span", { class: "note", text: "This video keeps its older voice until you upgrade." })),
         el("div", { class: "note", text: `Your ElevenLabs clone (${p.narration.model ? "Eleven v4" : "older model"}) reads the script in the cloud (about 9,000 credits per 10 minutes) with exact caption timing. Names in the pronunciation list (FIDE = Fee-day…) are said correctly; captions keep the real spelling.` })) :
+      kkVoice ? el("div", { class: "note", text: "Offline voice: Kokoro reads the script on your PC (free, no ElevenLabs credits). A changed scene is made again at the next render; the rest is reused." }) :
       aiVoice ? el("div", { class: "note", text: "Free test voice ($0 on PC): synthesized locally on Windows with zero paid APIs and zero ElevenLabs credits. Perfect for test renders before recording your voice." })
         : voiceDone ? el("div", { class: "note", text: `Uploaded: ${p.narration.name} (${(p.narration.size / 1e6).toFixed(1)} MB)` }) : (S.assets ? null : el("div", { class: "note", text: "Uploading needs edit access to this page." })))),
     el("div", { class: "step" + (["waiting", "rendering", "review", "approved", "pc", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Render" }),
@@ -1617,8 +1632,10 @@ async function approve(p, titles) {
 // thumbnails (a few minutes, no new render)
 function thumbControls(p) {
   const th = p.plan.thumbnail = p.plan.thumbnail || {}, busy = p.thumbsRequest === "waiting";
-  const photos = p.plan.scenes.filter((s) => s.visual && s.visual.type === "photo");
-  const name = (s) => `${s.lowerThird ? s.lowerThird.name + " · " : ""}${s.visual.label || s.visual.search || s.id}`;
+  // photo scenes, and a game review's players on its versus card ("<scene>.white" / ".black")
+  const photos = p.plan.scenes.flatMap((s) => !s.visual ? [] : s.visual.type === "photo" ? [{ id: s.id, s }]
+    : s.visual.type === "versus" ? ["white", "black"].filter((k) => s.visual[k] && s.visual[k].name).map((k) => ({ id: `${s.id}.${k}`, who: s.visual[k].photoOf || s.visual[k].name, has: !!s.visual[k].photo })) : []);
+  const name = (x) => x.who ? `${x.who}${x.has ? "" : " (portrait found at the remake, if one exists)"}` : `${x.s.lowerThird ? x.s.lowerThird.name + " · " : ""}${x.s.visual.label || x.s.visual.search || x.s.id}`;
   const pick = (k) => el("select", { "aria-label": "Thumbnail person " + (k + 1), disabled: busy }, k ? el("option", { value: "", text: "(nobody)" }) : null,
     ...photos.map((s) => el("option", { value: s.id, selected: (th.people || [])[k] === s.id, text: name(s) })));
   const p1 = pick(0), p2 = pick(1), text = el("input", { value: th.text || "", disabled: busy, "aria-label": "Thumbnail words", placeholder: "2-4 big words" });
@@ -1626,9 +1643,9 @@ function thumbControls(p) {
     el("div", { style: "display:grid;gap:8px;padding-top:8px" },
       el("div", { class: "grid2" }, el("label", {}, "Main photo", p1), el("label", {}, "Second photo (versus design)", p2)),
       el("label", {}, "Big words", text),
-      el("div", { class: "row" }, el("button", { class: "btn", type: "button", disabled: busy || !photos.length || GH(), title: GH() ? "Not on the GitHub page yet: use the Claude page for this" : "", text: busy ? "Remaking at the next cloud run…" : "Remake thumbnails",
+      el("div", { class: "row" }, el("button", { class: "btn", type: "button", disabled: busy || p.status !== "review", title: p.status !== "review" ? "Only before Approve" : "", text: busy ? (GH() ? "Waiting for your PC (render-pc.cmd)…" : "Remaking at the next cloud run…") : "Remake thumbnails",
         onclick: () => { th.people = [p1.value, p2.value].filter(Boolean); th.text = text.value.trim() || th.text; delete th.texts;
-          save(p, { plan: p.plan, thumbsRequest: "waiting" }).then(() => { say("Thumbnails will be remade at the next cloud worker run (a few minutes; the video stays as it is)."); render(); }); } }),
+          save(p, { plan: p.plan, thumbsRequest: "waiting" }).then(() => { say(GH() ? "Ready for your PC: run render-pc.cmd. Only the 3 thumbnails are remade (about a minute, free); the video stays as it is." : "Thumbnails will be remade at the next cloud worker run (a few minutes; the video stays as it is)."); render(); }); } }),
         el("span", { class: "note", text: "Only the thumbnails are remade; the video does not render again." }))));
 }
 
@@ -2831,7 +2848,7 @@ function reelList() {
 function viewGameReview() {
   const box = el("section", { class: "panel", id: "gamereview" },
     el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "New game review" }), el("button", { class: "btn", type: "button", text: "← All projects", onclick: () => { S.view = "projects"; render(); } })),
-    el("div", { class: "note", text: "Paste one game's PGN (with the annotator's notes and variations if it has them). Your PC analyses it with Stockfish, then the review script appears here as a draft. Every sentence says where it comes from: the game, the engine, or the notes." }));
+    el("div", { class: "note", text: "Paste one game's PGN (with the annotator's notes and variations if it has them). Your PC analyses it with Stockfish, then the review script appears here as a draft. Every move is explained the commentator's way (what it attacks, defends, threatens, why the alternatives fail), read by the free offline voice. Every sentence comes from the game, the engine, or the notes." }));
   const pgn = el("textarea", { id: "gr-pgn", class: "code", rows: "12", "aria-label": "PGN", placeholder: '[Event "..."]\n[White "..."]\n[Black "..."]\n\n1. e4 e5 2. Nf3 ...' });
   const file = el("input", { type: "file", id: "gr-file", accept: ".pgn,.txt", "aria-label": "PGN file" });
   file.addEventListener("change", async () => { const f = file.files && file.files[0]; if (f) pgn.value = await f.text(); });
@@ -2847,6 +2864,7 @@ function viewGameReview() {
       const title = [h("White") || "White", "vs", h("Black") || "Black"].join(" ") + (h("Event") ? ", " + h("Event") : "") + ": Game Review";
       const id = slugify("review-" + (h("White") || "") + "-" + (h("Black") || "")) + "-" + Date.now().toString(36).slice(-4), stamp = new Date().toISOString();
       const doc = { id, title, kind: "review", status: "analyse", minutes: 0, titles: [title], plan: { scenes: [] }, claimsRequired: true, createdAt: stamp, updatedAt: stamp,
+        narration: { kind: "kokoro", voice: "hype", name: "Offline voice (Hype Commentator)", size: 0 },
         review: { pgn: text, source: src.value.trim() || null, depth: +depth.value, engine: eng.checked, requestedAt: stamp },
         note: "Waiting for your PC: double-click render-pc.cmd (it analyses the game first, free)." };
       try { await S.db.collection("projects").doc(id).set(doc); S.projects = [doc, ...S.projects.filter((x) => x.id !== id)]; S.cur = doc; S.view = "projects"; say("Saved. Double-click render-pc.cmd on your PC: it analyses the game and writes the review."); render(); }
