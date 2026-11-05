@@ -863,7 +863,7 @@ function newForm() {
           plan: { scenes: [] }
         };
         try {
-          await S.db.collection("projects").doc(id).set(p);
+          await S.db.doc("projects/" + id).set(p);
           clearDraft();
           S.cur = p;
           S.projects = [p, ...S.projects.filter((x) => x.id !== id)];
@@ -2878,7 +2878,7 @@ function viewGameReview() {
         narration: { kind: "kokoro", voice: "hype", name: "Offline voice (Hype Commentator)", size: 0 },
         review: { pgn: text, source: src.value.trim() || null, depth: +depth.value, engine: eng.checked, requestedAt: stamp },
         note: "Waiting for your PC: double-click render-pc.cmd (it analyses the game first, free)." };
-      try { await S.db.collection("projects").doc(id).set(doc); S.projects = [doc, ...S.projects.filter((x) => x.id !== id)]; S.cur = doc; S.view = "projects"; say("Saved. Double-click render-pc.cmd on your PC: it analyses the game and writes the review."); render(); }
+      try { await S.db.doc("projects/" + id).set(doc); S.projects = [doc, ...S.projects.filter((x) => x.id !== id)]; S.cur = doc; S.view = "projects"; say("Saved. Double-click render-pc.cmd on your PC: it analyses the game and writes the review."); render(); }
       catch (e) { say("Could not save: " + (e.message || e.code)); } } })));
   return box;
 }
