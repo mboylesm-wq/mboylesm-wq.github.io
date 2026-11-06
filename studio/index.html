@@ -1,5 +1,8 @@
+<!doctype html>
+<html lang="en">
 <meta charset="utf-8">
 <title>PnoyChess Studio (GitHub)</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Spectral:wght@500;700&family=Bodoni+Moda:ital,wght@0,700;1,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -543,6 +546,9 @@ function paintProgress(e, p) {
 }
 function errorBox(p) {
   if (!p || (p.status !== "failed" && !p.errorDetail)) return null;
+  // an old failure followed by a successful render (the retry finished after the error was saved): not an error any more
+  const okAt = p.result && p.result.renderedAt, errAt = p.errorDetail && p.errorDetail.at;
+  if (p.status !== "failed" && okAt && (!errAt || okAt > errAt)) return null;
   const d = p.errorDetail || {};
   const head = "Error details" + (d.step ? " · step: " + d.step : "") + (d.pct != null ? " (" + d.pct + "%)" : "") + (d.at ? " · " + new Date(d.at).toLocaleString() : "");
   const body = d.detail || p.note || "Unknown error";
@@ -882,10 +888,11 @@ function newForm() {
       } }),
       el("button", { class: "btn", type: "button", text: "Clear", onclick: () => { clearDraft(); render(); } }),
       el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes."
-        : "Antigravity (Gemini 4 Argon) writes it on your PC for free with sources and fact checks." })),
+        : ghWriter() ? "Copilot writes it on GitHub (Opus 5.5) with sources and fact checks; your PC can stay off." : "Antigravity (Gemini 4 Argon) writes it on your PC for free with sources and fact checks." })),
     el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
   f.addEventListener("submit", (e) => { e.preventDefault(); const vsEl = $("#visual-style"); const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, visualStyle: (vsEl ? vsEl.value : "documentary"), sources: (S.prefill && S.prefill.sources) || (S.draftForm && S.draftForm.sources) || [] };
     if (S.sample) write(opt);
+    else if (ghWriter()) ghWrite(opt);
     else agyQueueWrite(opt); });
   return f;
 }
@@ -1030,8 +1037,8 @@ async function ghWrite(opt) {
 async function ghContinue(p) {
   if (S.busy || ghWriting(p)) return;
   S.busy = true; render();
-  try { await save(p, { writeWith: "antigravity", note: "Queued for Antigravity (Gemini 4 Argon): run 'node tools/ai-write.mjs next " + p.id + "' in Antigravity", ghWriteAt: new Date().toISOString() }); say("Queued for Antigravity (Gemini 4 Argon) to continue writing."); }
-  catch (e) { say("Could not queue for Antigravity: " + (e.message || e.code)); }
+  try { await S.actions.dispatch("write.yml", { id: p.id }); await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is continuing with Copilot." }); say("GitHub is continuing the script with Copilot. Your PC can be off."); }
+  catch (e) { say("Could not start the writing on GitHub: " + (e.message || e.code)); }
   finally { S.busy = false; render(); }
 }
 async function continueWriting(p) {
@@ -1065,9 +1072,10 @@ function rewriteControl(p, i) {
       const note = how.value.trim();
       if (!S.sample) {
         try {
-          await save(p, { writeWith: "antigravity", rewriteRequest: { chapter: i + 1, note }, note: "Queued for Antigravity (Gemini 4 Argon): rewrite chapter " + (i + 1) + (note ? " (" + note + ")" : ""), ghWriteAt: new Date().toISOString() });
-          say("Queued chapter " + (i + 1) + " rewrite for Antigravity (Gemini 4 Argon).");
-        } catch (e) { say("Could not queue rewrite: " + (e.message || e.code)); }
+          await S.actions.dispatch("write.yml", { id: p.id, rewrite_chapter: String(i + 1), rewrite_note: note });
+          await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is rewriting chapter " + (i + 1) + " with Copilot." });
+          say("GitHub is rewriting chapter " + (i + 1) + " with Copilot.");
+        } catch (e) { say("Could not start the rewrite on GitHub: " + (e.message || e.code)); }
       } else {
         rewriteChapter(p, i, note);
       }
@@ -2943,6 +2951,25 @@ function viewGameReview() {
   return box;
 }
 // the review's own facts on the editor: opening, critical moments, engine, and where each scene's words come from
+// "Flag a wrong line" (6 Nov 2026): every sentence of a game review, each with a Flag button. Flagged sentences are
+// saved on the project (p.flags), never said again from the next "Analyse again on my PC" (a move in a flagged
+// sentence stays, only its comment goes), and become regression tests (tools/review/flags.mjs)
+const sentencesOfText = (t) => String(t || "").split(/(?<=[.!?])\s+/).map((x) => x.trim()).filter(Boolean);
+function reviewFlags(p) {
+  const flags = p.flags || [], isFlagged = (sc, t) => flags.some((f) => f.scene === sc && f.text === t);
+  const toggle = async (sc, t) => { const why = isFlagged(sc, t) ? null : (window.prompt("What is wrong with this line? (optional)", "") ?? "");
+    const next = isFlagged(sc, t) ? flags.filter((f) => !(f.scene === sc && f.text === t)) : [...flags, { scene: sc, text: t, note: why || "", at: new Date().toISOString() }];
+    await save(p, { flags: next }); render(); };
+  const box = el("details", { id: "review-flags", style: "margin-top:8px" }, el("summary", { text: `Flag a wrong line (${flags.length} flagged)` }),
+    el("div", { class: "note", text: "Flagged lines are left out from the next \"Analyse again on my PC\" and kept as tests, so the mistake never comes back." }));
+  for (const sc of (p.plan.scenes || [])) for (const t of sentencesOfText(sc.text)) {
+    const on = isFlagged(sc.id, t);
+    box.append(el("div", { class: "row", style: "gap:8px;align-items:flex-start;margin:2px 0" },
+      el("button", { class: "btn" + (on ? " primary" : ""), type: "button", style: "padding:2px 8px;font-size:12px", text: on ? "Flagged" : "Flag", title: on ? "Unflag" : "This line is wrong", onclick: () => toggle(sc.id, t) }),
+      el("span", { class: "note", style: on ? "text-decoration:line-through" : "", text: `${sc.id}: ${t}` })));
+  }
+  return box;
+}
 function reviewInfo(p) {
   const st = (p.review && p.review.stats) || {}, src = {}; (p.plan.scenes || []).forEach((s) => { const k = s.source || "game"; src[k] = (src[k] || 0) + 1; });
   return el("div", { class: "note", id: "review-info" },
@@ -2950,7 +2977,8 @@ function reviewInfo(p) {
     st.critical && st.critical.length ? el("div", { text: "Critical moments: " + st.critical.join(", ") }) : null,
     Object.keys(src).length ? el("div", { text: "Scenes by source: " + Object.entries(src).map(([k, n]) => k + " " + n).join(", ") }) : null,
     (st.problems || []).length ? el("div", { class: "bad", text: "PGN problems: " + st.problems.join("; ") }) : null,
-    ["draft", "failed"].includes(p.status) ? el("button", { class: "btn", type: "button", id: "review-again", text: "Analyse again on my PC", title: "Rebuilds the review from the PGN (your edits to its scenes are replaced)", onclick: async () => { await save(p, { status: "analyse", note: "Waiting for your PC: double-click render-pc.cmd." }); render(); } }) : null);
+    (p.plan.scenes || []).length ? reviewFlags(p) : null,
+    ["draft", "failed", "review"].includes(p.status) ? el("button", { class: "btn", type: "button", id: "review-again", text: "Analyse again on my PC", title: "Rebuilds the review from the PGN (your edits to its scenes are replaced)", onclick: async () => { await save(p, { status: "analyse", note: "Waiting for your PC: double-click render-pc.cmd." }); render(); } }) : null);
 }
 
 function viewProjects() {
