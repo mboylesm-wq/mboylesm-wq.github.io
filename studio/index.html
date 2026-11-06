@@ -85,6 +85,7 @@ video { width: 100%; max-width: 100%; border-radius: 10px; background: #000; }
 .thumbs img { width: 100%; aspect-ratio: 16/9; object-fit: cover; border-radius: 8px; border: 1px solid var(--line); }
 pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-height: 220px; overflow: auto; background: var(--bg); padding: 10px; border-radius: 8px; border: 1px solid var(--line); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+.tbl th,.tbl td{padding:4px 8px;border-bottom:1px solid var(--line);white-space:nowrap}.tbl th{color:var(--dim);font-weight:600}
 </style>
 
 <div class="wrap">
@@ -265,13 +266,19 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
     }
     // starts a workflow (Approve → youtube.yml); the key needs Actions: Read and write
     const dispatch = async (workflow, inputs) => { if (!/^[a-z0-9-]+\.yml$/.test(workflow)) throw new Error("not a workflow: " + workflow); await json(`/actions/workflows/${workflow}/dispatches`, { method: "POST", body: { ref: branch, inputs } }); };
+    // the runs of a workflow that are queued or running now (the page locks its button meanwhile); Actions: Read
+    const active = async (workflow) => {
+      if (!/^[a-z0-9-]+\.yml$/.test(workflow)) throw new Error("not a workflow: " + workflow);
+      const r = (await json(`/actions/workflows/${workflow}/runs?per_page=10`)).body || {};
+      return (r.workflow_runs || []).filter((x) => x.status !== "completed").map((x) => ({ id: x.id, status: x.status, at: x.created_at, url: x.html_url }));
+    };
     // read-only repo files for the Publish tab (the publisher's day plans, states and logs): JSON or text, null if missing
     const files = {
       async json(path) { if (!/^[\w./-]+\.json$/.test(path) || path.includes("..")) throw new Error("not a file: " + path); const d = await readDoc(path); return d ? d.data : null; },
       async text(path) { if (!/^[\w./-]+$/.test(path) || path.includes("..")) throw new Error("not a file: " + path); const r = await call(`/contents/${path}${ref}`, { accept: "application/vnd.github.raw" }); return r.ok ? r.text() : null; },
       async list(dir) { try { return ((await json(`/contents/${dir}${ref}`)).body || []).map((f) => f.name); } catch (e) { if (e.status === 404) return []; throw e; } },
     };
-    return { db, assets, blob, dispatch, refresh, refreshAll, call, files };
+    return { db, assets, blob, dispatch, active, refresh, refreshAll, call, files };
   }
 
   const api = { makeBackend, toB64, fromB64 };
@@ -317,7 +324,7 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
   new MutationObserver((ms) => ms.forEach((m) => (m.type === "attributes" ? scan(m.target) : m.addedNodes.forEach(scan)))).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
   if (document.body) scan(document.body);
   const downloads = { async save({ filename, data }) { const b = data instanceof Blob ? data : new Blob([data], { type: "text/plain" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); } };
-  const have = { db: backend.db, assets: backend.assets, downloads, actions: { dispatch: backend.dispatch }, files: backend.files };
+  const have = { db: backend.db, assets: backend.assets, downloads, actions: { dispatch: backend.dispatch, active: backend.active }, files: backend.files };
   window.claude = { github: true, repo: REPO, use: (name) => (have[name] ? Promise.resolve(have[name]) : Promise.reject(new Error(name + " needs Claude"))) };
   setInterval(() => { if (document.visibilityState === "visible") backend.refreshAll(); }, POLL);
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") backend.refreshAll(); });
@@ -1903,12 +1910,56 @@ function shortsBox(p) {
         // remaking: the old clips leave storage first (the new set replaces them)
         if (list.length && S.assets) for (const s of list) if (s.asset) await S.assets.delete(s.asset).catch(() => {});
         await save(p, { shortsRequest: "waiting", ...(list.length ? { shorts: null } : {}) }); say("Shorts will be made at the next cloud worker run."); render(); } }),
-      ghWriter() && list.length ? el("button", { class: "btn", type: "button", text: "Post next Short now", onclick: async () => {
-        try {
-          await S.actions.dispatch("post-shorts.yml", { now: "true", id: p.id });
-          say("Started Post Shorts on GitHub Actions for " + p.id);
-        } catch (e) { say("Could not start Post Shorts: " + (e.message || e.code)); }
-      } }) : null));
+      ghWriter() && list.length ? el("button", { class: "btn", type: "button", disabled: shortsBusy(), text: shortsBusy() ? "Posting… (about 4 min)" : "Post next Short now",
+        onclick: () => startPostShorts({ now: "true", id: p.id }) }) : null));
+}
+
+// ---------- Post Shorts from the page: one run at a time (6 Nov 2026: two quick presses posted a Short twice) ----------
+const SHORTS_LOCK_MS = 10 * 60000;
+const shortsBusy = () => !!(S.shortsRunAt && Date.now() - S.shortsRunAt < SHORTS_LOCK_MS);
+async function startPostShorts(inputs) {
+  if (!S.actions) return say("Only the GitHub page can start Post Shorts.");
+  if (shortsBusy()) return say("Post Shorts is already running. Wait for it to finish: the result appears under Posted Shorts in the Channel tab.");
+  S.shortsRunAt = Date.now(); render();
+  try {
+    if (S.actions.active) {
+      const running = await S.actions.active("post-shorts.yml");
+      if (running.length) { say(`Post Shorts is already ${running[0].status === "queued" ? "queued" : "running"} (started ${new Date(running[0].at).toLocaleTimeString()}). Nothing new was started.`); return; }
+    }
+    await S.actions.dispatch("post-shorts.yml", inputs);
+    say("Started Post Shorts on GitHub Actions. It takes about 4 minutes; the button stays locked meanwhile and the links appear under Posted Shorts in the Channel tab.");
+    setTimeout(() => { S.postState = null; loadPostState(); }, 5 * 60000);
+  } catch (e) { S.shortsRunAt = 0; say("Could not start Post Shorts: " + (e.message || e.code)); }
+  finally { render(); }
+}
+// post/state.json: what Post Shorts really posted (the source of truth; the page's per-Short links follow it)
+async function loadPostState(force = false) {
+  if ((S.postState && !force) || S._postStateLoading || !window.claude) return;
+  S._postStateLoading = true;
+  try { const f = await window.claude.use("files"); S.postState = (await f.json("post/state.json")) || { shorts: {} }; S.postStateAt = Date.now(); }
+  catch (e) { S.postState = { shorts: {}, error: e.message || String(e) }; }
+  finally { S._postStateLoading = false; if (S.view === "channel") render(); }
+}
+function postedShortsTable() {
+  const st = S.postState;
+  if (!st) { loadPostState(); return el("div", { class: "note", text: "Loading what Post Shorts has posted…" }); }
+  if (st.error) return el("div", { class: "note", style: "color:var(--warn)", text: "Could not read post/state.json: " + st.error });
+  const rows = Object.entries(st.shorts || {}).map(([key, v]) => ({ key, ...v })).sort((a, b) => String(b.at || b.day).localeCompare(String(a.at || a.day)));
+  if (!rows.length) return el("div", { class: "empty", text: "No Shorts posted yet." });
+  const title = (id) => { const p = (S.projects || []).find((x) => x.id === id); return p ? p.title : id; };
+  const cell = (p, k) => {
+    if (!p) return el("td", { class: "dim", text: "–" });
+    if (p.link) return el("td", {}, el("a", { href: safeUrl(p.link), target: "_blank", rel: "noopener", text: "posted" }));
+    if (k === "tiktok" && p.dryRun) return el("td", { class: "dim", text: "dry-run" });
+    if (p.lastError) return el("td", { style: "color:var(--bad)", title: p.lastError, text: "failed" + (p.tries ? ` (${p.tries})` : "") });
+    if (p.videoId || p.containerId || p.startedAt) return el("td", { style: "color:var(--warn)", text: "in progress" });
+    return el("td", { class: "dim", text: p.note ? "note" : "–", title: p.note || "" });
+  };
+  const td = (t, extra = {}) => el("td", { text: t, ...extra });
+  return el("div", { style: "overflow:auto;max-height:340px" }, el("table", { class: "tbl", style: "width:100%;font-size:13px;border-collapse:collapse" },
+    el("thead", {}, el("tr", {}, ...["Day", "Video", "Short", "Facebook", "Instagram", "YouTube", "TikTok"].map((h) => el("th", { style: "text-align:left", text: h })))),
+    el("tbody", {}, ...rows.map((r) => el("tr", {}, td(r.day || ""), td(title(r.id), { class: "dim" }), td(`#${r.rank || "?"} ${r.title || r.file}`),
+      cell(r.facebook, "facebook"), cell(r.instagram, "instagram"), cell(r.youtube, "youtube"), cell(r.tiktok, "tiktok"))))));
 }
 
 // ---------- Music tab: your own library of original tracks (Eleven Music), made once, reused in every video ----------
@@ -2472,6 +2523,13 @@ function chanSocialCard() {
       }
     });
   });
+  // what Post Shorts recorded wins over the per-Short links on the projects (those follow file names, which a re-made set reuses)
+  if (S.postState && S.postState.shorts && !S.postState.error) {
+    for (const k of Object.keys(counts)) { counts[k] = 0; links[k] = []; }
+    Object.values(S.postState.shorts).sort((a, b) => String(a.at || "").localeCompare(String(b.at || ""))).forEach((v) => {
+      for (const k of Object.keys(counts)) if (v[k] && v[k].link) { counts[k]++; links[k].push({ title: v.title, url: v[k].link }); }
+    });
+  }
   const total = counts.facebook + counts.instagram + counts.youtube + counts.tiktok;
 
   const schedItems = [
@@ -2504,18 +2562,12 @@ function chanSocialCard() {
   const runBtn = el("button", {
     class: "btn",
     type: "button",
-    disabled: !S.actions,
+    disabled: !S.actions || shortsBusy(),
     title: S.actions ? "Dispatch post-shorts.yml on GitHub Actions" : "Only available when signed in to GitHub",
-    text: "Run Post Shorts now",
-    onclick: async () => {
-      try {
-        await S.actions.dispatch("post-shorts.yml", { now: "true" });
-        say("Started Post Shorts on GitHub Actions.");
-      } catch (e) {
-        say("Could not start Post Shorts: " + (e.message || e.code));
-      }
-    }
+    text: shortsBusy() ? "Posting… (about 4 min)" : "Run Post Shorts now",
+    onclick: () => startPostShorts({ now: "true" })
   });
+  const refreshPosted = el("button", { class: "btn", type: "button", text: "Refresh", onclick: () => loadPostState(true) });
 
   return el("section", { class: "panel", id: "chan-social" },
     el("div", { class: "row", style: "justify-content:space-between;align-items:center" },
@@ -2523,7 +2575,12 @@ function chanSocialCard() {
       runBtn
     ),
     sched,
-    postSummary
+    postSummary,
+    el("div", { class: "row", style: "justify-content:space-between;align-items:center;margin-top:12px" },
+      el("h3", { style: "font-size:14px", text: "Posted Shorts" }),
+      el("div", { class: "row", style: "gap:8px;align-items:center" },
+        el("span", { class: "note", text: S.postStateAt ? "from post/state.json, read " + new Date(S.postStateAt).toLocaleTimeString() : "from post/state.json" }), refreshPosted)),
+    postedShortsTable()
   );
 }
 
