@@ -76,7 +76,7 @@ function puzzleTitle(text, answer) {
   const tries = [side && op && `${side} to move: ${ask} | ${op}`, op && `Chess puzzle: ${ask} | ${op}`, side && `Chess puzzle: ${side} to move, ${ask}`, `Chess puzzle: ${ask}`];
   return tries.filter(Boolean).find((t) => t.length + 8 <= TITLE_MAX) || `Chess puzzle: ${ask}`;
 }
-const tagLen = (tags) => tags.reduce((n, t) => n + t.length + (/\s/.test(t) ? 2 : 0), 0) + Math.max(0, tags.length - 1);
+const tagLen = tagChars; // one body (tagChars above), two names for readability
 export function shortMeta(item) {
   // a documentary Short brings its own (tools/post-shorts.mjs ytMeta: title, description with the full video's link)
   if (item.yt && item.yt.title) return { title: item.yt.title, description: item.yt.description || "", tags: item.yt.tags || [], synthetic: !!item.yt.synthetic };
