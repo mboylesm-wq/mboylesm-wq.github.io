@@ -520,7 +520,7 @@ const factScenes = (p) => { const pl = (p && p.plan) || {}, t = pl.thumbnail || 
 const sourceBad = (c) => !!(c.check && c.check.source === c.source && (c.check.verdict === "dead-link" || c.check.verdict === "contradicts"));
 // well-known chess sources (and Wikipedia, any language): a claim citing one is confirmed automatically (Mark's choice,
 // 2026-11-01) unless the source check found it dead or saying otherwise; Undo sets "doubted" so Mark decides himself
-const TRUSTED_SOURCES = ["chess.com", "lichess.org", "chessbase.com", "chessbase.in", "theweekinchess.com", "wikipedia.org", "fide.com", "chessgames.com", "365chess.com", "chess24.com", "chess-results.com", "uschess.org", "newinchess.com", "worldchess.com", "chessprogramming.org"];
+const TRUSTED_SOURCES = ["chess.com", "lichess.org", "lichess.com", "chessbase.com", "chessbase.in", "theweekinchess.com", "wikipedia.org", "fide.com", "chessgames.com", "365chess.com", "chess24.com", "chess-results.com", "uschess.org", "newinchess.com", "worldchess.com", "chessprogramming.org"];
 const trustedSource = (u) => { const m = /^https?:\/\/([^/?#:]+)/i.exec(String(u || "").trim()), h = m ? m[1].toLowerCase() : ""; return !!h && TRUSTED_SOURCES.some((d) => h === d || h.endsWith("." + d)); };
 const autoConfirmed = (c) => (!c.status || c.status === "pending") && trustedSource(c.source);
 const claimDone = (c) => ((c.status === "supported" || autoConfirmed(c)) && /^https?:\/\/\S+$/.test(String(c.source || "").trim()) && (!sourceBad(c) || c.userConfirmed)) || (c.status === "waived" && !!String(c.note || "").trim());
