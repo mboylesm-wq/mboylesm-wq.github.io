@@ -125,7 +125,7 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
   const textB64 = (t) => toB64(new TextEncoder().encode(t));
   const clone = (x) => JSON.parse(JSON.stringify(x));
 
-  function makeBackend({ fetch, token, repo = REPO, branch = BRANCH, api = "https://api.github.com", onAuthError = () => {}, progressive = false }) {
+  function makeBackend({ fetch, token, repo = REPO, branch = BRANCH, api = "https://api.github.com", onAuthError = () => {}, onSync = null, progressive = false }) {
     const base = `${api}/repos/${repo}`;
     async function call(path, { method = "GET", body, accept = "application/vnd.github+json", etag } = {}) {
       const headers = { Authorization: "Bearer " + token, Accept: accept, "X-GitHub-Api-Version": "2022-11-28" };
@@ -171,7 +171,7 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
       return { docs: docs.map(({ id, data }) => ({ id, data })) };
     };
     const notify = (name) => { const c = collOf(name); c.subs.forEach((s) => { try { s.fn(snapshot(c, s.q)); } catch (e) { /* a listener's own error */ } }); };
-    async function refresh(name) {
+    async function refresh0(name) {
       const c = collOf(name);
       const list1 = async (etag) => { try { return await json(`/contents/db/${name}${ref}`, { etag }); } catch (e) { if (e.status !== 404) throw e; return { body: [], etag: null }; } };
       let list = await list1(c.etag);
@@ -198,6 +198,11 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
       // only a listing read in full counts as seen: a skipped entry or a failed read is looked at again next poll
       c.etag = pinned ? null : list.etag;
       c.loaded = true; notify(name);
+    }
+    // a poll that fails must not pass for a fresh one: the page shows the last good copy, so say when it is old
+    async function refresh(name) {
+      try { await refresh0(name); if (onSync) onSync({ ok: true, name }); }
+      catch (e) { if (onSync) onSync({ ok: false, name, error: (e && e.message) || String(e) }); throw e; }
     }
     const refreshAll = () => Promise.all([...colls].filter(([, c]) => c.subs.size).map(([n]) => refresh(n).catch(() => {})));
     const remember = (coll, id, sha, data) => { const c = collOf(coll); if (data) { c.files.set(id, { sha, data, own: Date.now() }); c.gone.delete(id); } else { c.files.delete(id); c.gone.set(id, Date.now()); } c.etag = null; notify(coll); };
@@ -312,7 +317,26 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
 
   if (!token) { signIn(); window.claude = { use: () => Promise.reject(new Error("not signed in")) }; return; }
   let warned = false;
-  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, progressive: true, onAuthError: () => { if (warned) return; warned = true; try { localStorage.removeItem(KEY); } catch (e) {} signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
+  // 6 Nov 2026: a poll that failed (rate limit, 502) used to be silent, so the page could show yesterday's copy as
+  // today's. Now a bar says it is old, so a stale "0 of 0" can never pass for the truth.
+  const stale = new Map();
+  let told = "";
+  const showStale = () => {
+    let d = document.getElementById("gh-stale"), bad = [...stale.values()][0] || "";
+    if (!bad) { if (d) d.remove(); return; }
+    if (!d) {
+      d = document.createElement("div"); d.id = "gh-stale";
+      d.style.cssText = "position:sticky;top:0;z-index:9999;display:flex;gap:10px;align-items:center;padding:8px 12px;background:#7f1d1d;color:#fff;font:13px system-ui,sans-serif";
+      const s = document.createElement("span"), b = document.createElement("button");
+      b.type = "button"; b.textContent = "Reload"; b.style.cssText = "margin-left:auto;padding:4px 10px;border:0;border-radius:6px;cursor:pointer";
+      b.onclick = () => location.reload();
+      d.append(s, b); (document.body || document.documentElement).prepend(d);
+    }
+    const text = "Could not read from GitHub: " + bad + " This page may show an old copy (nothing is lost); reload for the latest.";
+    if (text !== told) { d.querySelector("span").textContent = text; told = text; }
+  };
+  const onSync = ({ ok, name, error }) => { if (ok) stale.delete(name); else stale.set(name, error); showStale(); };
+  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, progressive: true, onSync, onAuthError: () => { if (warned) return; warned = true; try { localStorage.removeItem(KEY); } catch (e) {} signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
   const realFetch = window.fetch.bind(window);
   window.fetch = (input, init) => { const u = typeof input === "string" ? input : input && input.url; const m = /^\/_blob\/([^/?#]+)$/.exec(u || ""); return m ? backend.blob(decodeURIComponent(m[1])) : realFetch(input, init); };
   // <img src="/_blob/…"> never goes through fetch: load it with the key and show it from memory
@@ -1103,8 +1127,21 @@ async function listClaims(p) {
   await save(p, { claims: [...(p.claims || []).filter((c) => factScan[c.scene] && !ids.has(c.scene)), ...fresh], factScan });
   return todo.filter((s) => !fresh.some((c) => c.scene === s.id)).map((s) => (s.id === "_film" ? "the title and thumbnail" : "scene " + s.id));
 }
+// On the GitHub page there is no Claude, so GitHub Actions lists the claims (write.yml → write-auto.mjs claims):
+// the same page code, the checker model, one Copilot request; the page polls until they appear
+async function ghListClaims(p) {
+  if (S.busy || !ghWriter() || ghWriting(p)) return;
+  S.busy = true; render();
+  try {
+    await S.actions.dispatch("write.yml", { id: p.id, claims: "true" });
+    await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is listing the facts to check with Copilot." });
+    say("GitHub is listing the claims of the changed scenes with Copilot (one request per batch). They appear here in a few minutes.");
+  } catch (e) { say("Could not start the claims listing on GitHub: " + (e.message || e.code)); }
+  finally { S.busy = false; render(); }
+}
 async function pressListClaims(p) {
-  if (S.busy || !S.sample) return;
+  if (S.busy) return;
+  if (!S.sample) return ghListClaims(p);
   S.busy = true; say("Listing the facts to check…"); render();
   try { const none = await listClaims(p); say("Claims listed. Check each one against its source." + (none.length ? ` No fact found in ${none.join(", ")}: read ${none.length > 1 ? "them" : "it"} yourself.` : "")); } catch (e) { say("Listing stopped: " + errText(e)); }
   finally { S.busy = false; render(); }
@@ -1130,13 +1167,14 @@ function claimRow(p, c) {
 }
 function factsBox(p) {
   const g = factGate(p), live = (p.claims || []).filter((c) => !g.changed.includes(c.scene) && factScenes(p).some((s) => s.id === c.scene));
-  const list = g.changed.length ? el("button", { class: "btn primary", type: "button", disabled: S.busy || !S.sample, title: S.sample ? "" : "Listing claims needs Claude in this page", text: Array.isArray(p.claims) ? `List the claims of ${g.changed.length} changed scene(s)` : "List the claims", onclick: () => pressListClaims(p) }) : null;
+  const canList = !!(S.sample || ghWriter()), listing = ghWriting(p);
+  const list = g.changed.length ? el("button", { class: "btn primary", type: "button", id: "list-claims", disabled: S.busy || !canList || (listing && !S.sample), title: S.sample ? "" : ghWriter() ? "Copilot on GitHub lists them: a few Copilot premium requests, no API credits" : "Listing claims needs Claude in this page, or the GitHub page (Copilot)", text: listing && !S.sample ? "GitHub is listing them…" : Array.isArray(p.claims) ? `List the claims of ${g.changed.length} changed scene(s)` : "List the claims", onclick: () => pressListClaims(p) }) : null;
   if (!g.required) return el("div", {}, el("label", { class: "row", style: "display:flex;gap:8px;color:var(--fg)" }, el("input", { type: "checkbox", id: "facts", checked: !!p.factsChecked, style: "width:auto", onchange: (e) => save(p, { factsChecked: e.target.checked }).then(render) }), "I checked the facts"), list);
   const order = (c) => (claimDone(c) ? 2 : c.risk === "high" ? 0 : 1);
   // the claims the source check verified with a quote found in the source: Mark confirms them in one go after reading
   const verified = live.filter((c) => !claimDone(c) && c.status !== "waived" && c.check && c.check.source === c.source && c.check.verdict === "supports" && c.check.quote);
   const bulk = verified.length ? el("button", { class: "btn", type: "button", text: `Confirm the ${verified.length} claim(s) the source check verified`, title: "Read each one and its quote first", onclick: () => { verified.forEach((c) => Object.assign(c, { status: "supported", userConfirmed: true })); save(p, { claims: p.claims }).then(render); } }) : null;
-  return el("div", {}, el("div", { class: "row" }, el("span", { class: "pill" + (g.ok ? " ok" : " warn"), text: g.ok ? "Facts checked" : `${g.total - g.open} of ${g.total} checked` }), list, bulk),
+  return el("div", {}, el("div", { class: "row" }, el("span", { class: "pill" + (g.ok ? " ok" : " warn"), text: g.ok ? "Facts checked" : g.changed.length ? `${g.changed.length} scene${g.changed.length === 1 ? "" : "s"} not listed yet` : `${g.total - g.open} of ${g.total} checked` }), list, bulk),
     el("ul", { class: "claims" }, [...live].sort((a, b) => order(a) - order(b)).map((c) => claimRow(p, c))));
 }
 
@@ -1261,7 +1299,7 @@ function projectEditor(p) {
   const factsDone = factsReady(p), voiceDone = aiVoice || elVoice || kkVoice || !!(p.narration && p.narration.parts && p.narration.parts.length);
   steps.append(
     el("div", { class: "step" + (factsDone ? " done" : "") }, el("div", {}, el("h3", { text: "Check the facts" }),
-      el("div", { class: "note", text: "Read each claim against its source, then press Confirmed, or Waive it with a reason. Fix a wrong fact in the script below: that scene's claims are listed again. Claude only finds the facts; you approve them, and nothing renders or goes to YouTube until every claim is done." }),
+      el("div", { class: "note", text: "Read each claim against its source, then press Confirmed, or Waive it with a reason. Fix a wrong fact in the script below: that scene's claims are listed again. The AI only finds the facts; you approve them, and nothing renders or goes to YouTube until every claim is done." }),
       el("ul", {}, ...(p.sources || []).map((s) => el("li", {}, el("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener", text: s.title || s.url })))),
       factsBox(p))),
     el("div", { class: "step" + (voiceDone ? " done" : "") }, el("div", {}, el("h3", { text: "Record your narration" }),
