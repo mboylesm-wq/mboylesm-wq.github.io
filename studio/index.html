@@ -861,7 +861,8 @@ function newForm() {
     el("label", {}, "Angle (optional)", el("input", { id: "angle", value: pre.angle || "", placeholder: "What makes this story worth 10 minutes?", oninput: (e) => saveDraft({ angle: e.target.value }) })),
     el("div", { class: "grid2" },
       el("label", {}, "AI Brain", el("select", { id: "ai-brain", onchange: (e) => saveDraft({ brain: e.target.value }) },
-        el("option", { value: "antigravity", selected: true, text: "Antigravity Gemini 4 Argon (PC — free)" }))),
+        el("option", { value: "github", selected: (pre.brain || "github") === "github", text: "GitHub Cloud AI (DeepSeek — automatic, PC can stay off)" }),
+        el("option", { value: "antigravity", selected: pre.brain === "antigravity", text: "Antigravity Gemini 4 Argon (PC — free)" }))),
       el("label", {}, "Length", el("select", { id: "length", onchange: (e) => saveDraft({ minutes: +e.target.value }) }, ...[5, 8, 10, 12, 15, 20, 25, 30, 45, 60, 90, 120].map((m) => el("option", { value: m, selected: m === +(pre.minutes || 10), text: m >= 60 ? (m === 60 ? "1 hour" : (m / 60) + " hours") : m + " minutes" })))),
       el("label", {}, "Music", el("select", { id: "music", onchange: (e) => saveDraft({ music: e.target.value }) }, ...MUSIC.map(([id, t]) => el("option", { value: id, selected: id === (pre.music || "km-long-note-four"), text: t })))),
       el("label", {}, "Format", el("select", { id: "format", onchange: (e) => saveDraft({ format: e.target.value }) }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, selected: k === (pre.format || "story"), title: how, text: name })))),
@@ -917,7 +918,9 @@ function newForm() {
         : ghWriter() ? "The AI on GitHub (DeepSeek by default) writes it with sources and fact checks; your PC can stay off." : "Antigravity (Gemini 4 Argon) writes it on your PC for free with sources and fact checks." })),
     el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
   f.addEventListener("submit", (e) => { e.preventDefault(); const vsEl = $("#visual-style"); const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, visualStyle: (vsEl ? vsEl.value : "documentary"), sources: (S.prefill && S.prefill.sources) || (S.draftForm && S.draftForm.sources) || [] };
+    const brain = ($("#ai-brain") && $("#ai-brain").value) || "github";
     if (S.sample) write(opt);
+    else if (brain === "antigravity") agyQueueWrite(opt);
     else if (ghWriter()) ghWrite(opt);
     else agyQueueWrite(opt); });
   return f;
@@ -1313,8 +1316,8 @@ function projectEditor(p) {
         el("label", { class: "btn", style: "display:inline-flex;color:var(--fg)" }, voiceDone ? "Replace recording" : "Upload recording", el("input", { type: "file", id: "voice", accept: "audio/*,video/mp4,.m4a,.mp3,.wav,.aac,.ogg,.opus,.webm", hidden: true, disabled: !S.assets, onchange: (e) => uploadVoice(p, e.target.files[0]) }))),
       el("div", { class: "row" }, el("button", { class: "btn" + (elVoice ? " primary" : ""), type: "button", text: elVoice ? "Using my ElevenLabs voice ✓" : "Use my ElevenLabs voice (no recording)", title: "The cloud reads the script with your ElevenLabs clone, with exact caption timing.",
         onclick: () => save(p, { narration: elVoice ? null : { kind: "elevenlabs", model: "eleven_v4", style: "documentary", name: "My ElevenLabs voice", size: 0 } }).then(render) }),
-        el("button", { class: "btn" + (aiVoice ? " primary" : ""), type: "button", text: aiVoice ? "Using Free Test Voice ($0 on PC) ✓" : "Use Free Test Voice ($0 on PC)", title: "A free stock AI test voice made locally on your PC ($0, zero ElevenLabs credits) so you can test-render immediately.",
-        onclick: () => save(p, { narration: aiVoice ? null : { kind: "ai-stock", voice: "af_heart", name: "Free Test Voice ($0 on PC)", size: 0 } }).then(render) }),
+        el("button", { class: "btn" + (aiVoice ? " primary" : ""), type: "button", text: aiVoice ? "Using Free Test Voice ($0 on PC) ✓" : "Use Free Test Voice ($0 on PC)", title: "A free stock AI test voice made locally on your PC ($0, zero ElevenLabs credits) so you can test-render immediately. It is marked as a test, so the film can never go to YouTube with it.",
+        onclick: () => save(p, { narration: aiVoice ? null : { kind: "ai-stock", voice: "af_heart", name: "Free Test Voice ($0 on PC)", size: 0, test: true } }).then(render) }),
         el("button", { class: "btn" + (kkVoice ? " primary" : ""), type: "button", id: "offline-voice", text: kkVoice ? "Using the offline voice ✓" : "Use the offline voice (free)", title: "Kokoro, the best free voice that runs offline on your PC: no credits, no internet after the first run.",
         onclick: () => save(p, { narration: kkVoice ? null : { kind: "kokoro", voice: "hype", name: "Offline voice (Hype Commentator)", size: 0 } }).then(render) }),
         el("button", { class: "btn" + (clVoice ? " primary" : ""), type: "button", id: "clone-voice", text: clVoice ? "Using your own voice (current)" : "Use your own voice (free, on this PC)", title: "Your cloned voice, fine-tuned on your paid narration and made on your PC: 0 credits, about 3x realtime, calm or dramatic delivery per scene.",
@@ -1965,25 +1968,25 @@ function shortsBox(p) {
         if (list.length && S.assets) for (const s of list) if (s.asset) await S.assets.delete(s.asset).catch(() => {});
         await save(p, { shortsRequest: "waiting", ...(list.length ? { shorts: null } : {}) }); say("Shorts will be made at the next cloud worker run."); render(); } }),
       ghWriter() && list.length ? el("button", { class: "btn", type: "button", disabled: shortsBusy(), text: shortsBusy() ? "Posting… (about 4 min)" : "Post next Short now",
-        onclick: () => startPostShorts({ now: "true", id: p.id }) }) : null));
+        onclick: () => startPostShorts({ slot: "1430" }) }) : null));
 }
 
 // ---------- Post Shorts from the page: one run at a time (6 Nov 2026: two quick presses posted a Short twice) ----------
 const SHORTS_LOCK_MS = 10 * 60000;
 const shortsBusy = () => !!(S.shortsRunAt && Date.now() - S.shortsRunAt < SHORTS_LOCK_MS);
 async function startPostShorts(inputs) {
-  if (!S.actions) return say("Only the GitHub page can start Post Shorts.");
-  if (shortsBusy()) return say("Post Shorts is already running. Wait for it to finish: the result appears under Posted Shorts in the Channel tab.");
+  if (!S.actions) return say("Only the GitHub page can start the Publisher.");
+  if (shortsBusy()) return say("Publisher is already running. Wait for it to finish: the result appears under Posted Shorts in the Channel tab and on the Publish board.");
   S.shortsRunAt = Date.now(); render();
   try {
     if (S.actions.active) {
-      const running = await S.actions.active("post-shorts.yml");
-      if (running.length) { say(`Post Shorts is already ${running[0].status === "queued" ? "queued" : "running"} (started ${new Date(running[0].at).toLocaleTimeString()}). Nothing new was started.`); return; }
+      const running = await S.actions.active("publish.yml");
+      if (running.length) { say(`Publish is already ${running[0].status === "queued" ? "queued" : "running"} (started ${new Date(running[0].at).toLocaleTimeString()}). Nothing new was started.`); return; }
     }
-    await S.actions.dispatch("post-shorts.yml", inputs);
-    say("Started Post Shorts on GitHub Actions. It takes about 4 minutes; the button stays locked meanwhile and the links appear under Posted Shorts in the Channel tab.");
+    await S.actions.dispatch("publish.yml", inputs || { slot: "1430" });
+    say("Started the unified Publisher (slot 14:30) on GitHub Actions. It takes about 4 minutes; the button stays locked meanwhile and the links appear on the Publish board and Channel tab.");
     setTimeout(() => { S.postState = null; loadPostState(); }, 5 * 60000);
-  } catch (e) { S.shortsRunAt = 0; say("Could not start Post Shorts: " + (e.message || e.code)); }
+  } catch (e) { S.shortsRunAt = 0; say("Could not start the Publisher: " + (e.message || e.code)); }
   finally { render(); }
 }
 // post/state.json: what Post Shorts really posted (the source of truth; the page's per-Short links follow it)
@@ -2627,8 +2630,8 @@ function chanSocialCard() {
     { time: "05:00", what: "Channel AI + cards (PC)", detail: "channel-ai.cmd / cards.cmd" },
     { time: "06:17", what: "YouTube Autopilot", detail: "apply up to 80 changes" },
     { time: "10:45, 18:45", what: "Quote / tip cards", detail: "Facebook + Instagram, after your approval" },
-    { time: "12:00, 17:00, 20:00", what: "Chess Reels", detail: "pnoychess-reel-studio" },
-    { time: "14:30", what: "Documentary Short", detail: "the one publisher" }
+    { time: "12:00, 17:00, 20:00", what: "Chess Reels", detail: "the one publisher (publish.yml)" },
+    { time: "14:30", what: "Documentary Short", detail: "the one publisher (publish.yml)" }
   ];
 
   const sched = el("div", { class: "row", style: "gap:10px;font-size:13px;flex-wrap:wrap;color:var(--fg)" },
@@ -2655,9 +2658,9 @@ function chanSocialCard() {
     class: "btn",
     type: "button",
     disabled: !S.actions || shortsBusy(),
-    title: S.actions ? "Dispatch post-shorts.yml on GitHub Actions" : "Only available when signed in to GitHub",
-    text: shortsBusy() ? "Posting… (about 4 min)" : "Run Post Shorts now",
-    onclick: () => startPostShorts({ now: "true" })
+    title: S.actions ? "Dispatch publish.yml (slot 1430) on GitHub Actions" : "Only available when signed in to GitHub",
+    text: shortsBusy() ? "Posting… (about 4 min)" : "Post next Short now",
+    onclick: () => startPostShorts({ slot: "1430" })
   });
   const refreshPosted = el("button", { class: "btn", type: "button", text: "Refresh", onclick: () => loadPostState(true) });
 
@@ -2697,6 +2700,14 @@ function viewPosts() {
   wrap.append(head);
 
   if (!days.length) { head.append(el("div", { class: "empty", text: "No cards yet. On your PC: double-click cards.cmd in C:\\PnoyChess\\docu (or run npm run docu -- cards). They appear here in a couple of minutes, waiting for your approval." })); return wrap; }
+  // the numbers: which card format people actually save and share (tools/card-metrics.mjs, every night)
+  const sum = (S.cards || []).find((d) => d.id === "summary");
+  if (sum && (sum.kinds || []).length) {
+    head.append(el("div", { class: "note", style: "margin-top:8px", text: `How the formats do (read from Facebook and Instagram ${sum.at ? new Date(sum.at).toLocaleDateString() : ""}, last ${sum.days} days). Saves + shares is the number that grows followers:` }));
+    (sum.kinds || []).forEach((k) => head.append(el("div", { class: "proj" },
+      el("div", {}, el("div", { class: "t", text: `${k.kind} · ${k.cards} card(s)` }), el("div", { class: "note", text: `average saves + shares ${k.avgSavesShares} · average reach ${k.avgReach}` })),
+      el("span", { class: "pill " + (k.avgSavesShares >= 5 ? "ok" : ""), text: k.avgSavesShares >= 5 ? "working" : "early" }))));
+  }
 
   for (const d of days) {
     const items = d.items || [], waiting = items.filter((x) => x.status === "waiting").length, approved = items.filter((x) => x.status === "approved").length, posted = items.filter((x) => x.status === "posted").length, rejected = items.filter((x) => x.status === "rejected").length;
@@ -2711,7 +2722,9 @@ function viewPosts() {
       const cap = it.captions || {};
       const capIn = (key, label) => { const t = el("textarea", { rows: 4, disabled: !S.db, "aria-label": label + " caption", onchange: async (e) => { await saveCardsDoc(d.id, setCard(items, it.id, { captions: { ...cap, [key]: e.target.value } })); say(label + " caption saved."); } }); t.value = cap[key] || ""; return el("label", {}, label, t); };
       const pill = it.status === "posted" ? ["ok", "posted"] : it.status === "approved" ? ["warn", "approved: posts at " + hhmm(slot)] : it.status === "rejected" ? ["", "rejected"] : ["warn", "waiting for you"];
+      const m = it.metrics || {}, mLine = [m.ig && m.ig.reach != null ? `Instagram: reach ${m.ig.reach} · saved ${m.ig.saved || 0} · shares ${m.ig.shares || 0}` : "", m.fb && (m.fb.reactions != null) ? `Facebook: ${m.fb.reactions} reactions · ${m.fb.comments || 0} comments` : ""].filter(Boolean).join(" · ");
       const img = it.image ? el("img", { src: "/_blob/" + it.image, alt: it.kind === "quote" ? "Quote card: " + it.author : "Tip card: " + it.title, width: 216, height: 270, loading: "lazy", style: "border-radius:8px;outline:1px solid var(--line)" }) : el("div", { class: "empty", style: "width:216px;height:270px", text: "no preview" });
+      const img2 = it.image2 ? el("img", { src: "/_blob/" + it.image2, alt: "Answer slide", title: "The answer slide: posted as the second picture on Instagram", width: 216, height: 270, loading: "lazy", style: "border-radius:8px;outline:1px solid var(--gold)" }) : null;
       const acts = el("div", { class: "row", style: "gap:8px;flex-wrap:wrap" },
         it.status === "waiting" ? el("button", { class: "btn primary", type: "button", disabled: !S.db, text: "Approve", onclick: async () => { await saveCardsDoc(d.id, setCard(items, it.id, { status: "approved" })); say("Approved: it posts to Facebook and Instagram at " + hhmm(slot) + "."); render(); } }) : null,
         it.status === "waiting" ? el("button", { class: "btn", type: "button", disabled: !S.db, text: "Reject", onclick: async () => { await saveCardsDoc(d.id, setCard(items, it.id, { status: "rejected" })); say("Rejected."); render(); } }) : null,
@@ -2720,7 +2733,7 @@ function viewPosts() {
         link.ig && link.ig.link ? el("a", { class: "btn", href: safeUrl(link.ig.link), target: "_blank", rel: "noopener", text: "Instagram ✓" }) : null,
         it.url ? el("a", { class: "note", href: safeUrl(it.url), target: "_blank", rel: "noopener", text: "image" }) : el("span", { class: "note", style: "color:var(--warn)", text: "no public image: make the cards again on the PC" }));
       p.append(el("div", { class: "proj", style: "display:grid;grid-template-columns:216px 1fr;gap:14px;align-items:start" },
-        img,
+        el("div", { class: "row", style: "gap:6px;align-items:flex-start" }, img, img2),
         el("div", {},
           el("div", { class: "row", style: "gap:8px;align-items:center;flex-wrap:wrap" },
             el("span", { class: "pill", text: it.kind === "quote" ? "quote" : "tip" }),
@@ -2730,6 +2743,7 @@ function viewPosts() {
             : it.kind === "puzzle" ? el("div", { style: "font-size:15px;margin:6px 0" }, el("div", { class: "t", text: it.text + (it.prompt ? " \u2014 " + it.prompt : "") }), el("div", { class: "note", text: (it.note || "") + (it.answer ? " \u00b7 answer: " + it.answer : "") }))
               : el("div", { style: "font-size:15px;margin:6px 0" }, el("div", { class: "t", text: it.title || "" }), el("div", { text: it.text })),
           acts,
+          mLine ? el("div", { class: "note", style: "margin-top:6px", text: mLine }) : null,
           el("details", { style: "margin-top:8px" }, el("summary", { class: "note", text: "Captions (edit before approving if you like)" }), capIn("facebook", "Facebook"), capIn("instagram", "Instagram")))));
     }
     wrap.append(p);
@@ -2782,13 +2796,15 @@ function viewChannel() {
   const checkIds = [...new Map((h.videos || []).flatMap((v) => v.checks || []).map((x) => [x.id, x.label])).entries()];
   const sel = [...st.sel].filter((id) => (h.videos || []).some((v) => v.id === id)), selV = (h.videos || []).filter((v) => sel.includes(v.id));
   const list = el("section", { class: "panel" }, el("h2", { text: "Videos" }),
-    el("div", { class: "row" },
+    el("div", { class: "row", style: "flex-wrap:wrap;gap:8px" },
+      el("input", { id: "chan-q", type: "search", value: st.q || "", placeholder: "Search title or video ID…", style: "max-width:220px", oninput: (e) => { st.q = e.target.value; render(); } }),
       pick("chan-kind", "Show ", st.kind, [["all", "all"], ["long", "long videos"], ["short", "Shorts"]], (x) => { st.kind = x; }),
+      pick("chan-status", "Status ", st.status || "all", [["all", "all statuses"], ["queued", "queued for YouTube"], ["draft", "AI draft / suggestion"], ["done", "sent to YouTube"], ["none", "no changes yet"]], (x) => { st.status = x; }),
       pick("chan-check-f", "Missing ", st.check, [["", "anything"], ...checkIds], (x) => { st.check = x; }),
       pick("chan-sort", "Sort by ", st.sort, [["score", "lowest score"], ["new", "newest"], ["views", "most views"], ["ctr", "lowest click rate"]], (x) => { st.sort = x; }),
       el("button", { class: "btn", type: "button", text: "Select all shown", onclick: () => { vids.forEach((v) => st.sel.add(v.id)); render(); } }),
       el("button", { class: "btn", type: "button", text: "Clear", onclick: () => { st.sel.clear(); render(); } }),
-      el("span", { class: "note", text: sel.length + " selected" })));
+      el("span", { class: "note", text: `${vids.length} of ${(h.videos || []).length} shown · ${sel.length} selected` })));
   if (!vids.length) list.append(el("div", { class: "empty", text: "No videos match." }));
   vids.forEach((v) => {
     const fails = (v.checks || []).filter((x) => !x.ok), ed = editOf(v.id), [el1, cls] = ed ? editPill(ed) : [];
@@ -3036,11 +3052,16 @@ function viewPublish() { return lazyView("publish.js", () => window.PublishBoard
 function viewReview() {
   const box = el("section", { class: "panel" }, el("h2", { text: "Review" }));
   const wait = S.projects.filter((p) => p.status === "review" || p.status === "pc");
+  const waitingCards = (S.cards || []).reduce((n, d) => n + ((d.items || d.cards) || []).filter((c) => c.status === "waiting").length, 0);
   box.append(el("p", { class: "note", text: "Everything waiting for your yes before it goes out. Reels and documentary Shorts that are already approved are on the Publish board." }));
-  if (!wait.length) box.append(el("div", { class: "empty", text: S.db ? "Nothing is waiting for your review." : "Sign in to see what waits for your review." }));
-  wait.forEach((p) => box.append(el("div", { class: "proj" }, el("div", {}, el("div", { class: "kind", text: "Documentary" }), el("div", { class: "t", text: p.title }), el("div", { class: "row", style: "gap:6px;flex-wrap:wrap;margin-top:6px" }, statusPill(p))),
+  if (!wait.length && !waitingCards) box.append(el("div", { class: "empty", text: S.db ? "Nothing is waiting for your review." : "Sign in to see what waits for your review." }));
+  wait.forEach((p) => box.append(el("div", { class: "proj" }, el("div", {}, el("div", { class: "kind", text: p.kind === "review" ? "Game review" : "Documentary" }), el("div", { class: "t", text: p.title }), el("div", { class: "row", style: "gap:6px;flex-wrap:wrap;margin-top:6px" }, statusPill(p))),
     el("button", { class: "btn primary", type: "button", text: "Open", onclick: () => { S.cur = p; S.view = "projects"; render(); } }))));
-  box.append(el("button", { class: "btn", type: "button", text: "Open the Publish board", onclick: () => { S.view = "publish"; render(); } }));
+  if (waitingCards > 0) box.append(el("div", { class: "proj" }, el("div", {}, el("div", { class: "kind", text: "Posts (10:45 & 18:45)" }), el("div", { class: "t", text: `${waitingCards} Quote / Tip / Puzzle card${waitingCards === 1 ? "" : "s"} waiting for approval` })),
+    el("button", { class: "btn primary", type: "button", text: "Review cards", onclick: () => { S.view = "posts"; render(); } })));
+  box.append(el("div", { class: "row", style: "margin-top:10px" },
+    el("button", { class: "btn", type: "button", text: "Open the Publish board", onclick: () => { S.view = "publish"; render(); } }),
+    el("button", { class: "btn", type: "button", text: "Open Posts", onclick: () => { S.view = "posts"; render(); } })));
   return box;
 }
 function reelList() {
@@ -3120,6 +3141,7 @@ function reviewInfo(p) {
   return el("div", { class: "note", id: "review-info" },
     el("div", { text: ["Game review", st.opening ? st.opening.eco + " " + st.opening.name : "", st.moves ? st.moves + " moves" : "", st.engine || (p.status === "analyse" ? "" : "no engine")].filter(Boolean).join(" · ") }),
     st.critical && st.critical.length ? el("div", { text: "Critical moments: " + st.critical.join(", ") }) : null,
+    st.layers ? el("div", { text: "Analysis layers: " + ["why x" + (st.layers.why || 0), st.layers.plan ? "plan" : "", st.layers.endgame ? "endgame technique" : "", st.layers.candidates ? st.layers.candidates + " alternative(s)" : "", st.layers.opening ? "opening plan" : "", st.layers.sourceVerdicts ? st.layers.sourceVerdicts + " PGN verdict(s)" : "", st.layers.tablebase ? "tablebase" : ""].filter(Boolean).join(" \u00b7 ") }) : null,
     Object.keys(src).length ? el("div", { text: "Scenes by source: " + Object.entries(src).map(([k, n]) => k + " " + n).join(", ") }) : null,
     (st.problems || []).length ? el("div", { class: "bad", text: "PGN problems: " + st.problems.join("; ") }) : null,
     (p.plan.scenes || []).length ? reviewFlags(p) : null,
