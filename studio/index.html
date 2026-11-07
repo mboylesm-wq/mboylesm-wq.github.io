@@ -2721,7 +2721,8 @@ function viewPosts() {
             el("span", { class: "pill " + pill[0], text: pill[1] }),
             el("span", { class: "note", text: hhmm(slot) + " Manila" })),
           it.kind === "quote" ? el("div", { style: "font-size:15px;margin:6px 0" }, el("em", { text: "\u201c" + it.text + "\u201d" }), el("div", { class: "note", text: "\u2014 " + (it.author || "") + (it.source ? ", " + it.source : "") }))
-            : el("div", { style: "font-size:15px;margin:6px 0" }, el("div", { class: "t", text: it.title || "" }), el("div", { text: it.text })),
+            : it.kind === "puzzle" ? el("div", { style: "font-size:15px;margin:6px 0" }, el("div", { class: "t", text: it.text + (it.prompt ? " \u2014 " + it.prompt : "") }), el("div", { class: "note", text: (it.note || "") + (it.answer ? " \u00b7 answer: " + it.answer : "") }))
+              : el("div", { style: "font-size:15px;margin:6px 0" }, el("div", { class: "t", text: it.title || "" }), el("div", { text: it.text })),
           acts,
           el("details", { style: "margin-top:8px" }, el("summary", { class: "note", text: "Captions (edit before approving if you like)" }), capIn("facebook", "Facebook"), capIn("instagram", "Instagram")))));
     }
