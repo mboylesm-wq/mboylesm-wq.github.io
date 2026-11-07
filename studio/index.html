@@ -3082,8 +3082,21 @@ function viewGameReview() {
     el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "New game review" }), el("button", { class: "btn", type: "button", text: "← All projects", onclick: () => { S.view = "projects"; render(); } })),
     el("div", { class: "note", text: "Paste one game's PGN (with the annotator's notes and variations if it has them). Your PC analyses it with Stockfish, then the review script appears here as a draft. Every move is explained the commentator's way (what it attacks, defends, threatens, why the alternatives fail), read by the free offline voice. Every sentence comes from the game, the engine, or the notes." }));
   const pgn = el("textarea", { id: "gr-pgn", class: "code", rows: "12", "aria-label": "PGN", placeholder: '[Event "..."]\n[White "..."]\n[Black "..."]\n\n1. e4 e5 2. Nf3 ...' });
+  const pgnPreview = el("div", { id: "gr-preview", class: "note", style: "margin:4px 0 8px 0" });
+  const updatePgnPreview = () => {
+    const text = pgn.value.trim();
+    if (!text) { pgnPreview.textContent = ""; return; }
+    const h = (k) => { const m = new RegExp("\\[" + k + '\\s+"([^"]*)"\\]').exec(text); return m ? m[1] : ""; };
+    const body = text.replace(/\[[^\]]*\]/g, "").replace(/\{[^}]*\}/g, "");
+    const mvs = (body.match(/\b(\d+)\.\s*[a-hNBRQKO]/g) || []);
+    const evals = (text.match(/\[%eval\s+[^\]]+\]/g) || []).length, clks = (text.match(/\[%clk\s+[^\]]+\]/g) || []).length;
+    if (!mvs.length) { pgnPreview.textContent = "No legal move numbers found yet — paste a complete PGN with moves (1. e4 ...)."; return; }
+    const w = h("White") || "White", b = h("Black") || "Black", we = h("WhiteElo"), be = h("BlackElo"), ev = h("Event"), res = h("Result");
+    pgnPreview.textContent = `Ready: ${w}${we ? " (" + we + ")" : ""} vs ${b}${be ? " (" + be + ")" : ""}${ev ? " · " + ev : ""}${res ? " · " + res : ""} · ${mvs.length} moves${evals ? " · " + evals + " engine evals in PGN" : ""}${clks ? " · clock times included" : ""}`;
+  };
+  pgn.addEventListener("input", updatePgnPreview);
   const file = el("input", { type: "file", id: "gr-file", accept: ".pgn,.txt", "aria-label": "PGN file" });
-  file.addEventListener("change", async () => { const f = file.files && file.files[0]; if (f) pgn.value = await f.text(); });
+  file.addEventListener("change", async () => { const f = file.files && file.files[0]; if (f) { pgn.value = await f.text(); updatePgnPreview(); } });
   const src = el("input", { id: "gr-source", type: "url", placeholder: "https://… (where the game is published: Lichess, chessgames, Wikipedia…)", "aria-label": "Source link" });
   const depth = el("select", { id: "gr-depth", "aria-label": "Engine depth" }, ...[["16", "Normal (depth 16)"], ["20", "Deep (depth 20, slower)"], ["12", "Quick (depth 12)"]].map(([v, t]) => el("option", { value: v, text: t })));
   const eng = el("input", { type: "checkbox", id: "gr-engine", checked: true });
@@ -3092,12 +3105,12 @@ function viewGameReview() {
     games.slice(0, 15).forEach((g, i) => list.append(el("div", { class: "row", style: "justify-content:space-between; gap:8px; border-top:1px solid var(--line, #ddd); padding:6px 0" },
       el("div", {}, el("div", { text: `${g.phi ? "🇵🇭 " : ""}${g.white}${g.whiteElo ? " (" + g.whiteElo + ")" : ""} vs ${g.black}${g.blackElo ? " (" + g.blackElo + ")" : ""} · ${g.result} · ${g.moves} moves` }),
         el("div", { class: "note", text: [g.event, g.round ? "round " + g.round : "", g.opening, g.why].filter(Boolean).join(" · ") })),
-      el("button", { class: "btn", type: "button", id: "gr-use-" + i, text: "Use this game", onclick: () => { pgn.value = g.pgn; src.value = g.source || ""; say(`${g.white} vs ${g.black} is in the form: check it, then Analyse on my PC.`); pgn.scrollIntoView({ block: "center" }); } }))));
+      el("button", { class: "btn", type: "button", id: "gr-use-" + i, text: "Use this game", onclick: () => { pgn.value = g.pgn; src.value = g.source || ""; updatePgnPreview(); say(`${g.white} vs ${g.black} is in the form: check it, then Analyse on my PC.`); pgn.scrollIntoView({ block: "center" }); } }))));
     box.append(el("h3", { text: "Trending games" }),
       el("div", { class: "note", text: games.length ? `This week's top over-the-board games from Lichess broadcasts (updated ${new Date(tg.at).toLocaleString()}): decisive, high-rated games first, Filipino players on top. Pick one, or paste your own PGN below.` : "No trending games yet: they come with the weekly trend radar (or press Refresh)." }),
       list, GH() && S.actions ? el("div", { class: "row" }, el("button", { class: "btn", type: "button", id: "gr-refresh", text: "Refresh trending games", onclick: async () => {
         try { await S.actions.dispatch("trends.yml", {}); say("Asked GitHub for this week's games (about a minute). They appear here by themselves."); } catch (e) { say("Could not start it: " + (e.message || e.code)); } } })) : null); }
-  box.append(el("label", { text: "PGN" }), pgn, el("div", { class: "row" }, file),
+  box.append(el("label", { text: "PGN" }), pgn, pgnPreview, el("div", { class: "row" }, file),
     el("label", { text: "Source of the game (shown as the fact source)" }), src,
     el("div", { class: "row", style: "gap:12px; align-items:center" }, el("label", { text: "Engine" }), depth, el("label", {}, eng, " use Stockfish")),
     el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", id: "gr-go", disabled: !S.db, text: S.db ? "Analyse on my PC" : "Analyse on my PC (sign in first)", onclick: async () => {
