@@ -587,7 +587,7 @@ const progressLine = (p, id = "progress-line") => { const e = el("div", { class:
 setInterval(() => document.querySelectorAll("[data-progress]").forEach((e) => { const p = S.projects.find((x) => x.id === e.dataset.progress); if (p) paintProgress(e, p); }), 15000);
 // what a project needs before it can be rendered (the same two rules as the Render step), and how the PC queue runs: the video rendering
 // now first, then rushed ones, then by when each was asked for (tools/docu.mjs next)
-const voiceReady = (p) => !!(p.narration && (p.narration.kind === "ai-stock" || p.narration.kind === "kokoro" || p.narration.kind === "elevenlabs" || (p.narration.parts && p.narration.parts.length)));
+const voiceReady = (p) => !!(p.narration && (p.narration.kind === "clone" || p.narration.kind === "ai-stock" || p.narration.kind === "kokoro" || p.narration.kind === "elevenlabs" || (p.narration.parts && p.narration.parts.length)));
 // the free offline voice (Kokoro-82M on Mark's PC, tools/tts-kokoro.mjs): game reviews use it until his own voice is ready
 // personalities (tools/tts-kokoro.mjs KOKORO_PRESETS: blended stock voices with their own pace), then the plain voices
 const KOKORO_VOICES = [["hype", "Hype Commentator: fast, punchy, big reactions"], ["storyteller", "Calm Storyteller: relaxed and friendly"], ["broadcaster", "Classic Broadcaster: TV-sports host"], ["analyst", "Deep Analyst: low and serious"], ["trailer", "Movie Trailer: deep and dramatic"], ["teacher", "Warm Teacher: warm and clear"], ["presenter", "Bright Presenter: upbeat and quick"], ["nighthost", "Smooth Night Host: soft, late-night"], ["duo", "Neutral Host: modern podcast"],
@@ -1297,8 +1297,8 @@ function projectEditor(p) {
   if (p.kind === "review") top.append(reviewInfo(p));
   // steps
   const steps = el("section", { class: "panel steps" });
-  const aiVoice = !!(p.narration && p.narration.kind === "ai-stock"), elVoice = !!(p.narration && p.narration.kind === "elevenlabs"), kkVoice = !!(p.narration && p.narration.kind === "kokoro");
-  const factsDone = factsReady(p), voiceDone = aiVoice || elVoice || kkVoice || !!(p.narration && p.narration.parts && p.narration.parts.length);
+  const aiVoice = !!(p.narration && p.narration.kind === "ai-stock"), elVoice = !!(p.narration && p.narration.kind === "elevenlabs"), kkVoice = !!(p.narration && p.narration.kind === "kokoro"), clVoice = !!(p.narration && p.narration.kind === "clone");
+  const factsDone = factsReady(p), voiceDone = aiVoice || elVoice || kkVoice || clVoice || !!(p.narration && p.narration.parts && p.narration.parts.length);
   steps.append(
     el("div", { class: "step" + (factsDone ? " done" : "") }, el("div", {}, el("h3", { text: "Check the facts" }),
       el("div", { class: "note", text: "Read each claim against its source, then press Confirmed, or Waive it with a reason. Fix a wrong fact in the script below: that scene's claims are listed again. The AI only finds the facts; you approve them, and nothing renders or goes to YouTube until every claim is done." }),
@@ -1316,10 +1316,15 @@ function projectEditor(p) {
         el("button", { class: "btn" + (aiVoice ? " primary" : ""), type: "button", text: aiVoice ? "Using Free Test Voice ($0 on PC) ✓" : "Use Free Test Voice ($0 on PC)", title: "A free stock AI test voice made locally on your PC ($0, zero ElevenLabs credits) so you can test-render immediately.",
         onclick: () => save(p, { narration: aiVoice ? null : { kind: "ai-stock", voice: "af_heart", name: "Free Test Voice ($0 on PC)", size: 0 } }).then(render) }),
         el("button", { class: "btn" + (kkVoice ? " primary" : ""), type: "button", id: "offline-voice", text: kkVoice ? "Using the offline voice ✓" : "Use the offline voice (free)", title: "Kokoro, the best free voice that runs offline on your PC: no credits, no internet after the first run.",
-        onclick: () => save(p, { narration: kkVoice ? null : { kind: "kokoro", voice: "hype", name: "Offline voice (Hype Commentator)", size: 0 } }).then(render) })),
+        onclick: () => save(p, { narration: kkVoice ? null : { kind: "kokoro", voice: "hype", name: "Offline voice (Hype Commentator)", size: 0 } }).then(render) }),
+        el("button", { class: "btn" + (clVoice ? " primary" : ""), type: "button", id: "clone-voice", text: clVoice ? "Using your own voice (current)" : "Use your own voice (free, on this PC)", title: "Your cloned voice, fine-tuned on your paid narration and made on your PC: 0 credits, about 3x realtime, calm or dramatic delivery per scene.",
+        onclick: () => save(p, { narration: clVoice ? null : { kind: "clone", style: "auto", name: "My cloned voice (local, free)", size: 0 } }).then(render) })),
       kkVoice ? el("label", { style: "max-width:420px" }, "Offline voice",
         el("select", { "aria-label": "Offline voice", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, voice: e.target.value } }).then(() => { say("Voice saved. Your PC makes the narration again at the next render (free)."); render(); }) },
           ...KOKORO_VOICES.map(([v, t]) => el("option", { value: v, selected: (p.narration.voice || "hype") === v, text: t })))) : null,
+      clVoice ? el("label", { style: "max-width:420px" }, "Delivery (your voice)",
+        el("select", { "aria-label": "Cloned voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. Your PC makes the narration again at the next render (free)."); render(); }) },
+          ...[["auto", "Auto: dramatic on exclamations and your takes, calm elsewhere"], ["calm", "Calm: the Baguio opening (default documentary)"], ["dramatic", "Dramatic: the Morphy mate line, more lift"]].map(([v, t]) => el("option", { value: v, selected: (p.narration.style || "auto") === v, text: t })))) : null,
       elVoice ? el("div", { style: "display:grid;gap:8px" },
         el("label", { style: "max-width:420px" }, "Delivery (same voice, different energy)",
           el("select", { "aria-label": "Voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. The narration is made again at the next render (ElevenLabs credits for the script)."); render(); }) },
@@ -1329,6 +1334,7 @@ function projectEditor(p) {
           el("span", { class: "note", text: "This video keeps its older voice until you upgrade." })),
         el("div", { class: "note", text: `Your ElevenLabs clone (${p.narration.model ? "Eleven v4" : "older model"}) reads the script in the cloud (about 9,000 credits per 10 minutes) with exact caption timing. Names in the pronunciation list (FIDE = Fee-day…) are said correctly; captions keep the real spelling.` })) :
       kkVoice ? el("div", { class: "note", text: "Offline voice: Kokoro reads the script on your PC (free, no ElevenLabs credits). A changed scene is made again at the next render; the rest is reused." }) :
+      clVoice ? el("div", { class: "note", text: "Your own voice: a GPT-SoVITS model fine-tuned on your paid narration, reading the script on your PC (0 credits, about 3x realtime, no internet). A changed scene is made again at the next render; the rest is reused. Names from the pronunciation list and chess moves are spoken the right way." }) :
       aiVoice ? el("div", { class: "note", text: "Free test voice ($0 on PC): synthesized locally on Windows with zero paid APIs and zero ElevenLabs credits. Perfect for test renders before recording your voice." })
         : voiceDone ? el("div", { class: "note", text: `Uploaded: ${p.narration.name} (${(p.narration.size / 1e6).toFixed(1)} MB)` }) : (S.assets ? null : el("div", { class: "note", text: "Uploading needs edit access to this page." })))),
     el("div", { class: "step" + (["waiting", "rendering", "review", "approved", "pc", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Render" }),
@@ -3082,7 +3088,7 @@ function viewGameReview() {
       const title = [h("White") || "White", "vs", h("Black") || "Black"].join(" ") + (h("Event") ? ", " + h("Event") : "") + ": Game Review";
       const id = slugify("review-" + (h("White") || "") + "-" + (h("Black") || "")) + "-" + Date.now().toString(36).slice(-4), stamp = new Date().toISOString();
       const doc = { id, title, kind: "review", status: "analyse", minutes: 0, titles: [title], plan: { scenes: [] }, claimsRequired: true, createdAt: stamp, updatedAt: stamp,
-        narration: { kind: "kokoro", voice: "hype", name: "Offline voice (Hype Commentator)", size: 0 },
+        narration: { kind: "clone", style: "auto", name: "My cloned voice (local, free)", size: 0 },
         review: { pgn: text, source: src.value.trim() || null, depth: +depth.value, engine: eng.checked, requestedAt: stamp },
         note: "Waiting for your PC: double-click render-pc.cmd (it analyses the game first, free)." };
       try { await S.db.doc("projects/" + id).set(doc); S.projects = [doc, ...S.projects.filter((x) => x.id !== id)]; S.cur = doc; S.view = "projects"; say("Saved. Double-click render-pc.cmd on your PC: it analyses the game and writes the review."); render(); }
