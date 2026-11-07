@@ -100,6 +100,7 @@ pre.desc { font: 12.5px/1.5 var(--mono); white-space: pre-wrap; margin: 0; max-h
       <button type="button" id="nav-review" data-view="review">Review</button>
       <button type="button" id="nav-publish" data-view="publish">Publish</button>
       <button type="button" id="nav-channel" data-view="channel">Channel</button>
+      <button type="button" id="nav-posts" data-view="posts">Posts</button>
       <button type="button" id="nav-music" data-view="music">Music</button>
       <button type="button" id="nav-health" data-view="health">Health</button>
       <button type="button" id="nav-write" data-view="write" hidden>Write</button>
@@ -716,10 +717,11 @@ function saveDraft(data) {
     S._ensureChannel = () => {
       if (S._channelSub) return;
       S._channelSub = true;
-      db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog"), ai: g("ai"), after: g("after"), elevenlabs: g("elevenlabs") }; if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+      db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog"), ai: g("ai"), after: g("after"), elevenlabs: g("elevenlabs"), profiles: g("profiles") }; if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
       db.collection("ytedits").onSnapshot((snap) => { S.edits = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+      db.collection("cards").onSnapshot((snap) => { S.cards = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.id).localeCompare(String(a.id))); if (S.view === "posts" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     };
-    if (S.view === "channel") S._ensureChannel();
+    if (S.view === "channel" || S.view === "posts") S._ensureChannel();
   }
   render();
 })();
@@ -745,7 +747,7 @@ function render() {
   if (S.view !== "reel" && window.ReelStudio) window.ReelStudio.stop();
   const v = $("#view"); v.textContent = "";
   v.append(S.view === "trends" ? viewTrends() : S.view === "write" ? viewWrite() : S.view === "gamereview" ? viewGameReview() : S.view === "reel" ? viewReel() : S.view === "review" ? viewReview() : S.view === "publish" ? viewPublish()
-    : S.view === "music" ? viewMusic() : S.view === "channel" ? viewChannel() : S.view === "health" ? viewHealth() : viewProjects());
+    : S.view === "music" ? viewMusic() : S.view === "channel" ? viewChannel() : S.view === "posts" ? viewPosts() : S.view === "health" ? viewHealth() : viewProjects());
 }
 
 function viewTrends() {
@@ -912,7 +914,7 @@ function newForm() {
       } }),
       el("button", { class: "btn", type: "button", text: "Clear", onclick: () => { clearDraft(); render(); } }),
       el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes."
-        : ghWriter() ? "Copilot writes it on GitHub (Opus 5.5) with sources and fact checks; your PC can stay off." : "Antigravity (Gemini 4 Argon) writes it on your PC for free with sources and fact checks." })),
+        : ghWriter() ? "The AI on GitHub (DeepSeek by default) writes it with sources and fact checks; your PC can stay off." : "Antigravity (Gemini 4 Argon) writes it on your PC for free with sources and fact checks." })),
     el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
   f.addEventListener("submit", (e) => { e.preventDefault(); const vsEl = $("#visual-style"); const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, visualStyle: (vsEl ? vsEl.value : "documentary"), sources: (S.prefill && S.prefill.sources) || (S.draftForm && S.draftForm.sources) || [] };
     if (S.sample) write(opt);
@@ -1008,7 +1010,7 @@ async function writeChapters(p, set = (k, m) => say(m)) {
   set(1, "Script ready, with an original score plan. Read it through, check the facts, then record your narration.");
   S.view = "write"; render();
 }
-// Docu Studio on GitHub: GitHub's write.yml writes it (tools/write-auto.mjs, Copilot CLI on Mark's subscription)
+// Docu Studio on GitHub: GitHub's write.yml writes it (tools/write-auto.mjs; DeepSeek by default, AI_PROVIDER picks Claude or Copilot)
 async function agyQueueWrite(opt) {
   if (!opt.topic || !S.db) return;
   const id = slugify(opt.topic) + "-" + Math.random().toString(36).slice(2, 6);
@@ -1054,14 +1056,14 @@ async function ghWrite(opt) {
     const sources = (opt.sources || []).filter((s) => s && s.url).slice(0, 12).map((s) => ({ title: String(s.title || ""), url: String(s.url) }));
     await S.actions.dispatch("write.yml", { topic: opt.topic, angle: opt.angle || "", minutes: String(opt.minutes), music: opt.music || "", format: opt.format || "story", sources: sources.length ? JSON.stringify(sources) : "" });
     clearDraft();
-    say(`GitHub is writing "${opt.topic}" with Copilot. It shows in Projects as Writing in a few minutes; your PC can be off.`);
+    say(`GitHub is writing "${opt.topic}" with the AI. It shows in Projects as Writing in a few minutes; your PC can be off.`);
   } catch (e) { say("Could not start the writing on GitHub: " + (e.message || e.code)); }
   finally { S.busy = false; const g = $("#go"); if (g) g.disabled = false; }
 }
 async function ghContinue(p) {
   if (S.busy || ghWriting(p)) return;
   S.busy = true; render();
-  try { await S.actions.dispatch("write.yml", { id: p.id }); await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is continuing with Copilot." }); say("GitHub is continuing the script with Copilot. Your PC can be off."); }
+  try { await S.actions.dispatch("write.yml", { id: p.id }); await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is continuing with the AI." }); say("GitHub is continuing the script with the AI. Your PC can be off."); }
   catch (e) { say("Could not start the writing on GitHub: " + (e.message || e.code)); }
   finally { S.busy = false; render(); }
 }
@@ -1097,8 +1099,8 @@ function rewriteControl(p, i) {
       if (!S.sample) {
         try {
           await S.actions.dispatch("write.yml", { id: p.id, rewrite_chapter: String(i + 1), rewrite_note: note });
-          await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is rewriting chapter " + (i + 1) + " with Copilot." });
-          say("GitHub is rewriting chapter " + (i + 1) + " with Copilot.");
+          await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is rewriting chapter " + (i + 1) + " with the AI." });
+          say("GitHub is rewriting chapter " + (i + 1) + " with the AI.");
         } catch (e) { say("Could not start the rewrite on GitHub: " + (e.message || e.code)); }
       } else {
         rewriteChapter(p, i, note);
@@ -1128,14 +1130,14 @@ async function listClaims(p) {
   return todo.filter((s) => !fresh.some((c) => c.scene === s.id)).map((s) => (s.id === "_film" ? "the title and thumbnail" : "scene " + s.id));
 }
 // On the GitHub page there is no Claude, so GitHub Actions lists the claims (write.yml → write-auto.mjs claims):
-// the same page code, the checker model, one Copilot request; the page polls until they appear
+// the same page code, the checker model, one AI request; the page polls until they appear
 async function ghListClaims(p) {
   if (S.busy || !ghWriter() || ghWriting(p)) return;
   S.busy = true; render();
   try {
     await S.actions.dispatch("write.yml", { id: p.id, claims: "true" });
-    await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is listing the facts to check with Copilot." });
-    say("GitHub is listing the claims of the changed scenes with Copilot (one request per batch). They appear here in a few minutes.");
+    await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is listing the facts to check with the AI." });
+    say("GitHub is listing the claims of the changed scenes with the AI (one request per batch). They appear here in a few minutes.");
   } catch (e) { say("Could not start the claims listing on GitHub: " + (e.message || e.code)); }
   finally { S.busy = false; render(); }
 }
@@ -1168,7 +1170,7 @@ function claimRow(p, c) {
 function factsBox(p) {
   const g = factGate(p), live = (p.claims || []).filter((c) => !g.changed.includes(c.scene) && factScenes(p).some((s) => s.id === c.scene));
   const canList = !!(S.sample || ghWriter()), listing = ghWriting(p);
-  const list = g.changed.length ? el("button", { class: "btn primary", type: "button", id: "list-claims", disabled: S.busy || !canList || (listing && !S.sample), title: S.sample ? "" : ghWriter() ? "Copilot on GitHub lists them: a few Copilot premium requests, no API credits" : "Listing claims needs Claude in this page, or the GitHub page (Copilot)", text: listing && !S.sample ? "GitHub is listing them…" : Array.isArray(p.claims) ? `List the claims of ${g.changed.length} changed scene(s)` : "List the claims", onclick: () => pressListClaims(p) }) : null;
+  const list = g.changed.length ? el("button", { class: "btn primary", type: "button", id: "list-claims", disabled: S.busy || !canList || (listing && !S.sample), title: S.sample ? "" : ghWriter() ? "the AI on GitHub lists them (DeepSeek by default: a few cents, no Copilot credits)" : "Listing claims needs Claude in this page, or the GitHub page (the AI)", text: listing && !S.sample ? "GitHub is listing them…" : Array.isArray(p.claims) ? `List the claims of ${g.changed.length} changed scene(s)` : "List the claims", onclick: () => pressListClaims(p) }) : null;
   if (!g.required) return el("div", {}, el("label", { class: "row", style: "display:flex;gap:8px;color:var(--fg)" }, el("input", { type: "checkbox", id: "facts", checked: !!p.factsChecked, style: "width:auto", onchange: (e) => save(p, { factsChecked: e.target.checked }).then(render) }), "I checked the facts"), list);
   const order = (c) => (claimDone(c) ? 2 : c.risk === "high" ? 0 : 1);
   // the claims the source check verified with a quote found in the source: Mark confirms them in one go after reading
@@ -1773,7 +1775,7 @@ function scoreBox(p, locked) {
     el("button", { class: "btn" + (sc.length ? "" : " primary"), type: "button", disabled: locked || S.busy || !(S.sample || ghWriter()), text: S.busy ? "Writing…" : sc.length ? "Rewrite the briefs" : "Write the score briefs", onclick: () => (!S.sample && ghWriter() ? ghContinue(p) : writeScore(p)) }),
     sc.length ? el("button", { class: "btn", type: "button", disabled: locked, text: "Use the original score everywhere",
       onclick: () => { useScoreEverywhere(p); save(p, { plan }).then(() => { say("Original score chosen for every section. It is composed at the next render."); render(); }); } }) : null,
-    S.sample || ghWriter() ? null : el("span", { class: "note", text: "Writing briefs needs Claude in this page, or Copilot in VS Code (tools/ai-write.mjs next <id>)." })));
+    S.sample || ghWriter() ? null : el("span", { class: "note", text: "Writing briefs needs Claude in this page, or any AI where you run tools/ai-write.mjs (DeepSeek, Claude or Copilot)." })));
   return wrap;
 }
 function useScoreEverywhere(p) {
@@ -2554,6 +2556,43 @@ function chanFlowCard() {
   );
 }
 
+// ---------- Profiles: the channel's own words on every platform, all pointing at the YouTube channel
+// YouTube's part is written here and sent by the autopilot (db/channel/setup.json); Meta and TikTok allow no
+// bio/about write through their APIs, so the other three are copied by hand once (Copy button + the settings link).
+function chanProfilesPanel() {
+  const P = (S.chan2 || {}).profiles || {}, yt = P.youtube || {}, fb = P.facebook || {}, ig = P.instagram || {}, tt = P.tiktok || {};
+  const draft = { youtube: { ...yt }, facebook: { ...fb }, instagram: { ...ig }, tiktok: { ...tt } };
+  const p = el("section", { class: "panel" }, el("h2", { text: "Profiles: what every platform says about the channel" }),
+    el("div", { class: "note", text: "One promise, one link, on all four. The link is always the YouTube channel with ?sub_confirmation=1, so a tap is a subscriber and not just a view. Instagram allows exactly one clickable link (bio); TikTok's bio link needs a business account, so there the @handle does the work." }));
+  const copy = (get, label) => el("button", { class: "btn", type: "button", text: "Copy", onclick: async () => {
+    try { await navigator.clipboard.writeText(get()); say(label + " copied: paste it on the platform, then tick it done."); }
+    catch (e) { say("Could not copy here: select the text and copy it by hand."); } } });
+  const box = (val, rows, label, on) => { const t = el("textarea", { rows, disabled: !S.db, "aria-label": label, onchange: (e) => on(e.target.value) }); t.value = val || ""; return t; };
+  const row = (name, link, note, ...extra) => el("div", { class: "proj", style: "display:grid;gap:8px" },
+    el("div", { class: "row", style: "justify-content:space-between;align-items:center" }, el("div", { class: "t", text: name }), link ? el("a", { class: "note", href: safeUrl(link), target: "_blank", rel: "noopener", text: "open the settings" }) : null),
+    note ? el("div", { class: "note", text: note }) : null, ...extra);
+
+  p.append(row("YouTube", "https://studio.youtube.com/channel/UC", "The description below is also queued in Channel description (setup) above: the 6:17 autopilot sends it to YouTube, so you do not paste anything here.",
+    box(draft.youtube.description, 8, "YouTube description", (v) => { draft.youtube.description = v; }), copy(() => draft.youtube.description || "", "YouTube description"),
+    el("div", { class: "note", text: "Keywords: " + ((draft.youtube.keywords || []).join(", ") || "none") })));
+  p.append(row("Facebook", "https://www.facebook.com/settings?tab=page_settings", "Page > About. Paste the long text in About and the short one in the intro field; the website link is the YouTube channel.",
+    el("label", {}, "Short about (255 characters)", box(draft.facebook.shortAbout, 2, "Facebook short about", (v) => { draft.facebook.shortAbout = v; })),
+    el("label", {}, "About", box(draft.facebook.about, 7, "Facebook about", (v) => { draft.facebook.about = v; })),
+    el("div", { class: "row" }, copy(() => draft.facebook.about || "", "Facebook About"), copy(() => draft.facebook.shortAbout || "", "Facebook short about"), copy(() => draft.facebook.link || "", "Facebook link"))));
+  p.append(row("Instagram", "https://www.instagram.com/accounts/edit/", "Edit profile > Bio. Keep the one link on the YouTube channel; the last line points at it.",
+    el("label", {}, "Bio (150 characters)", box(draft.instagram.bio, 3, "Instagram bio", (v) => { draft.instagram.bio = v; })),
+    el("div", { class: "row" }, copy(() => draft.instagram.bio || "", "Instagram bio"), copy(() => draft.instagram.link || "", "Instagram link"))));
+  p.append(row("TikTok", "https://www.tiktok.com/@pnoychessofficialyt", "Edit profile > Bio. The plain @handle is searchable even when the link is not clickable.",
+    el("label", {}, "Bio (80 characters)", box(draft.tiktok.bio, 2, "TikTok bio", (v) => { draft.tiktok.bio = v; })),
+    el("div", { class: "row" }, copy(() => draft.tiktok.bio || "", "TikTok bio"))));
+  p.append(el("div", { class: "row" },
+    el("button", { class: "btn primary", type: "button", disabled: !S.db, text: "Save these words", onclick: async () => { await saveChan("profiles", { ...P, ...draft, updatedAt: new Date().toISOString() }, true); say("Saved. Copy each one to its platform (the copy buttons above)."); render(); } }),
+    el("button", { class: "btn", type: "button", disabled: !S.db || !yt.description, text: "Send the YouTube description too", title: "Puts the description in the channel setup so the autopilot sends it to YouTube", onclick: async () => {
+      await saveChan("setup", { status: "waiting", set: { ...(((S.chan2 || {}).setup || {}).set || {}), description: draft.youtube.description, keywords: draft.youtube.keywords }, why: "Updated from Profiles on " + new Date().toLocaleDateString(), note: "" }, true);
+      say("Queued: the 6:17 autopilot sends the new YouTube description."); render(); } })));
+  return p;
+}
+
 function chanSocialCard() {
   const counts = { facebook: 0, instagram: 0, youtube: 0, tiktok: 0 };
   const links = { facebook: [], instagram: [], youtube: [], tiktok: [] };
@@ -2579,10 +2618,11 @@ function chanSocialCard() {
   const total = counts.facebook + counts.instagram + counts.youtube + counts.tiktok;
 
   const schedItems = [
-    { time: "05:00", what: "Channel AI (PC)", detail: "tools/channel-auto.mjs" },
+    { time: "05:00", what: "Channel AI + cards (PC)", detail: "channel-ai.cmd / cards.cmd" },
     { time: "06:17", what: "YouTube Autopilot", detail: "apply up to 80 changes" },
+    { time: "10:45, 18:45", what: "Quote / tip cards", detail: "Facebook + Instagram, after your approval" },
     { time: "12:00, 17:00, 20:00", what: "Chess Reels", detail: "pnoychess-reel-studio" },
-    { time: "14:30", what: "Documentary Short", detail: "post-shorts.yml" }
+    { time: "14:30", what: "Documentary Short", detail: "the one publisher" }
   ];
 
   const sched = el("div", { class: "row", style: "gap:10px;font-size:13px;flex-wrap:wrap;color:var(--fg)" },
@@ -2630,6 +2670,66 @@ function chanSocialCard() {
   );
 }
 
+// ---------- Posts: the quote / tip cards (tools/post-cards.mjs) wait here for Mark, then the publisher posts them
+const cardDay = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10); // Manila
+const hhmm = (s) => String(s || "1045").slice(0, 2) + ":" + String(s || "1045").slice(2);
+async function saveCardsDoc(day, items, patch) {
+  if (!S.db) return say("Saving needs sign-in.");
+  const doc = { ...patch, items, updatedAt: new Date().toISOString() };
+  try { await S.db.doc("cards/" + day).update(doc); }
+  catch (e) { if (e.code !== "not-found") return say("Could not save: " + (e.message || e.code)); try { await S.db.doc("cards/" + day).set({ day, madeAt: doc.updatedAt, ...doc }); } catch (e2) { say("Could not save: " + (e2.message || e.code)); } }
+}
+const setCard = (items, id, patch) => items.map((x) => (x.id === id ? { ...x, ...patch } : x));
+function viewPosts() {
+  if (S._ensureChannel) S._ensureChannel();
+  const today = cardDay(), days = (S.cards || []).slice().sort((a, b) => String(b.id).localeCompare(String(a.id)));
+  const wrap = el("div", { style: "display:grid;gap:18px" });
+  const head = el("section", { class: "panel" }, el("h2", { text: "Quote and chess-tip cards" }),
+    el("div", { class: "note", text: "Two templated pictures a day (10:45 and 18:45 Manila), the pieces that fill the feed between reels: a chess tip and a quote, in the channel's own look. Your PC makes them for free each morning (cards.cmd, 04:40) or when you double-click it: nothing is rendered here and nothing costs credits. A card is posted to Facebook and Instagram ONLY after you approve it below." }),
+    el("div", { class: "note", text: "To approve fast: press Approve all, then read the two captions. Reject anything that reads wrong or repeats a card from an earlier day." }));
+  if (!GH()) head.append(el("div", { class: "note", style: "color:var(--warn)", text: "Sign in with the GitHub token to approve cards; the copy buttons below work without it." }));
+  wrap.append(head);
+
+  if (!days.length) { head.append(el("div", { class: "empty", text: "No cards yet. On your PC: double-click cards.cmd in C:\\PnoyChess\\docu (or run npm run docu -- cards). They appear here in a couple of minutes, waiting for your approval." })); return wrap; }
+
+  for (const d of days) {
+    const items = d.items || [], waiting = items.filter((x) => x.status === "waiting").length, approved = items.filter((x) => x.status === "approved").length, posted = items.filter((x) => x.status === "posted").length, rejected = items.filter((x) => x.status === "rejected").length;
+    const p = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between;align-items:center" },
+      el("h2", { text: `${d.id === today ? "Today" : d.id} · ${items.length} cards` }),
+      el("div", { class: "row", style: "gap:8px" },
+        waiting ? el("button", { class: "btn primary", type: "button", disabled: !S.db, text: `Approve all ${waiting}`, onclick: async () => { await saveCardsDoc(d.id, items.map((x) => (x.status === "waiting" ? { ...x, status: "approved" } : x))); say(`${waiting} card(s) approved: they post at their slots today (10:45 and 18:45 Manila).`); render(); } }) : null,
+        waiting ? el("button", { class: "btn", type: "button", disabled: !S.db, text: "Reject all", onclick: async () => { await saveCardsDoc(d.id, items.map((x) => (x.status === "waiting" ? { ...x, status: "rejected" } : x))); say("Rejected. Your PC makes fresh ones tomorrow."); render(); } }) : null)));
+    p.append(el("div", { class: "note", text: `${waiting} waiting · ${approved} approved · ${posted} posted${rejected ? ` · ${rejected} rejected` : ""}${d.note ? " · " + d.note : ""}` }));
+    for (const it of items) {
+      const slot = it.slot || "1045", link = it.posted || {};
+      const cap = it.captions || {};
+      const capIn = (key, label) => { const t = el("textarea", { rows: 4, disabled: !S.db, "aria-label": label + " caption", onchange: async (e) => { await saveCardsDoc(d.id, setCard(items, it.id, { captions: { ...cap, [key]: e.target.value } })); say(label + " caption saved."); } }); t.value = cap[key] || ""; return el("label", {}, label, t); };
+      const pill = it.status === "posted" ? ["ok", "posted"] : it.status === "approved" ? ["warn", "approved: posts at " + hhmm(slot)] : it.status === "rejected" ? ["", "rejected"] : ["warn", "waiting for you"];
+      const img = it.image ? el("img", { src: "/_blob/" + it.image, alt: it.kind === "quote" ? "Quote card: " + it.author : "Tip card: " + it.title, width: 216, height: 270, loading: "lazy", style: "border-radius:8px;outline:1px solid var(--line)" }) : el("div", { class: "empty", style: "width:216px;height:270px", text: "no preview" });
+      const acts = el("div", { class: "row", style: "gap:8px;flex-wrap:wrap" },
+        it.status === "waiting" ? el("button", { class: "btn primary", type: "button", disabled: !S.db, text: "Approve", onclick: async () => { await saveCardsDoc(d.id, setCard(items, it.id, { status: "approved" })); say("Approved: it posts to Facebook and Instagram at " + hhmm(slot) + "."); render(); } }) : null,
+        it.status === "waiting" ? el("button", { class: "btn", type: "button", disabled: !S.db, text: "Reject", onclick: async () => { await saveCardsDoc(d.id, setCard(items, it.id, { status: "rejected" })); say("Rejected."); render(); } }) : null,
+        it.status === "approved" ? el("button", { class: "btn", type: "button", disabled: !S.db, text: "Take it back", onclick: async () => { await saveCardsDoc(d.id, setCard(items, it.id, { status: "waiting" })); say("Back to waiting: it will not post."); render(); } }) : null,
+        link.fb && link.fb.link ? el("a", { class: "btn", href: safeUrl(link.fb.link), target: "_blank", rel: "noopener", text: "Facebook ✓" }) : null,
+        link.ig && link.ig.link ? el("a", { class: "btn", href: safeUrl(link.ig.link), target: "_blank", rel: "noopener", text: "Instagram ✓" }) : null,
+        it.url ? el("a", { class: "note", href: safeUrl(it.url), target: "_blank", rel: "noopener", text: "image" }) : el("span", { class: "note", style: "color:var(--warn)", text: "no public image: make the cards again on the PC" }));
+      p.append(el("div", { class: "proj", style: "display:grid;grid-template-columns:216px 1fr;gap:14px;align-items:start" },
+        img,
+        el("div", {},
+          el("div", { class: "row", style: "gap:8px;align-items:center;flex-wrap:wrap" },
+            el("span", { class: "pill", text: it.kind === "quote" ? "quote" : "tip" }),
+            el("span", { class: "pill " + pill[0], text: pill[1] }),
+            el("span", { class: "note", text: hhmm(slot) + " Manila" })),
+          it.kind === "quote" ? el("div", { style: "font-size:15px;margin:6px 0" }, el("em", { text: "\u201c" + it.text + "\u201d" }), el("div", { class: "note", text: "\u2014 " + (it.author || "") + (it.source ? ", " + it.source : "") }))
+            : el("div", { style: "font-size:15px;margin:6px 0" }, el("div", { class: "t", text: it.title || "" }), el("div", { text: it.text })),
+          acts,
+          el("details", { style: "margin-top:8px" }, el("summary", { class: "note", text: "Captions (edit before approving if you like)" }), capIn("facebook", "Facebook"), capIn("instagram", "Instagram")))));
+    }
+    wrap.append(p);
+  }
+  return wrap;
+}
+
 function viewChannel() {
   if (S._ensureChannel) S._ensureChannel();
   const h = S.health, st = chState(), wrap = el("div", { style: "display:grid;gap:18px" });
@@ -2654,7 +2754,7 @@ function viewChannel() {
     el("div", { class: "note", text: `${r.views} views · ${r.hours} hours watched · ${r.subs >= 0 ? "+" : ""}${r.subs} subscribers · ${pct(r.avgViewPct, 0)} of each video watched · click rate ${r.ctr == null ? "not in yet" : pct(r.ctr) + " of " + r.impressions + " impressions"}` }),
     el("div", { class: "note", text: "Viewers from the Philippines: " + pct(r.ph, 0) + " · top countries: " + (r.countries || []).slice(0, 5).map((x) => x.name + " " + x.views).join(", ") }),
     el("div", { class: "note", text: "Where views come from: " + (r.sources || []).map((x) => x.name.toLowerCase().replace(/_/g, " ") + " " + x.views).join(", ") })));
-  wrap.append(chanAutoPanel(h), chanPlaylistsPanel(h), chanSetupPanel(h));
+  wrap.append(chanAutoPanel(h), chanPlaylistsPanel(h), chanSetupPanel(h), chanProfilesPanel());
 
   // ---- the videos
   const query = (st.q || "").trim().toLowerCase();
@@ -2720,7 +2820,7 @@ function viewChannel() {
   wrap.append(el("section", { class: "panel" }, el("h2", { text: `Change the ${sel.length} selected video${sel.length === 1 ? "" : "s"}` }),
     el("div", { class: "note", text: chanSettings().autoApprove ? "Ask AI to suggest: your PC's AI writes a better title, description, tags and thumbnail each morning at 5:00 and approves them automatically; the 6:17 autopilot then sends up to 80 a day to YouTube. Every change keeps the old text and thumbnail, so Undo can put them back." : "Nothing changes on YouTube until you approve each change below and press Apply. Every change keeps the old text and thumbnail, so Undo can put them back." }),
     el("div", { class: "row" }, el("button", { class: "btn primary", type: "button", id: "chan-ask", disabled: !sel.length || !S.db, text: "Ask AI to suggest",
-      title: "Your PC's AI (Copilot CLI, every morning at 5:00) writes a better title, description, tags and the words for a new thumbnail for each",
+      title: "Your PC's AI (DeepSeek by default, every morning at 5:00) writes a better title, description, tags and the words for a new thumbnail for each",
       onclick: async () => {
         const busy = selV.filter((v) => { const e = editOf(v.id); return e && ["ask", "suggested", "waiting"].includes(e.status); }), todo = selV.filter((v) => !busy.includes(v));
         for (const v of todo) await saveEdit(v, { status: "ask", ask: true, note: "" });
