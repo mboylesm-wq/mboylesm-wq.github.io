@@ -20,6 +20,8 @@
   const pgnOf = (slot) => String((slot && slot.pgn) || "").trim();
   const movesOf = (pgn) => (pgn ? (pgn.replace(/\{[^}]*\}/g, "").match(/\b\d+\.(?!\.)/g) || []).length : 0);
   const hashFor = (date, key) => "#pgn/" + date + "/" + key;
+  // the paths in the day files are repo-relative; on Mark's PC they are all under C:\PnoyChess\docu
+  const localPath = (p) => (!p ? "" : /^[A-Za-z]:[\\/]/.test(p) ? p : "C:\\PnoyChess\\docu\\" + String(p).replace(/\//g, "\\"));
 
   // the block shown on a card: kind, the file (and folder) it came from, the collection, and the ways to see the PGN
   function box(slot, date, key, opts) {
@@ -47,7 +49,7 @@
       )
     );
 
-    if (file) wrap.append(el("div", { class: "mono", style: "font-size:10px;line-height:1.35;color:var(--text-muted);word-break:break-all;", title: file, text: file }));
+    if (file) wrap.append(el("div", { class: "mono", style: "font-size:10px;line-height:1.35;color:var(--text-muted);word-break:break-all;", title: "comes from: " + localPath(file), text: "From " + file }));
     else wrap.append(el("div", { style: "font-size:11px;color:var(--warn);line-height:1.35;", text: "No source PGN on record — the moves of this reel cannot be checked." }));
 
     const bits = [];
@@ -55,6 +57,10 @@
     if (slot && slot.sourceUrl) bits.push(el("a", { href: slot.sourceUrl, target: "_blank", rel: "noopener", style: "color:var(--gold);", text: "publication ↗" }));
     if (bits.length) wrap.append(el("div", { class: "note", style: "font-size:10px;line-height:1.35;" }, ...bits.flatMap((b, i) => (i ? [" · ", b] : [b]))));
     if (slot && slot.sourceNote) wrap.append(el("div", { class: "note", style: "font-size:10px;font-style:italic;line-height:1.35;", text: slot.sourceNote }));
+
+    // the reel's own .pgn file, on Mark's drive: this is the file he can open in ChessBase, Fritz or chess.com
+    const pf = slot && slot.pgnFile;
+    if (pf) wrap.append(el("div", { class: "mono", style: "font-size:10px;line-height:1.35;color:var(--text);word-break:break-all;", title: pf, text: "PGN " + localPath(pf) }));
 
     const actions = el("div", { class: "row", style: "gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px;" });
     if (pgn) actions.append(el("a", { class: "btn primary", style: "font-size:10px;padding:2px 8px;", href: hashFor(date, key), text: "Open PGN ↗" }));
@@ -66,7 +72,10 @@
         document.body.append(a); a.click(); a.remove();
       },
     }));
-    if (file && /^chess\//.test(file)) actions.append(el("a", {
+    if (pf) actions.append(el("a", {
+      class: "note", style: "font-size:10px;", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(pf), target: "_blank", rel: "noopener", text: "the .pgn in git ↗",
+    }));
+    else if (file && /^chess\//.test(file)) actions.append(el("a", {
       class: "note", style: "font-size:10px;", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(file), target: "_blank", rel: "noopener", text: "Open the file in GitHub ↗",
     }));
     wrap.append(actions);
@@ -74,5 +83,5 @@
     return wrap;
   }
 
-  window.SlotSource = { box, KIND, hashFor, pgnOf, movesOf };
+  window.SlotSource = { box, KIND, hashFor, pgnOf, movesOf, localPath };
 })();
