@@ -3836,8 +3836,9 @@ function viewPgn() {
 
     const rows = [
       ["Source kind", k[1] + (k[2] ? " — " + k[2] : "")],
-      ["PGN file", slot.sourcePgnFile || "(none recorded)"],
-      ["Folder", slot.sourcePgnDir || "(none recorded)"],
+      ["Came from", slot.sourcePgnFile || ""],
+      ["Folder", slot.sourcePgnDir || ""],
+      ["The .pgn on this PC", slot.pgnFile ? (window.SlotSource ? window.SlotSource.localPath(slot.pgnFile) : slot.pgnFile) : ""],
       ["Collection", slot.sourceCollection || ""],
       ["Published at", slot.sourceUrl || ""],
       ["Note", slot.sourceNote || ""],
@@ -3866,7 +3867,10 @@ function viewPgn() {
         }
       }));
     }
-    if (slot.sourcePgnFile && /^chess\//.test(slot.sourcePgnFile)) actions.append(el("a", {
+    if (slot.pgnFile) actions.append(el("a", {
+      class: "btn", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(slot.pgnFile), target: "_blank", rel: "noopener", text: "The .pgn file in git ↗",
+    }));
+    else if (slot.sourcePgnFile && /^chess\//.test(slot.sourcePgnFile)) actions.append(el("a", {
       class: "btn", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(slot.sourcePgnFile), target: "_blank", rel: "noopener", text: "Open the file in GitHub ↗",
     }));
     if (slot.video && /^https?:\/\//.test(slot.videoUrl || "")) actions.append(el("a", { class: "btn", href: slot.videoUrl, target: "_blank", rel: "noopener", text: "▶ Watch the reel" }));
