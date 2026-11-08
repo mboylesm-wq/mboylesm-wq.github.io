@@ -3810,6 +3810,17 @@ function viewPgn() {
     body.className = "";
     if (!slot) { body.append(el("div", { class: "empty", text: why || "Slot not found." })); return; }
 
+    if (slot.kind === "docu-short") {
+      body.append(el("div", { class: "row", style: "gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 4px 0;" },
+        el("span", { class: "pill", style: "font-weight:700;background:var(--border);color:var(--gold);", text: date + " " + (slot.time || key) }),
+        el("span", { class: "pill", text: "Documentary Short" })
+      ));
+      body.append(el("h3", { style: "margin:6px 0 2px 0;font-size:17px;color:var(--text);", text: slot.title || "Documentary Short" }));
+      body.append(el("div", { class: "note", style: "font-size:12px;line-height:1.4;", text: "No PGN for this slot: it is a Short cut from the full documentary" + (slot.project ? " (" + slot.project + ")" : "") + ", not a chess reel. The source-PGN rule covers the reel slots." }));
+      if (slot.film && /^https?:\/\//.test(slot.film)) body.append(el("a", { class: "btn", href: slot.film, target: "_blank", rel: "noopener", text: "The documentary on YouTube ↗" }));
+      return;
+    }
+
     const KIND = (window.SlotSource && window.SlotSource.KIND) || {};
     const k = KIND[slot.sourceKind || "none"] || ["bad", "No PGN", ""];
     const pgn = String(slot.pgn || "").trim();
