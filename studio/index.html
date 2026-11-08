@@ -3839,6 +3839,7 @@ function viewPgn() {
       ["Came from", slot.sourcePgnFile || ""],
       ["Folder", slot.sourcePgnDir || ""],
       ["The .pgn on this PC", slot.pgnFile ? (window.SlotSource ? window.SlotSource.localPath(slot.pgnFile) : slot.pgnFile) : ""],
+      ["Line in the database", slot.sourcePgnLine ? "line " + slot.sourcePgnLine + " of the .pgn" : ""],
       ["Collection", slot.sourceCollection || ""],
       ["Published at", slot.sourceUrl || ""],
       ["Note", slot.sourceNote || ""],
@@ -3868,7 +3869,7 @@ function viewPgn() {
       }));
     }
     if (slot.pgnFile) actions.append(el("a", {
-      class: "btn", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(slot.pgnFile), target: "_blank", rel: "noopener", text: "The .pgn file in git ↗",
+      class: "btn", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(slot.pgnGitFile || slot.pgnFile), target: "_blank", rel: "noopener", text: "The .pgn file in git ↗",
     }));
     else if (slot.sourcePgnFile && /^chess\//.test(slot.sourcePgnFile)) actions.append(el("a", {
       class: "btn", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(slot.sourcePgnFile), target: "_blank", rel: "noopener", text: "Open the file in GitHub ↗",
