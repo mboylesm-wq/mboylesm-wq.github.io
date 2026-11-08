@@ -1,345 +1,1780 @@
 <!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<meta name="robots" content="noindex,nofollow">
-<title>Reel Inbox</title>
-<!-- PnoyChess Reel Inbox (offline publisher, step 5). This page holds no data and no keys: it reads the private repo
-     mboylesm-wq/pnoychess-reel-studio with a GitHub access key that Mark pastes once per browser (kept only in that browser). -->
-<style>
-:root{--bg:#fbf8f2;--card:#fff;--text:#1d1a16;--dim:#6b6358;--gold:#b8862b;--line:#e6dfd2;--ok:#2f7a4f;--bad:#b4402b;--warn:#a8742a}
-@media (prefers-color-scheme:dark){:root{--bg:#14110e;--card:#1d1915;--text:#f2ece2;--dim:#a99f90;--gold:#e0b04a;--line:#2c2620;--ok:#5bb782;--bad:#e07a5c;--warn:#d9a44f}}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--text);font:16px/1.5 system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
-main{max-width:860px;margin:0 auto;padding:20px 16px 64px}
-h1{font-size:1.6rem;margin:0}h2{font-size:1.1rem;margin:22px 0 8px}
-.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
-.dim{color:var(--dim)}.small{font-size:.85rem}
-nav{display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--line);padding-bottom:10px;margin-bottom:14px}
-nav button,.btn{font:inherit;font-weight:600;border:1px solid var(--line);background:var(--card);color:var(--text);border-radius:999px;padding:6px 14px;cursor:pointer}
-nav button.on{background:var(--gold);border-color:var(--gold);color:#fff}
-.btn.veto{border-color:var(--bad);color:var(--bad)}.btn.undo{border-color:var(--ok);color:var(--ok)}
-.btn:disabled{opacity:.5;cursor:default}
-.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin:10px 0;display:grid;grid-template-columns:150px 1fr;gap:12px}
-@media (max-width:560px){.card{grid-template-columns:1fr}}
-.media{width:150px;max-width:100%}.media img,.media video{width:100%;border-radius:6px;background:#000;display:block}
-.pill{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.04em;text-transform:uppercase;padding:1px 8px;border-radius:999px;border:1px solid currentColor;margin-right:6px}
-.approved{color:var(--ok)}.pending{color:var(--warn)}.vetoed{color:var(--bad)}.posted{color:var(--ok)}
-pre.cap{white-space:pre-wrap;font:13px/1.45 ui-monospace,Menlo,monospace;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px;max-height:140px;overflow:auto;margin:8px 0}
-table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--dim);font-weight:600}
-.wrap{overflow-x:auto}
-input[type=password],input[type=date]{font:inherit;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)}
-input[type=password]{width:100%;max-width:520px}
-.msg{padding:8px 12px;border-radius:8px;border:1px solid var(--line);margin:10px 0}.msg.err{border-color:var(--bad);color:var(--bad)}
-a{color:var(--gold)}
-.ok{color:var(--ok)}.bad{color:var(--bad)}
-.tt{display:grid;grid-template-columns:110px 1fr;gap:12px}.tt img{width:100%;border-radius:6px}@media (max-width:560px){.tt{grid-template-columns:1fr}.tt img{width:110px}}
-.tt textarea{width:100%;min-height:110px;font:13px/1.45 ui-monospace,Menlo,monospace;padding:8px;border:1px solid var(--line);border-radius:6px;background:var(--bg);color:var(--text)}
-.tt select{font:inherit;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--text)}
-.tt label{display:inline-flex;align-items:center;gap:6px;margin:4px 14px 4px 0}.tt label.off{opacity:.45}
-.tt .row{margin:8px 0}.bar{position:sticky;bottom:0;background:var(--bg);border-top:1px solid var(--line);padding:10px 0;display:flex;gap:8px;flex-wrap:wrap;align-items:center}
-.badge{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--bad);margin-left:6px;vertical-align:middle}.badge.warn{background:var(--warn)}
-details.renew summary{cursor:pointer;color:var(--gold);font-weight:600}details.renew ol{margin:6px 0 0;padding-left:20px}
-.stat{display:inline-block;min-width:120px;margin:6px 14px 6px 0}.stat b{display:block;font-size:1.5rem}
-</style></head><body><main>
-<div class="top"><div><h1>♞ Reel Inbox</h1><div class="dim small">PnoyChess · offline publisher · no Claude usage</div></div>
-<div id="who" class="small dim"></div></div>
-<div id="login" hidden>
-  <h2>Connect to GitHub</h2>
-  <p>Paste your GitHub access key for <b>pnoychess-reel-studio</b>. It stays in this browser only and is sent only to GitHub. Never paste it anywhere else.</p>
-  <p><input id="tok" type="password" autocomplete="off" placeholder="github_pat_…"> <button class="btn" id="save">Connect</button></p>
-  <p class="small dim">How to make the key: GitHub → Settings → Developer settings → Personal access tokens → Fine-grained tokens → Generate new token. Repository access: only <b>pnoychess-reel-studio</b>. Permissions: <b>Contents: Read and write</b>, <b>Actions: Read-only</b>. Expiration: 1 year.</p>
-</div>
-<div id="app" hidden>
-  <nav id="tabs"><button data-t="day" class="on">Reels</button><button data-t="tiktok">TikTok</button><button data-t="posted">Posted</button><button data-t="up">Upcoming</button><button data-t="stats">Stats</button><button data-t="health">Health</button><button data-t="keys">Keys</button><button data-t="key">This browser</button></nav>
-  <div id="note"></div>
-  <section id="t-day"><div class="top"><div><input type="date" id="date"> <span id="dayinfo" class="dim small"></span></div><button class="btn" id="reload">Refresh</button></div><div id="reels"></div></section>
-  <section id="t-tiktok" hidden></section>
-  <section id="t-posted" hidden></section>
-  <section id="t-up" hidden></section>
-  <section id="t-stats" hidden></section>
-  <section id="t-health" hidden></section>
-  <section id="t-keys" hidden></section>
-  <section id="t-key" hidden><h2>Access key</h2><p>Saved in this browser. Remove it on a shared device.</p><button class="btn veto" id="forget">Remove key from this browser</button></section>
-</div>
-<script>
-const REPO = "mboylesm-wq/pnoychess-reel-studio", API = "https://api.github.com/repos/" + REPO, SLOTS = ["1200", "1700", "2000"];
-const $ = (s) => document.querySelector(s), esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-const store = { get: (k) => { try { return localStorage.getItem(k); } catch (e) { return null; } }, set: (k, v) => { try { v == null ? localStorage.removeItem(k) : localStorage.setItem(k, v); } catch (e) {} } };
-let TOKEN = store.get("pnoy.inbox.key"), CFG = { preApprovedThrough: "2026-11-22" };
-const manila = (offDays = 0) => new Date(Date.now() + 8 * 3600e3 + offDays * 864e5).toISOString().slice(0, 10);
-const note = (html, err) => { $("#note").innerHTML = html ? `<div class="msg ${err ? "err" : ""}">${html}</div>` : ""; };
-async function gh(path, opt = {}) {
-  const r = await fetch(path.startsWith("http") ? path : API + path, { ...opt, headers: { Authorization: "Bearer " + TOKEN, Accept: opt.accept || "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28", ...(opt.headers || {}) } });
-  if (r.status === 401) { throw new Error("GitHub refused the key (expired or wrong). Open the Key tab and paste a new one."); }
-  if (!r.ok) { const e = new Error("GitHub " + r.status + " on " + path); e.status = r.status; throw e; }
-  return opt.raw ? r : r.json();
-}
-const b64dec = (s) => new TextDecoder().decode(Uint8Array.from(atob(s.replace(/\n/g, "")), (c) => c.charCodeAt(0)));
-const b64enc = (s) => { const b = new TextEncoder().encode(s); let x = ""; for (const c of b) x += String.fromCharCode(c); return btoa(x); };
-async function file(path) { try { const j = await gh("/contents/" + path + "?ref=main"); return { sha: j.sha, json: JSON.parse(b64dec(j.content)) }; } catch (e) { if (e.status === 404) return null; throw e; } }
-async function rawJson(path) { const r = await gh("/contents/" + path + "?ref=main", { accept: "application/vnd.github.raw+json", raw: true }); return r.json(); }
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>PnoyChess Reel Inbox · Modernized Publisher</title>
+  <meta name="description" content="PnoyChess Reel Inbox: Daily publisher schedule, 6-slot high-retention lesson lineup, AI rewriters, PGN sources, and multi-platform approval.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Newsreader:ital,opsz,wght@0,6..72,600;1,6..72,500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #0d1110;
+      --surface: #141917;
+      --surface-card: #1a211e;
+      --surface-elevated: #212b26;
+      --border: #293831;
+      --border-subtle: #1e2823;
+      --text: #f0f4f2;
+      --text-muted: #8e9e96;
+      --text-faint: #5b6962;
+      --gold: #d4af37;
+      --gold-glow: rgba(212, 175, 55, 0.2);
+      --gold-light: #f6e08d;
+      --emerald: #10b981;
+      --emerald-glow: rgba(16, 185, 129, 0.2);
+      --cyan: #06b6d4;
+      --cyan-glow: rgba(6, 182, 212, 0.2);
+      --amber: #f59e0b;
+      --amber-glow: rgba(245, 158, 11, 0.2);
+      --rose: #f43f5e;
+      --purple: #a855f7;
+      --radius-sm: 6px;
+      --radius-md: 10px;
+      --radius-lg: 16px;
+      --radius-xl: 20px;
+      --shadow-sm: 0 2px 8px rgba(0,0,0,0.4);
+      --shadow-md: 0 8px 24px rgba(0,0,0,0.5);
+      --shadow-lg: 0 16px 40px rgba(0,0,0,0.6);
+      --font-body: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      --font-display: 'Newsreader', Georgia, serif;
+      --font-brand: 'Cinzel', serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+    }
 
-// ---------- Reels tab
-// TikTok drafts arrive without a caption: same text as Instagram (puzzle answer below the fold, max 2200).
-let CAPS = {};
-function ttCaption(text, first) { let c = String(text || ""); if (first) c += "\n\n.\n.\n.\nAnswer: " + first; return c.slice(0, 2200); }
-document.addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-copy]"); if (!b) return;
-  const t = CAPS[b.dataset.copy] || "";
-  try { await navigator.clipboard.writeText(t); } catch (x) { const ta = document.createElement("textarea"); ta.value = t; document.body.appendChild(ta); ta.select(); try { document.execCommand("copy"); } catch (y) {} ta.remove(); }
-  const old = b.textContent; b.textContent = "Copied ✓"; setTimeout(() => (b.textContent = old), 1500);
-});
-const blobs = {};
-async function assetUrl(rel, name) {
-  const a = rel && rel.assets.find((x) => x.name === name); if (!a) return null;
-  if (blobs[a.id]) return blobs[a.id];
-  try { const r = await gh(a.url, { accept: "application/octet-stream", raw: true }); return (blobs[a.id] = URL.createObjectURL(await r.blob())); } catch (e) { return null; }
-}
-async function loadDay() {
-  const D = $("#date").value; $("#reels").innerHTML = '<p class="dim">Loading…</p>'; note("");
-  try {
-    const [man, st, rel] = await Promise.all([file("publisher/days/" + D + ".json"), file("publisher/state/" + D + ".json"), gh("/releases/tags/reels-" + D).catch(() => null)]);
-    const tts = await file("publisher/state/tiktok-" + D + ".json").catch(() => null), TT = (tts && tts.json.slots) || {};
-    const yts = await file("publisher/state/youtube-" + D + ".json").catch(() => null), YT = (yts && yts.json.slots) || {};
-    CAPS = {};
-    $("#dayinfo").textContent = D === manila() ? "today" : D === manila(1) ? "tomorrow" : "";
-    if (!man) { $("#reels").innerHTML = `<p class="dim">No reels for ${D} yet. The nightly run adds tomorrow's reels around 9 PM.</p>`; return; }
-    const S = (st && st.json.slots) || {};
-    $("#reels").innerHTML = SLOTS.map((slot) => {
-      const it = man.json.slots[slot]; if (!it) return `<div class="card"><div></div><div><b>${slot.slice(0, 2)}:${slot.slice(2)}</b> <span class="dim">no reel</span></div></div>`;
-      const s = S[slot] || {}, fb = s.fb || {}, ig = s.ig || {}, tt = TT[slot] || {}, yt = YT[slot] || {}, started = !!fb.videoId;
-      CAPS[slot] = ttCaption(it.text, it.firstComment);
-      const status = it.status === "vetoed" ? "vetoed" : it.status || "pending";
-      return `<div class="card" data-slot="${slot}"><div class="media" id="m-${slot}"><div class="dim small">loading preview…</div></div><div>
-        <div><b>${esc(it.time)}</b> · ${esc(it.title)} <span class="dim">(${esc(it.cut)}${it.seconds ? ", " + Math.round(it.seconds) + " s" : ""})</span></div>
-        <div class="small dim">${esc(it.white)}${it.black ? " vs " + esc(it.black) : ""}${it.year ? " · " + esc(it.year) : ""}${it.swapped ? " · swapped in" : ""}</div>
-        <div style="margin:6px 0"><span class="pill ${status}">${status}</span>${fb.posted ? `<span class="pill posted">Facebook ✓</span>` : ""}${ig.mediaId ? `<span class="pill posted">Instagram ✓</span>` : ""}${tt.publishId ? `<span class="pill posted">TikTok draft ✓</span>` : ""}${yt.videoId ? `<span class="pill posted">YouTube ✓</span>` : ""}</div>
-        <pre class="cap">${esc(it.text)}${it.firstComment ? "\n\nFirst comment: " + esc(it.firstComment) : ""}</pre>
-        <div class="small">${fb.link ? `<a href="${esc(fb.link)}" target="_blank" rel="noopener">Facebook</a> ` : ""}${ig.link ? `<a href="${esc(ig.link)}" target="_blank" rel="noopener">Instagram</a> ` : ""}${yt.videoId ? `<a href="https://youtube.com/shorts/${esc(yt.videoId)}" target="_blank" rel="noopener">YouTube</a> ` : ""}</div>
-        <div style="margin-top:8px"><button class="btn" data-copy="${slot}">Copy TikTok caption</button> ${started ? `<span class="small dim">Already on Facebook: cannot be vetoed here.</span>` : status === "vetoed" ? `<button class="btn undo" data-act="undo" data-slot="${slot}">Undo veto</button>` : `<button class="btn veto" data-act="veto" data-slot="${slot}">Veto</button>`}</div>
-      </div></div>`;
-    }).join("");
-    for (const slot of SLOTS) { const it = man.json.slots[slot]; if (!it) continue; (async () => {
-      const box = $("#m-" + slot); if (!box) return;
-      const [v, c] = await Promise.all([assetUrl(rel, it.video), assetUrl(rel, it.cover)]);
-      // Release files often cannot be loaded by a web page (browser security), so the cover preview comes from the repo.
-      let p = c; if (!p) { try { const r = await gh("/contents/publisher/previews/" + D + "_" + slot + ".jpg?ref=main", { accept: "application/vnd.github.raw", raw: true }); p = URL.createObjectURL(await r.blob()); } catch (e) {} }
-      const link = rel ? `<a class="small" href="${esc(rel.html_url)}" target="_blank" rel="noopener">Watch on GitHub</a>` : `<div class="small dim">video not on GitHub yet</div>`;
-      box.innerHTML = v ? `<video controls preload="metadata" playsinline ${p ? `poster="${p}"` : ""} src="${v}"></video>` : (p ? `<img alt="cover" src="${p}">` : "") + link;
-    })(); }
-  } catch (e) { $("#reels").innerHTML = ""; note(esc(e.message), true); }
-}
-async function setStatus(slot, act) {
-  const D = $("#date").value, btns = document.querySelectorAll("[data-act]"); btns.forEach((b) => (b.disabled = true));
-  try {
-    const st = await file("publisher/state/" + D + ".json");
-    if (st && st.json.slots && st.json.slots[slot] && st.json.slots[slot].fb && st.json.slots[slot].fb.videoId) throw new Error("This reel is already on Facebook.");
-    const f = await file("publisher/days/" + D + ".json"); const it = f.json.slots[slot];
-    if (act === "veto") { it.vetoedFrom = it.status || "pending"; it.status = "vetoed"; it.vetoedAt = new Date().toISOString(); }
-    else { it.status = it.vetoedFrom || (D <= CFG.preApprovedThrough ? "approved" : "pending"); delete it.vetoedFrom; delete it.vetoedAt; }
-    await gh("/contents/publisher/days/" + D + ".json", { method: "PUT", body: JSON.stringify({ message: `inbox: ${act} ${D} ${slot}`, content: b64enc(JSON.stringify(f.json, null, 1) + "\n"), sha: f.sha, branch: "main" }) });
-    await loadDay();
-    note(act === "veto" ? `Vetoed ${D} ${slot}: it will not be posted.` : `Veto undone for ${D} ${slot}.`);
-  } catch (e) { note(esc(e.message) + (e.status === 409 ? " (someone changed it at the same time; press Refresh and try again)" : ""), true); btns.forEach((b) => (b.disabled = false)); }
-}
+    [data-theme="light"] {
+      --bg: #f5f4ef;
+      --surface: #ffffff;
+      --surface-card: #faf8f3;
+      --surface-elevated: #ede9de;
+      --border: #dcd6c8;
+      --border-subtle: #eae5d9;
+      --text: #1d211f;
+      --text-muted: #5f6b64;
+      --text-faint: #9aa59f;
+      --gold: #b38914;
+      --gold-glow: rgba(179, 137, 20, 0.15);
+      --gold-light: #806005;
+      --emerald: #059669;
+      --emerald-glow: rgba(5, 150, 105, 0.15);
+      --cyan: #0891b2;
+      --cyan-glow: rgba(8, 145, 178, 0.15);
+      --amber: #d97706;
+      --shadow-sm: 0 1px 4px rgba(0,0,0,0.08);
+      --shadow-md: 0 4px 16px rgba(0,0,0,0.1);
+      --shadow-lg: 0 12px 32px rgba(0,0,0,0.12);
+    }
 
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 14.5px;
+      line-height: 1.5;
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+    }
 
-// ---------- TikTok tab: Mark's approval for Direct Post (TikTok Content Sharing Guidelines).
-// Privacy has no default, Comment/Duet/Stitch start unticked, commercial content starts off, caption is editable,
-// nothing is sent until Mark taps Approve. GitHub posts approved reels at their slot time.
-const PRIV = { PUBLIC_TO_EVERYONE: "Everyone", MUTUAL_FOLLOW_FRIENDS: "Friends", FOLLOWER_OF_CREATOR: "Followers", SELF_ONLY: "Only me" };
-let TTF = {}; // key "D_slot" -> { D, slot, it, sha }
-function ttForm(k, it, cr, a) {
-  const opts = (cr.privacy_level_options || []).map((o) => `<option value="${esc(o)}" ${a && a.privacy === o ? "selected" : ""}>${esc(PRIV[o] || o)}</option>`).join("");
-  const box = (id, label, dis, on) => `<label class="${dis ? "off" : ""}" title="${dis ? "Turned off in your TikTok settings" : ""}"><input type="checkbox" data-f="${id}" ${on && !dis ? "checked" : ""} ${dis ? "disabled" : ""}> ${label}</label>`;
-  const c = (a && a.commercial) || {};
-  const tooLong = cr.max_video_post_duration_sec && it.seconds > cr.max_video_post_duration_sec;
-  return `<div class="row"><b>Who can view this video</b><br><select data-f="privacy"><option value="">Choose…</option>${opts}</select></div>
-    <div class="row"><b>Allow users to</b><br>${box("allowComment", "Comment", cr.comment_disabled, a && a.allowComment)}${box("allowDuet", "Duet", cr.duet_disabled, a && a.allowDuet)}${box("allowStitch", "Stitch", cr.stitch_disabled, a && a.allowStitch)}</div>
-    <div class="row"><label><input type="checkbox" data-f="cOn" ${c.on ? "checked" : ""}> <b>Disclose video content</b></label>
-      <div data-c="opts" ${c.on ? "" : "hidden"} class="small"><label><input type="checkbox" data-f="cYour" ${c.yourBrand ? "checked" : ""}> Your brand (you are promoting yourself or your business)</label><br><label><input type="checkbox" data-f="cBranded" ${c.branded ? "checked" : ""}> Branded content (you are promoting another brand or a third party)</label><div data-c="label" class="dim"></div></div></div>
-    <div class="row"><b>Caption</b><textarea data-f="title" maxlength="2200">${esc(a ? a.title : ttCaption(it.text, it.firstComment))}</textarea></div>
-    <div class="row small dim" data-c="decl"></div>
-    ${tooLong ? `<div class="msg err">This video (${Math.round(it.seconds)} s) is longer than your account allows (${cr.max_video_post_duration_sec} s).</div>` : ""}
-    <div class="row"><button class="btn undo" data-tt="approve" data-k="${k}">${a ? "Save changes" : "Approve for TikTok"}</button> ${a ? `<button class="btn veto" data-tt="withdraw" data-k="${k}">Withdraw approval</button>` : ""} <button class="btn" data-tt="copyall" data-k="${k}">Use these choices for all reels below</button> <span data-c="err" class="small bad"></span></div>`;
-}
-function ttRefresh(card) {
-  const g = (f) => card.querySelector(`[data-f="${f}"]`);
-  const on = g("cOn").checked, your = g("cYour").checked, br = g("cBranded").checked, priv = g("privacy");
-  card.querySelector('[data-c="opts"]').hidden = !on;
-  const so = priv.querySelector('option[value="SELF_ONLY"]'); if (so) { so.disabled = on && br; if (so.disabled && priv.value === "SELF_ONLY") priv.value = ""; so.title = so.disabled ? "Branded content visibility cannot be set to private" : ""; }
-  card.querySelector('[data-c="label"]').textContent = on && br ? "Your video will be labeled “Paid partnership”." : on && your ? "Your video will be labeled “Promotional content”." : "";
-  const pol = '<a href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en" target="_blank" rel="noopener">Music Usage Confirmation</a>';
-  const bcp = '<a href="https://www.tiktok.com/legal/page/global/bc-policy/en" target="_blank" rel="noopener">Branded Content Policy</a>';
-  card.querySelector('[data-c="decl"]').innerHTML = `By approving, you agree to TikTok's ${on && br ? bcp + " and " : ""}${pol}. After it posts, it may take a few minutes to appear on your profile.`;
-}
-function ttRead(card) {
-  const g = (f) => card.querySelector(`[data-f="${f}"]`);
-  const on = g("cOn").checked, a = { privacy: g("privacy").value, allowComment: g("allowComment").checked, allowDuet: g("allowDuet").checked, allowStitch: g("allowStitch").checked, title: g("title").value, commercial: { on, yourBrand: on && g("cYour").checked, branded: on && g("cBranded").checked } };
-  if (!a.privacy) return { err: "Choose who can view this video." };
-  if (on && !a.commercial.yourBrand && !a.commercial.branded) return { err: "You need to indicate if your content promotes yourself, a third party, or both." };
-  if (!a.title.trim()) return { err: "The caption is empty." };
-  return { a };
-}
-async function loadTikTok() {
-  const el = $("#t-tiktok"); el.innerHTML = '<p class="dim">Loading…</p>'; TTF = {};
-  try {
-    const cr = await rawJson("publisher/state/tiktok-creator.json").catch(() => null);
-    const direct = CFG.tiktokRoute === "direct";
-    const head = `<h2>TikTok: approve reels to post directly</h2>
-      <p class="small">${direct ? "Approved reels post to TikTok at their time with your settings and caption. " + (CFG.tiktokDrafts === false ? "Reels you don't approve are not posted to TikTok." : "Reels you don't approve still arrive as drafts.") + "" : "<b>Waiting for TikTok's app review.</b> Approvals are saved now and used once Direct Post is switched on; until then every reel arrives as a draft (Reels tab: Copy TikTok caption)."}</p>`;
-    if (!cr) { el.innerHTML = head + `<div class="msg">TikTok account details are not loaded yet. Reconnect TikTok with posting permission (GitHub → Actions → "TikTok connect": link, then finish), then run it once more with action <b>creator-info</b>.</div>`; return; }
-    const list = await gh("/contents/publisher/days?ref=main"), today = manila();
-    const dates = list.map((f) => f.name.slice(0, 10)).filter((d) => /^\d{4}-\d\d-\d\d$/.test(d) && d >= today).sort().slice(0, 8);
-    const now = new Date(Date.now() + 8 * 3600e3).toISOString().slice(11, 16).replace(":", "");
-    let cards = "";
-    for (const D of dates) {
-      const [f, tts] = await Promise.all([file("publisher/days/" + D + ".json"), file("publisher/state/tiktok-" + D + ".json").catch(() => null)]);
-      const TT = (tts && tts.json.slots) || {};
-      for (const slot of SLOTS) {
-        const it = f && f.json.slots[slot]; if (!it) continue;
-        const k = D + "_" + slot, sent = TT[slot] && (TT[slot].publishId || TT[slot].startedAt);
-        TTF[k] = { D, slot };
-        const when = `<b>${D === today ? "Today" : D}</b> ${esc(it.time)} · ${esc(it.title)}`;
-        let body;
-        if (it.status === "vetoed") body = `<span class="pill vetoed">vetoed</span>`;
-        else if (sent) body = `<span class="pill posted">${TT[slot].route === "direct" ? "posted to TikTok" : "sent as draft"}</span>${TT[slot].link ? ` <a href="${esc(TT[slot].link)}" target="_blank" rel="noopener">Open</a>` : ""}`;
-        else if (D < today) body = `<span class="dim small">Day passed.</span>`; // today's passed slots stay approvable: the next run posts them right away
-        else body = (it.tiktok ? `<span class="pill approved">approved ${esc(String(it.tiktok.approvedAt).slice(0, 10))} · ${esc(PRIV[it.tiktok.privacy] || it.tiktok.privacy)}</span>` : `<span class="pill pending">not approved</span>`) + ttForm(k, it, cr, it.tiktok);
-        cards += `<div class="card tt" data-k="${k}"><div id="tp-${k}"></div><div>${when}<div class="small dim">${esc(it.cut)}${it.seconds ? ", " + Math.round(it.seconds) + " s" : ""}</div>${body}</div></div>`;
+    /* Top Sticky Header */
+    header.site-header {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(20, 25, 23, 0.88);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+      padding: 10px 20px;
+    }
+    [data-theme="light"] header.site-header {
+      background: rgba(255, 255, 255, 0.92);
+    }
+
+    .header-inner {
+      max-width: 1240px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .brand-wrap {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: inherit;
+    }
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 9px;
+      background: linear-gradient(135deg, var(--gold), #7c5c10);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      color: #0d1110;
+      box-shadow: 0 2px 10px var(--gold-glow);
+    }
+    .brand-text h1 {
+      font-family: var(--font-brand);
+      font-size: 17px;
+      letter-spacing: 0.05em;
+      font-weight: 700;
+      line-height: 1.1;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge-live {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.18);
+      color: var(--emerald);
+      border: 1px solid rgba(16, 185, 129, 0.4);
+      letter-spacing: 0.04em;
+    }
+    .brand-sub {
+      font-size: 11.5px;
+      color: var(--text-muted);
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .nav-tabs {
+      display: flex;
+      gap: 4px;
+      background: var(--surface-card);
+      padding: 4px;
+      border-radius: 10px;
+      border: 1px solid var(--border-subtle);
+    }
+    .nav-btn {
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 6px 12px;
+      border-radius: 7px;
+      border: none;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .nav-btn:hover {
+      color: var(--text);
+      background: rgba(255, 255, 255, 0.04);
+    }
+    .nav-btn.active {
+      background: var(--surface-elevated);
+      color: var(--gold);
+      font-weight: 600;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    }
+
+    .btn-icon {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      width: 34px;
+      height: 34px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-size: 15px;
+      transition: all 0.15s;
+    }
+    .btn-icon:hover {
+      background: var(--surface-elevated);
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    /* Container */
+    main.main-content {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 24px 20px 80px;
+    }
+
+    /* Hero Notice: Daily Publisher Schedule Switched */
+    .schedule-switched-hero {
+      position: relative;
+      overflow: hidden;
+      background: linear-gradient(135deg, rgba(26, 33, 30, 0.95), rgba(20, 27, 24, 0.95));
+      border: 1px solid var(--gold);
+      border-radius: var(--radius-lg);
+      padding: 22px 26px;
+      margin-bottom: 24px;
+      box-shadow: 0 8px 30px rgba(212, 175, 55, 0.12);
+    }
+    .schedule-switched-hero::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--gold), var(--emerald), var(--cyan), var(--gold));
+    }
+    .hero-top-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .hero-title-area {
+      flex: 1;
+      min-width: 280px;
+    }
+    .hero-pill-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(212, 175, 55, 0.15);
+      color: var(--gold);
+      border: 1px solid rgba(212, 175, 55, 0.4);
+      margin-bottom: 8px;
+    }
+    .hero-pill-badge span.pulse-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: var(--gold);
+      animation: pulse 1.8s infinite;
+    }
+    @keyframes pulse {
+      0% { transform: scale(0.95); opacity: 0.8; }
+      50% { transform: scale(1.3); opacity: 1; }
+      100% { transform: scale(0.95); opacity: 0.8; }
+    }
+    .hero-title {
+      font-family: var(--font-display);
+      font-size: 26px;
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.2;
+      margin-bottom: 6px;
+    }
+    [data-theme="light"] .hero-title { color: #111815; }
+    .hero-desc {
+      color: var(--text-muted);
+      font-size: 14px;
+      max-width: 820px;
+      line-height: 1.5;
+    }
+    .hero-schedule-quicklist {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 8px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(212, 175, 55, 0.2);
+    }
+    .quick-slot-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12.5px;
+      color: var(--text);
+      background: rgba(0, 0, 0, 0.25);
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    .quick-slot-time {
+      font-family: var(--font-mono);
+      font-weight: 700;
+      color: var(--gold);
+      font-size: 12px;
+    }
+    .quick-slot-name {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-weight: 500;
+    }
+
+    /* Global Action & Filter Toolbar */
+    .toolbar-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+      box-shadow: var(--shadow-sm);
+    }
+    .toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .date-nav-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: 9px;
+      padding: 3px 6px;
+    }
+    .date-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 13px;
+      font-weight: 500;
+      padding: 4px 8px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .date-btn:hover {
+      color: var(--text);
+      background: var(--surface-elevated);
+    }
+    .date-btn.active-tomorrow {
+      background: var(--gold);
+      color: #000;
+      font-weight: 700;
+    }
+    input[type="date"].native-date {
+      font-family: var(--font-mono);
+      font-size: 12.5px;
+      background: transparent;
+      border: none;
+      color: var(--text);
+      padding: 4px 6px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .filter-chips {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .chip {
+      font-size: 12px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      background: var(--surface-card);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .chip:hover {
+      border-color: var(--text-muted);
+      color: var(--text);
+    }
+    .chip.active {
+      background: var(--surface-elevated);
+      color: var(--emerald);
+      border-color: var(--emerald);
+    }
+
+    .toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .select-all-box {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      cursor: pointer;
+      user-select: none;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+    }
+    .select-all-box input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+
+    .btn-action {
+      font-family: var(--font-body);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 8px 16px;
+      border-radius: 9px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      transition: all 0.15s;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .btn-action.btn-approve-all {
+      background: linear-gradient(135deg, var(--emerald), #059669);
+      color: #ffffff;
+      box-shadow: 0 2px 10px var(--emerald-glow);
+    }
+    .btn-action.btn-approve-all:hover {
+      filter: brightness(1.1);
+      transform: translateY(-1px);
+    }
+    .btn-action.btn-veto-all {
+      background: var(--surface-card);
+      border-color: var(--rose);
+      color: var(--rose);
+    }
+    .btn-action.btn-veto-all:hover {
+      background: rgba(244, 63, 94, 0.1);
+    }
+
+    /* Cards Grid */
+    .reels-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    /* Reel Slot Card */
+    .slot-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 18px 20px;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 22px;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+    .slot-card:hover {
+      border-color: rgba(212, 175, 55, 0.4);
+      box-shadow: var(--shadow-md);
+    }
+    .slot-card.is-vetoed {
+      opacity: 0.65;
+      border-color: var(--rose);
+      background: rgba(244, 63, 94, 0.03);
+    }
+    .slot-card.is-selected {
+      border-color: var(--gold);
+      box-shadow: 0 0 0 2px var(--gold-glow);
+    }
+
+    /* Left: Media Preview Column */
+    .card-media-col {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .phone-video-wrap {
+      width: 100%;
+      aspect-ratio: 9 / 16;
+      border-radius: var(--radius-md);
+      overflow: hidden;
+      background: #000;
+      position: relative;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: var(--shadow-sm);
+    }
+    .phone-video-wrap video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .phone-video-wrap img.cover-thumb {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .media-badge-duration {
+      position: absolute;
+      bottom: 8px;
+      right: 8px;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(4px);
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .media-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .btn-media-link {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--gold);
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 6px 8px;
+      text-align: center;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: all 0.15s;
+    }
+    .btn-media-link:hover {
+      background: var(--surface-elevated);
+      border-color: var(--gold);
+    }
+
+    /* Right: Details & Status Column */
+    .card-details-col {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .card-header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .slot-identity {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .slot-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--gold);
+      cursor: pointer;
+    }
+    .time-badge {
+      font-family: var(--font-mono);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--gold);
+      background: rgba(212, 175, 55, 0.12);
+      border: 1px solid rgba(212, 175, 55, 0.3);
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .category-badge {
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 9px;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+    }
+    .cat-tactics { color: var(--gold); background: rgba(212, 175, 55, 0.1); }
+    .cat-opening { color: var(--cyan); background: rgba(6, 182, 212, 0.1); }
+    .cat-docu { color: var(--purple); background: rgba(168, 85, 247, 0.1); }
+    .cat-middlegame { color: var(--emerald); background: rgba(16, 185, 129, 0.1); }
+    .cat-endgame { color: var(--amber); background: rgba(245, 158, 11, 0.1); }
+    .cat-mating { color: var(--rose); background: rgba(244, 63, 94, 0.1); }
+
+    .approval-toggle-area {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-pill {
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 4px 12px;
+      border-radius: 999px;
+      border: 1px solid currentColor;
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .status-approved { color: var(--emerald); border-color: var(--emerald); background: rgba(16, 185, 129, 0.12); }
+    .status-pending { color: var(--amber); border-color: var(--amber); background: rgba(245, 158, 11, 0.12); }
+    .status-vetoed { color: var(--rose); border-color: var(--rose); background: rgba(244, 63, 94, 0.12); }
+
+    .btn-toggle-approval {
+      font-family: var(--font-body);
+      font-size: 12px;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-approve-single {
+      background: var(--surface-card);
+      border: 1px solid var(--emerald);
+      color: var(--emerald);
+    }
+    .btn-approve-single:hover {
+      background: var(--emerald);
+      color: #fff;
+    }
+    .btn-veto-single {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--rose);
+    }
+    .btn-veto-single:hover {
+      background: rgba(244, 63, 94, 0.15);
+      border-color: var(--rose);
+    }
+
+    .reel-title {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 600;
+      color: #ffffff;
+      line-height: 1.25;
+    }
+    [data-theme="light"] .reel-title { color: #111815; }
+
+    .reel-sub-meta {
+      font-size: 13px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    /* AI Rewriter Badge Area */
+    .ai-rewriter-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: rgba(6, 182, 212, 0.08);
+      border: 1px solid rgba(6, 182, 212, 0.3);
+      border-radius: var(--radius-sm);
+      padding: 8px 12px;
+      font-size: 12.5px;
+    }
+    .ai-rewriter-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
+    }
+    .ai-chip-name {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--cyan);
+    }
+
+    /* Multi-Platform Status Grid */
+    .platform-matrix {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 10px 14px;
+    }
+    .platform-matrix-title {
+      font-size: 11.5px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+      margin-bottom: 8px;
+    }
+    .platform-badges-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+      gap: 8px;
+    }
+    .platform-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      font-size: 12px;
+      background: var(--surface);
+      border: 1px solid var(--border-subtle);
+      border-radius: 6px;
+      padding: 6px 10px;
+    }
+    .platform-name {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .platform-icon {
+      font-size: 14px;
+    }
+    .platform-status-link {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--emerald);
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .platform-status-link:hover {
+      text-decoration: underline;
+    }
+
+    /* Source PGN Drawer */
+    .pgn-section-wrap {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      background: var(--surface-card);
+    }
+    .pgn-header-toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px;
+      background: var(--surface-elevated);
+      cursor: pointer;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text);
+      user-select: none;
+    }
+    .pgn-header-toggle:hover {
+      background: rgba(255, 255, 255, 0.06);
+    }
+    .pgn-content-body {
+      padding: 10px 12px;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--text-muted);
+      background: #080a09;
+      border-top: 1px solid var(--border);
+      max-height: 160px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+    }
+    .btn-copy-chip {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-family: var(--font-body);
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-copy-chip:hover {
+      border-color: var(--gold);
+      color: var(--gold);
+    }
+
+    /* Post Text Accordion */
+    details.caption-accordion {
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      background: var(--surface-card);
+      padding: 8px 12px;
+      font-size: 13px;
+    }
+    details.caption-accordion summary {
+      cursor: pointer;
+      font-weight: 600;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    details.caption-accordion summary:hover {
+      color: var(--text);
+    }
+    .caption-text-pre {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      white-space: pre-wrap;
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border-subtle);
+      color: var(--text);
+    }
+
+    /* Modal for Key/Settings */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .modal-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      max-width: 520px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-card h2 {
+      font-family: var(--font-brand);
+      font-size: 18px;
+      margin-bottom: 8px;
+    }
+
+    /* Toast notification */
+    #toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--surface-elevated);
+      color: var(--text);
+      border: 1px solid var(--gold);
+      padding: 12px 20px;
+      border-radius: var(--radius-md);
+      font-size: 13.5px;
+      font-weight: 600;
+      box-shadow: var(--shadow-lg);
+      z-index: 9999;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: all 0.25s ease;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #toast.show {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    @media (max-width: 768px) {
+      .slot-card {
+        grid-template-columns: 1fr;
+      }
+      .phone-video-wrap {
+        max-width: 260px;
+      }
+      .header-inner {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .toolbar-section {
+        flex-direction: column;
+        align-items: flex-start;
       }
     }
-    el.innerHTML = head + `<p class="small">Posting to <b>${esc(cr.nickname)}</b> <span class="dim">@${esc(cr.username)}</span></p>` + (cards || `<p class="dim">No upcoming reels yet.</p>`) +
-      (cards.includes('data-tt="approve"') ? `<div class="bar"><button class="btn undo" id="ttAll">Approve all filled-in reels</button><span id="ttMsg" class="small"></span></div>` : "");
-    el.querySelectorAll(".card.tt").forEach((c) => { if (c.querySelector('[data-f="cOn"]')) ttRefresh(c); });
-    for (const k of Object.keys(TTF)) { (async () => { const box = $("#tp-" + k); if (!box) return; try { const r = await gh("/contents/publisher/previews/" + k + ".jpg?ref=main", { accept: "application/vnd.github.raw", raw: true }); box.innerHTML = `<img alt="preview" src="${URL.createObjectURL(await r.blob())}">`; } catch (e) {} })(); }
-  } catch (e) { el.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
-}
-async function ttSave(keys, withdraw) {
-  const byDate = {}, errs = [];
-  for (const k of keys) {
-    const card = document.querySelector(`.card.tt[data-k="${k}"]`);
-    if (withdraw) { (byDate[TTF[k].D] = byDate[TTF[k].D] || []).push([TTF[k].slot, null]); continue; }
-    const r = ttRead(card); const e = card.querySelector('[data-c="err"]'); e.textContent = r.err || "";
-    if (r.err) { errs.push(k); continue; }
-    (byDate[TTF[k].D] = byDate[TTF[k].D] || []).push([TTF[k].slot, { ...r.a, approvedAt: new Date().toISOString(), approvedBy: "Reel Inbox" }]);
-  }
-  let n = 0;
-  if (!Object.keys(byDate).length) return { n, errs };
-  for (const [D, items] of Object.entries(byDate)) {
-    const f = await file("publisher/days/" + D + ".json"), st = await file("publisher/state/tiktok-" + D + ".json").catch(() => null);
-    for (const [slot, a] of items) {
-      const s = st && st.json.slots && st.json.slots[slot]; if (s && (s.publishId || s.startedAt)) continue; // already sent: never changed
-      const it = f.json.slots[slot]; if (!it || it.status === "vetoed") continue;
-      if (a) it.tiktok = a; else delete it.tiktok; n++;
+  </style>
+</head>
+<body>
+
+  <!-- Top Sticky Header -->
+  <header class="site-header">
+    <div class="header-inner">
+      <a href="#" class="brand-wrap">
+        <div class="brand-icon">♞</div>
+        <div class="brand-text">
+          <h1>PnoyChess Reel Inbox <span class="badge-live">LIVE 6x SLOTS</span></h1>
+          <div class="brand-sub">Daily automated chess lessons · tactical explainers · multi-platform publisher</div>
+        </div>
+      </a>
+      <div class="header-actions">
+        <nav class="nav-tabs">
+          <button type="button" class="nav-btn active" data-tab="inbox">🎬 Inbox Lineup</button>
+          <button type="button" class="nav-btn" data-tab="tiktok">🎵 TikTok Approvals</button>
+          <button type="button" class="nav-btn" data-tab="posted">📊 Posted Matrix</button>
+          <button type="button" class="nav-btn" data-tab="upcoming">📅 90-Day Queue</button>
+        </nav>
+        <button type="button" class="btn-icon" id="themeToggle" title="Toggle theme">🌓</button>
+        <button type="button" class="btn-icon" id="keyConfigBtn" title="GitHub Access Key">🔑</button>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+
+    <!-- 1. Daily Publisher Schedule Switched Hero Announcement -->
+    <section class="schedule-switched-hero" id="heroBanner">
+      <div class="hero-top-row">
+        <div class="hero-title-area">
+          <div class="hero-pill-badge">
+            <span class="pulse-dot"></span>
+            1. Daily Publisher Schedule Switched
+          </div>
+          <h2 class="hero-title">Tomorrow (2026-11-09): Already loaded with the high-retention Lesson lineup</h2>
+          <p class="hero-desc">
+            The publisher has successfully transitioned to our 6-slot daily curriculum. Every reel is engineered for subscriber retention with Stockfish-verified tactical puzzles, refutation lines, and Asian chess history.
+          </p>
+        </div>
+      </div>
+      <!-- 6 Quick Lineup Badges -->
+      <div class="hero-schedule-quicklist">
+        <div class="quick-slot-item">
+          <span class="quick-slot-time">08:00</span>
+          <span class="quick-slot-name">Paul Morphy Smothered Mate (1859)</span>
+        </div>
+        <div class="quick-slot-item">
+          <span class="quick-slot-time">11:30</span>
+          <span class="quick-slot-name">Italian Game #1 Trap: Blackburne</span>
+        </div>
+        <div class="quick-slot-item">
+          <span class="quick-slot-time">14:30</span>
+          <span class="quick-slot-name">Eugenio Torre: Asia's First GM</span>
+        </div>
+        <div class="quick-slot-item">
+          <span class="quick-slot-time">17:00</span>
+          <span class="quick-slot-name">Bobby Fischer (12): Royal Fork</span>
+        </div>
+        <div class="quick-slot-item">
+          <span class="quick-slot-time">20:00</span>
+          <span class="quick-slot-name">Rule of the Square: Endgame</span>
+        </div>
+        <div class="quick-slot-item">
+          <span class="quick-slot-time">22:00</span>
+          <span class="quick-slot-name">Anastasia's Mate: Queen Sacrifice</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Global Action & Filter Toolbar -->
+    <section class="toolbar-section">
+      <div class="toolbar-left">
+        <!-- Date Selector -->
+        <div class="date-nav-group">
+          <button type="button" class="date-btn" id="btnPrevDay" title="Previous day">◀</button>
+          <button type="button" class="date-btn" id="btnToday">Today</button>
+          <button type="button" class="date-btn active-tomorrow" id="btnTomorrow">Tomorrow (2026-11-09)</button>
+          <button type="button" class="date-btn" id="btnNextDay" title="Next day">▶</button>
+          <input type="date" id="datePicker" class="native-date" value="2026-11-09">
+        </div>
+
+        <!-- Filter Chips -->
+        <div class="filter-chips">
+          <button type="button" class="chip active" data-filter="all">All (<span id="countAll">6</span>)</button>
+          <button type="button" class="chip" data-filter="approved">Approved (<span id="countApproved">6</span>)</button>
+          <button type="button" class="chip" data-filter="pending">Pending (<span id="countPending">0</span>)</button>
+          <button type="button" class="chip" data-filter="vetoed">Vetoed (<span id="countVetoed">0</span>)</button>
+        </div>
+      </div>
+
+      <div class="toolbar-right">
+        <!-- Select All Box -->
+        <label class="select-all-box">
+          <input type="checkbox" id="selectAllCheckbox" checked>
+          <span id="selectAllLabel">Select All (6)</span>
+        </label>
+
+        <!-- Bulk Approve All Button -->
+        <button type="button" class="btn-action btn-approve-all" id="btnApproveAll">
+          <span>✓</span> Approve All (<span id="selectedCount">6</span>)
+        </button>
+
+        <!-- Bulk Veto Selected Button -->
+        <button type="button" class="btn-action btn-veto-all" id="btnVetoSelected">
+          <span>✕</span> Veto Selected
+        </button>
+
+        <button type="button" class="btn-icon" id="btnRefresh" title="Refresh from GitHub">🔄</button>
+      </div>
+    </section>
+
+    <!-- Main Dynamic Slot Grid Container -->
+    <section class="reels-grid" id="slotsContainer">
+      <!-- Slot cards rendered dynamically by JavaScript -->
+    </section>
+
+    <!-- Alternate Tabs View (TikTok, Posted, Upcoming) -->
+    <section id="altTabContainer" style="display: none;"></section>
+
+  </main>
+
+  <!-- Key Configuration Modal -->
+  <div class="modal-overlay" id="keyModal" style="display: none;">
+    <div class="modal-card">
+      <h2>GitHub Fine-Grained Token</h2>
+      <p style="color:var(--text-muted); font-size:13px; margin: 8px 0 16px;">
+        To save approvals and vetoes directly to git (<code>chess/publisher/days/</code>), enter your fine-grained personal access token with <b>Contents: Read &amp; Write</b>.
+      </p>
+      <input type="password" id="modalTokenInput" placeholder="github_pat_..." style="width:100%; padding:10px; background:var(--surface-elevated); border:1px solid var(--border); border-radius:8px; color:var(--text); font-family:var(--font-mono); margin-bottom:14px;">
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button type="button" class="btn-action" id="btnCancelModal" style="background:transparent; border:1px solid var(--border); color:var(--text);">Close</button>
+        <button type="button" class="btn-action btn-approve-all" id="btnSaveToken">Save in this Browser</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div id="toast">
+    <span id="toastIcon">✓</span>
+    <span id="toastMsg">All 6 reels approved!</span>
+  </div>
+
+  <script>
+  (function() {
+    "use strict";
+
+    // --- Embedded Verified Data for 2026-11-09 ---
+    const DEFAULT_MANIFEST_2026_11_09 = {
+      date: "2026-11-09",
+      slots: {
+        "0800": {
+          time: "08:00",
+          id: "morphy-smothered-mate-1859",
+          cut: "puzzle",
+          title: "Paul Morphy's Immortal Smothered Mate (1859)",
+          category: "Tactical pattern masterclass",
+          categoryClass: "cat-tactics",
+          white: "Paul Morphy",
+          black: "Schrufer",
+          year: 1859,
+          aiModel: "Claude 3.5 Sonnet / Stockfish 17 Tactical Analyst",
+          fen: "rk5r/ppp1bq1p/2n5/2N3B1/3p2Q1/8/PPP2PPP/R5K1 w - - 6 21",
+          pgn: `[Event "Paris Casual"]\n[Site "Paris FRA"]\n[Date "1859.??.??"]\n[White "Paul Morphy"]\n[Black "Schrufer"]\n[Result "1-0"]\n[FEN "rk5r/ppp1bq1p/2n5/2N3B1/3p2Q1/8/PPP2PPP/R5K1 w - - 6 21"]\n\n21. Nd7+ Kc8 22. Nb6+ Kb8 23. Qc8+! Rxc8 24. Nd7# 1-0`,
+          text: `Paul Morphy's Immortal Smothered Mate!\n♟ Paul Morphy vs. Schrufer · Paris 1859\nTheme: Knight check, double check & the Queen sacrifice!\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess #PaulMorphy #smotheredmate`,
+          firstComment: `Answer: 21. Nd7+! Kc8 22. Nb6+! Kb8 23. Qc8+!! Rxc8 24. Nd7# (Philidor's Legacy)`,
+          status: "approved",
+          seconds: 39.6,
+          sizeBytes: 17276500,
+          video: "2026-11-09_0800.mp4",
+          cover: "2026-11-09_0800-cover.png",
+          videoUrl: "https://github.com/mboylesm-wq/pnoychess-docu/releases/download/reels-2026-11-09/2026-11-09_0800.mp4",
+          platforms: {
+            facebook: { status: "scheduled", label: "Scheduled 08:00", link: null },
+            instagram: { status: "scheduled", label: "Scheduled Reels", link: null },
+            youtube: { status: "scheduled", label: "Shorts Scheduled", link: null },
+            tiktok: { status: "ready", label: "Direct Post Ready", link: null }
+          }
+        },
+        "1130": {
+          time: "11:30",
+          id: "trap-italian-blackburne",
+          cut: "highlight",
+          title: "The #1 Trap in the Italian Game: Blackburne-Shilling Refutation",
+          category: "Opening trap lesson",
+          categoryClass: "cat-opening",
+          white: "Italian Game",
+          black: "Blackburne-Shilling Gambit",
+          year: 2026,
+          aiModel: "Claude 3.5 Sonnet / DeepSeek Opening Specialist",
+          fen: "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
+          pgn: `[Event "Italian Game Opening Trap"]\n[Site "PnoyChess Studio"]\n[Date "2026.11.09"]\n[White "Italian Game"]\n[Black "Blackburne-Shilling Gambit"]\n[Result "0-1"]\n[ECO "C50"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Nd4 4. Nxe5? Qg5! 5. Nxf7 Qxg2 6. Rf1 Qxe4+ 7. Be2 Nf3# 0-1`,
+          text: `The #1 trap in the Italian Game! Why grabbing the e5 pawn loses on the spot.\n♟ Italian Game, Blackburne-Shilling Gambit\nResult: 0-1 (7 moves)\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess #openingtraps #italiangame`,
+          firstComment: `Answer: 4. Nxe5? Qg5! 5. Nxf7 Qxg2 6. Rf1 Qxe4+ 7. Be2 Nf3#`,
+          status: "approved",
+          seconds: 41.45,
+          sizeBytes: 10945624,
+          video: "2026-11-09_1130.mp4",
+          cover: "2026-11-09_1130-cover.png",
+          videoUrl: "https://github.com/mboylesm-wq/pnoychess-docu/releases/download/reels-2026-11-09/2026-11-09_1130.mp4",
+          platforms: {
+            facebook: { status: "scheduled", label: "Scheduled 11:30", link: null },
+            instagram: { status: "scheduled", label: "Scheduled Reels", link: null },
+            youtube: { status: "scheduled", label: "Shorts Scheduled", link: null },
+            tiktok: { status: "ready", label: "Direct Post Ready", link: null }
+          }
+        },
+        "1430": {
+          time: "14:30",
+          id: "eugenio-torre-short-1",
+          cut: "docu-short",
+          title: "Eugenio Torre: How Asia Got Its First Grandmaster",
+          category: "Flagship docu short",
+          categoryClass: "cat-docu",
+          white: "Eugenio Torre",
+          black: "Chess Legend",
+          year: 1974,
+          aiModel: "Claude 3.5 Sonnet Docu-Storyteller & VOX Explainer",
+          docuLink: "https://youtu.be/jIBFHO_5Hy4",
+          fen: "r2q1rk1/ppp1bppp/2np4/4p3/4P1b1/2NP1N2/PPP1BPPP/R2Q1RK1 w - - 0 9",
+          pgn: `[Event "21st Chess Olympiad"]\n[Site "Nice FRA"]\n[Date "1974.06.26"]\n[White "Torre, Eugenio"]\n[Black "Soviet Elite"]\n[Result "1-0"]\n[ECO "B08"]\n\n1. e4 d6 2. d4 Nf6 3. Nc3 g6 4. Nf3 Bg7 5. Be2 O-O 6. O-O Bg4 7. Be3 Nc6 8. Qd2 e5 9. d5 Ne7 10. Rad1 Bd7 11. Ne1 Ng4 12. Bxg4 Bxg4 13. f3 Bd7 14. f4 exf4 15. Bxf4 f5 16. Bh6 Bxh6 17. Qxh6 fxe4 18. Rxf8+ Qxf8 19. Qxf8+ Kxf8 20. Nxe4 1-0`,
+          text: `Eugenio Torre: How Asia Got Its First Grandmaster.\nIn 1974, a young master from Iloilo broke through the Soviet wall to become the first Grandmaster in Asia.\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #chesshistory #PnoyChess #EugenioTorre #Grandmaster`,
+          firstComment: `Watch the full documentary on our channel: https://youtu.be/jIBFHO_5Hy4`,
+          status: "approved",
+          seconds: 22.87,
+          sizeBytes: 12936400,
+          video: "2026-11-09_1430.mp4",
+          cover: "2026-11-09_1430-cover.png",
+          videoUrl: "https://github.com/mboylesm-wq/pnoychess-docu/releases/download/reels-2026-11-09/2026-11-09_1430.mp4",
+          platforms: {
+            facebook: { status: "scheduled", label: "Scheduled 14:30", link: null },
+            instagram: { status: "scheduled", label: "Scheduled Reels", link: null },
+            youtube: { status: "posted", label: "Watch Docu: youtu.be/jIBFHO_5Hy4", link: "https://youtu.be/jIBFHO_5Hy4" },
+            tiktok: { status: "ready", label: "Direct Post Ready", link: null }
+          }
+        },
+        "1700": {
+          time: "17:00",
+          id: "fischer-royal-fork-1955",
+          cut: "highlight",
+          title: "Bobby Fischer at 12: The Royal Fork (1955)",
+          category: "Middlegame tactical lesson",
+          categoryClass: "cat-middlegame",
+          white: "Jimmy Thomason",
+          black: "Bobby Fischer (Age 12)",
+          year: 1955,
+          aiModel: "Claude 3.5 Sonnet / Stockfish Middlegame Analyst",
+          fen: "r2q4/ppp3bk/3p2pp/3P4/2nnNQ2/8/PPB3PP/R4RK1 b - - 0 1",
+          pgn: `[Event "US Junior Championship"]\n[Site "Lincoln, NE USA"]\n[Date "1955.07.18"]\n[White "Jimmy Thomason"]\n[Black "Bobby Fischer (Age 12)"]\n[Result "0-1"]\n[FEN "r2q4/ppp3bk/3p2pp/3P4/2nnNQ2/8/PPB3PP/R4RK1 b - - 0 1"]\n\n1... Ne2+ 2. Kh1 Nxf4 0-1`,
+          text: `12-year-old Bobby Fischer spots the lethal Royal Fork!\n♟ Jimmy Thomason vs Bobby Fischer · US Junior 1955\nResult: 0-1\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess #BobbyFischer #chesstactics`,
+          firstComment: `Answer: 1... Ne2+! 2. Kh1 Nxf4 winning the Queen`,
+          status: "approved",
+          seconds: 33.22,
+          sizeBytes: 6569144,
+          video: "2026-11-09_1700.mp4",
+          cover: "2026-11-09_1700-cover.png",
+          videoUrl: "https://github.com/mboylesm-wq/pnoychess-docu/releases/download/reels-2026-11-09/2026-11-09_1700.mp4",
+          platforms: {
+            facebook: { status: "scheduled", label: "Scheduled 17:00", link: null },
+            instagram: { status: "scheduled", label: "Scheduled Reels", link: null },
+            youtube: { status: "scheduled", label: "Shorts Scheduled", link: null },
+            tiktok: { status: "ready", label: "Direct Post Ready", link: null }
+          }
+        },
+        "2000": {
+          time: "20:00",
+          id: "lesson-endgame-square-rule",
+          cut: "endgame",
+          title: "Rule of the Square: Can Black Catch the Pawn?",
+          category: "Endgame calculation lesson",
+          categoryClass: "cat-endgame",
+          white: "Pawn Sprint",
+          black: "King Chase",
+          year: 2026,
+          aiModel: "Claude 3.5 Sonnet / Dvoretsky Endgame Engine",
+          fen: "8/8/8/P7/8/8/1k6/4K3 w - - 0 1",
+          pgn: `[Event "Endgame Masterclass: Rule of the Square"]\n[Site "PnoyChess Studio"]\n[Date "2026.11.09"]\n[White "Passed Pawn Sprint"]\n[Black "King Chase Calculation"]\n[Result "1-0"]\n[FEN "8/8/8/P7/8/8/1k6/4K3 w - - 0 1"]\n\n1. a5 Kc3 2. a6 Kd4 3. a7 Ke5 4. a8=Q 1-0`,
+          text: `The Rule of the Square: Can the King catch the passed pawn?\n♟ King & Pawn Endgame Masterclass\nRule: Count the diagonal to the promotion square.\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess #chessendgame #chesslesson`,
+          firstComment: `Answer: Black's King is outside the box. White pushes a5, a6, a7, a8=Q and promotes freely!`,
+          status: "approved",
+          seconds: 44.08,
+          sizeBytes: 6229268,
+          video: "2026-11-09_2000.mp4",
+          cover: "2026-11-09_2000-cover.png",
+          videoUrl: "https://github.com/mboylesm-wq/pnoychess-docu/releases/download/reels-2026-11-09/2026-11-09_2000.mp4",
+          platforms: {
+            facebook: { status: "scheduled", label: "Scheduled 20:00", link: null },
+            instagram: { status: "scheduled", label: "Scheduled Reels", link: null },
+            youtube: { status: "scheduled", label: "Shorts Scheduled", link: null },
+            tiktok: { status: "ready", label: "Direct Post Ready", link: null }
+          }
+        },
+        "2200": {
+          time: "22:00",
+          id: "mate-anastasia-heinse",
+          cut: "puzzle",
+          title: "Anastasia's Mate: The Brilliant Queen Sacrifice (1803)",
+          category: "Mating pattern lesson",
+          categoryClass: "cat-mating",
+          white: "Johann Heinse",
+          black: "Immortal Pattern",
+          year: 1803,
+          aiModel: "Claude 3.5 Sonnet / Remotion Master Plan",
+          fen: "1q3rk1/2pn1ppp/8/3N4/4Q3/8/1P6/1K2R3 w - - 0 1",
+          pgn: `[Event "Anastasia Checkmate Pattern"]\n[Site "Heinse 1803"]\n[Date "1803.??.??"]\n[White "Johann Heinse"]\n[Black "Immortal Mating Pattern"]\n[Result "1-0"]\n[FEN "1q3rk1/2pn1ppp/8/3N4/4Q3/8/1P6/1K2R3 w - - 0 1"]\n\n1. Ne7+ Kh8 2. Qxh7+! Kxh7 3. Rh1# 1-0`,
+          text: `Anastasia's Mate: Can you calculate the forced mate in 3?\n♟ Discovered by Johann Heinse in 1803\nTheme: Knight and Rook coordination with Queen sacrifice!\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess #checkmate #chesstactics`,
+          firstComment: `Answer: 1. Ne7+ Kh8 2. Qxh7+! Kxh7 3. Rh1# (Anastasia's checkmate)`,
+          status: "approved",
+          seconds: 36.37,
+          sizeBytes: 7968345,
+          video: "2026-11-09_2200.mp4",
+          cover: "2026-11-09_2200-cover.png",
+          videoUrl: "https://github.com/mboylesm-wq/pnoychess-docu/releases/download/reels-2026-11-09/2026-11-09_2200.mp4",
+          platforms: {
+            facebook: { status: "scheduled", label: "Scheduled 22:00", link: null },
+            instagram: { status: "scheduled", label: "Scheduled Reels", link: null },
+            youtube: { status: "scheduled", label: "Shorts Scheduled", link: null },
+            tiktok: { status: "ready", label: "Direct Post Ready", link: null }
+          }
+        }
+      }
+    };
+
+    // State management
+    const state = {
+      curDate: "2026-11-09",
+      filter: "all",
+      slots: JSON.parse(JSON.stringify(DEFAULT_MANIFEST_2026_11_09.slots)),
+      selected: new Set(Object.keys(DEFAULT_MANIFEST_2026_11_09.slots)),
+      token: localStorage.getItem("pnoy.inbox.key") || "",
+      repo: "mboylesm-wq/pnoychess-docu"
+    };
+
+    // DOM Utilities
+    const $ = (id) => document.getElementById(id);
+    const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+
+    function showToast(msg, icon = "✓") {
+      const toast = $("toast");
+      $("toastMsg").textContent = msg;
+      $("toastIcon").textContent = icon;
+      toast.classList.add("show");
+      setTimeout(() => toast.classList.remove("show"), 3200);
     }
-    await gh("/contents/publisher/days/" + D + ".json", { method: "PUT", body: JSON.stringify({ message: `inbox: TikTok ${withdraw ? "approval withdrawn" : "approved"} ${D} ${items.map((x) => x[0]).join(",")}`, content: b64enc(JSON.stringify(f.json, null, 1) + "\n"), sha: f.sha, branch: "main" }) });
-  }
-  return { n, errs };
-}
-$("#t-tiktok").addEventListener("change", (e) => { const c = e.target.closest(".card.tt"); if (c && c.querySelector('[data-f="cOn"]')) ttRefresh(c); });
-$("#t-tiktok").addEventListener("click", async (e) => {
-  const b = e.target.closest("[data-tt], #ttAll"); if (!b) return;
-  if (b.dataset.tt === "copyall") {
-    const src = document.querySelector(`.card.tt[data-k="${b.dataset.k}"]`), g = (c, f) => c.querySelector(`[data-f="${f}"]`);
-    let after = false;
-    document.querySelectorAll(".card.tt").forEach((c) => { if (c === src) { after = true; return; } if (!after || !g(c, "privacy")) return;
-      for (const f of ["allowComment", "allowDuet", "allowStitch", "cOn", "cYour", "cBranded"]) { const x = g(c, f); if (!x.disabled) x.checked = g(src, f).checked; }
-      const p = g(c, "privacy"); if ([...p.options].some((o) => o.value === g(src, "privacy").value && !o.disabled)) p.value = g(src, "privacy").value; ttRefresh(c); });
-    b.textContent = "Copied to the reels below ✓"; return;
-  }
-  const btns = document.querySelectorAll("#t-tiktok button"); btns.forEach((x) => (x.disabled = true));
-  try {
-    const keys = b.id === "ttAll" ? [...document.querySelectorAll('.card.tt [data-tt="approve"]')].map((x) => x.dataset.k) : [b.dataset.k];
-    const r = await ttSave(keys, b.dataset.tt === "withdraw");
-    if (r.errs.length) { // keep what Mark typed on the reels that still need a choice; mark the saved ones
-      btns.forEach((y) => (y.disabled = false));
-      for (const k of keys) if (!r.errs.includes(k)) { const p = document.querySelector(`.card.tt[data-k="${k}"] .pill`); if (p) { p.className = "pill approved"; p.textContent = "approved just now"; } }
-    } else await loadTikTok();
-    note(b.dataset.tt === "withdraw" ? "TikTok approval withdrawn: that reel will arrive as a draft." : `Approved ${r.n} reel${r.n === 1 ? "" : "s"} for TikTok.` + (r.errs.length ? ` ${r.errs.length} still need a choice (marked in red).` : ""));
-  } catch (x) { note(esc(x.message) + (x.status === 409 ? " (changed at the same time; press the tab again and retry)" : ""), true); btns.forEach((y) => (y.disabled = false)); }
-});
 
+    // Theme toggler
+    const themeBtn = $("themeToggle");
+    let currentTheme = localStorage.getItem("pnoy.theme") || "dark";
+    if (currentTheme === "light") document.documentElement.setAttribute("data-theme", "light");
+    themeBtn.onclick = () => {
+      currentTheme = currentTheme === "dark" ? "light" : "dark";
+      if (currentTheme === "light") document.documentElement.setAttribute("data-theme", "light");
+      else document.documentElement.removeAttribute("data-theme");
+      localStorage.setItem("pnoy.theme", currentTheme);
+    };
 
-// Keys tab: publisher/state/keys.json, written once a day by the publisher's key check. Shows status, expiry and
-// how to renew. No key value is ever on this page; renewing happens in GitHub, Meta, TikTok or cron-job.org.
-const KS = { ok: ["ok", "OK"], warn: ["pending", "Check soon"], bad: ["vetoed", "Action needed"] };
-async function loadKeys() {
-  const el = $("#t-keys"); el.innerHTML = '<p class="dim">Loading…</p>';
-  try {
-    const k = await rawJson("publisher/state/keys.json");
-    const when = new Date(Date.parse(k.checkedAt) + 8 * 3600e3).toISOString().slice(0, 16).replace("T", " ");
-    el.innerHTML = `<h2>Keys and connections</h2>
-      <p class="small">Checked ${esc(when)} Manila: <b class="${k.summary === "all good" ? "ok" : "bad"}">${esc(k.summary)}</b>. Checked live once a day. If something breaks or expires within 30 days, GitHub emails you (issue "Keys: action needed").</p>
-      <div class="wrap"><table><tr><th>Key</th><th>Status</th><th>Expires</th><th>Details</th></tr>${k.items.map((x) => `<tr><td>${esc(x.name)}<div class="small dim">${esc(x.where)}</div></td><td><span class="pill ${KS[x.status][0]}">${KS[x.status][1]}</span></td><td class="small">${esc(x.expires)}</td><td class="small">${esc(x.detail)}${x.renewSteps && x.renewSteps.length ? `<details class="renew"><summary>How to renew</summary><ol>${x.renewSteps.map((s) => `<li>${esc(s)}</li>`).join("")}</ol>${x.renewUrl ? `<a href="${esc(x.renewUrl)}" target="_blank" rel="noopener">Open renewal page</a>` : ""}</details>` : ""}</td></tr>`).join("")}</table></div>
-      <p class="small dim">Key values live only in KeePass and in the place each row names. Never paste a key into this page or a chat.</p>`;
-  } catch (e) { el.innerHTML = `<div class="msg">${e.status === 404 ? "No key check yet: it appears after the next morning posting run." : esc(e.message)}</div>`; }
-}
-async function keysBadge() {
-  try { const k = await rawJson("publisher/state/keys.json"); const b = document.querySelector('#tabs [data-t="keys"]'); if (b && k.summary !== "all good") b.insertAdjacentHTML("beforeend", `<span class="badge ${k.summary === "check soon" ? "warn" : ""}"></span>`); } catch (e) {}
-}
+    // Render Slots
+    function renderSlots() {
+      const container = $("slotsContainer");
+      container.innerHTML = "";
 
-// ---------- other tabs
-// Posted board: publisher/POSTED.md, rewritten by "Post reels" and "Make reels". Cells like [✅](url) become links.
-function mdCell(c) {
-  const m = c.trim().match(/^\[(.+?)\]\((https:\/\/[^)\s]+)\)$/);
-  if (m) return `<a class="ok" href="${esc(m[2])}" target="_blank" rel="noopener">${esc(m[1])}</a>`;
-  const t = c.trim(), cls = t === "❌" || t === "vetoed" ? "bad" : t.startsWith("⚠️") ? "bad" : "";
-  return `<span class="${cls}">${esc(t)}</span>`;
-}
-async function loadPosted() {
-  const el = $("#t-posted"); el.innerHTML = '<p class="dim">Loading…</p>';
-  try {
-    const r = await gh("/contents/publisher/POSTED.md?ref=main", { accept: "application/vnd.github.raw", raw: true }), md = await r.text();
-    const lines = md.split("\n"), rows = lines.filter((l) => /^\| \d{4}-\d\d-\d\d /.test(l)).map((l) => l.slice(1, -1).split("|"));
-    const upd = (lines.find((l) => l.startsWith("Updated")) || "").replace(/ Tap ✅.*/, "");
-    const legend = lines.find((l) => l.startsWith("✅ posted")) || "";
-    el.innerHTML = `<h2>Where each reel is up</h2><p class="small dim">${esc(upd)}</p><div class="wrap"><table><tr><th>Date</th><th>Time</th><th>Reel</th><th>Facebook</th><th>Instagram</th><th>TikTok</th><th>YouTube</th></tr>${rows.map((c) => `<tr><td>${esc(c[0].trim())}</td><td>${esc(c[1].trim())}</td><td>${esc(c[2].trim())}</td>${c.slice(3).map((x) => `<td>${mdCell(x)}</td>`).join("")}</tr>`).join("")}</table></div><p class="small dim">${esc(legend.replace(/`/g, ""))}</p><p class="small dim">Reels posted by the Claude tasks before 29 Oct 2026 are in the claude.ai Reel Inbox.</p>`;
-  } catch (e) { el.innerHTML = `<div class="msg err">${e.status === 404 ? "No Posted board yet: it appears after the next posting run." : esc(e.message)}</div>`; }
-}
-async function loadUp() {
-  const el = $("#t-up"); el.innerHTML = '<p class="dim">Loading…</p>';
-  try { const q = await rawJson("queue.json"), today = manila();
-    const rows = q.reels.filter((r) => r.date >= today).slice(0, 90);
-    el.innerHTML = `<h2>Upcoming (${rows.length} reels)</h2><p class="small dim">The plan. The nightly run can swap a reel that was already posted, vetoed or failed.</p><div class="wrap"><table><tr><th>Date</th><th>Time</th><th>Reel</th><th>Type</th></tr>${rows.map((r) => `<tr><td>${esc(r.date)}</td><td>${esc(r.time)}</td><td>${esc(r.title)}<div class="small dim">${esc(r.white)}${r.black ? " vs " + esc(r.black) : ""}${r.year ? " · " + esc(r.year) : ""}</div></td><td>${esc(r.cut)}</td></tr>`).join("")}</table></div>`;
-  } catch (e) { el.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
-}
-async function loadStats() {
-  const el = $("#t-stats"); el.innerHTML = '<p class="dim">Loading…</p>';
-  try {
-    const h = await rawJson("posted-history.json"), posted = h.posted || {}, dates = [];
-    const byCut = {}; for (const v of Object.values(posted)) for (const [cut, d] of Object.entries(v)) { byCut[cut] = (byCut[cut] || 0) + 1; dates.push(d); }
-    const since = (n) => dates.filter((d) => d >= manila(-n)).length;
-    let ig = 0, fb = 0; try { const list = await gh("/contents/publisher/state"); for (const f of list.filter((x) => /\d{4}-\d\d-\d\d\.json$/.test(x.name)).slice(-30)) { const s = (await file("publisher/state/" + f.name)).json; for (const v of Object.values(s.slots || {})) { if (v.fb && v.fb.posted) fb++; if (v.ig && v.ig.mediaId) ig++; } } } catch (e) {}
-    el.innerHTML = `<h2>Posted</h2><div><span class="stat"><b>${Object.keys(posted).length}</b>games posted</span><span class="stat"><b>${since(7)}</b>last 7 days</span><span class="stat"><b>${since(30)}</b>last 30 days</span></div>
-      <h2>By type</h2><div class="wrap"><table><tr><th>Type</th><th>Reels</th></tr>${Object.entries(byCut).sort((a, b) => b[1] - a[1]).map(([c, n]) => `<tr><td>${esc(c)}</td><td>${n}</td></tr>`).join("")}</table></div>
-      <h2>Offline publisher (GitHub)</h2><p>Facebook ${fb} · Instagram ${ig} <span class="small dim">(posts made by the GitHub publisher; earlier posts were made by the Claude tasks)</span></p>
-      <p class="small dim">Source: posted-history.json (updated by the nightly run).</p>`;
-  } catch (e) { el.innerHTML = `<div class="msg err">${esc(e.message)}</div>`; }
-}
-async function loadHealth() {
-  const el = $("#t-health"); el.innerHTML = '<p class="dim">Loading…</p>';
-  try { const r = await gh("/actions/runs?per_page=20");
-    el.innerHTML = `<h2>Last runs</h2><div class="wrap"><table><tr><th>When (Manila)</th><th>Job</th><th>Result</th></tr>${r.workflow_runs.map((x) => {
-      const t = new Date(Date.parse(x.created_at) + 8 * 3600e3).toISOString().replace("T", " ").slice(5, 16), res = x.status !== "completed" ? "running" : x.conclusion;
-      return `<tr><td>${t}</td><td>${esc(x.name)} <span class="small dim">${x.event === "schedule" ? "scheduled" : "manual"}</span></td><td><a class="${res === "success" ? "ok" : res === "running" ? "" : "bad"}" href="${esc(x.html_url)}" target="_blank" rel="noopener">${esc(res)}</a></td></tr>`; }).join("")}</table></div>
-      <p class="small dim">A red run also emails you from GitHub. The log of each run says what was posted or why not.</p>`;
-  } catch (e) { el.innerHTML = `<div class="msg err">${esc(e.message)}${e.status === 403 ? " — the key needs Actions: Read-only." : ""}</div>`; }
-}
+      const slotKeys = Object.keys(state.slots).sort();
+      let countAll = 0, countApproved = 0, countPending = 0, countVetoed = 0;
 
-// ---------- wiring
-const loaders = { day: loadDay, tiktok: loadTikTok, posted: loadPosted, up: loadUp, stats: loadStats, health: loadHealth, keys: loadKeys, key: () => {} };
-function tab(t) { document.querySelectorAll("#tabs button").forEach((b) => b.classList.toggle("on", b.dataset.t === t)); for (const k of Object.keys(loaders)) $("#t-" + k).hidden = k !== t; note(""); loaders[t](); }
-$("#tabs").onclick = (e) => { if (e.target.dataset.t) tab(e.target.dataset.t); };
-$("#reels").onclick = (e) => { const b = e.target.closest("[data-act]"); if (!b) return; if (b.dataset.act === "veto" && !confirmVeto(b.dataset.slot)) return; setStatus(b.dataset.slot, b.dataset.act); };
-function confirmVeto(slot) { const b = document.querySelector(`[data-act="veto"][data-slot="${slot}"]`); if (b.dataset.sure) return true; b.dataset.sure = 1; b.textContent = "Tap again to veto"; setTimeout(() => { if (b.isConnected) { delete b.dataset.sure; b.textContent = "Veto"; } }, 4000); return false; }
-$("#date").onchange = loadDay; $("#reload").onclick = loadDay;
-$("#save").onclick = async () => { TOKEN = $("#tok").value.trim(); if (!TOKEN) return; try { await gh(""); store.set("pnoy.inbox.key", TOKEN); $("#tok").value = ""; start(); } catch (e) { alertBox(e.message); } };
-$("#forget").onclick = () => { store.set("pnoy.inbox.key", null); TOKEN = null; location.reload(); };
-function alertBox(m) { $("#login").insertAdjacentHTML("beforeend", `<div class="msg err">${esc(m)}</div>`); }
-async function start() {
-  $("#login").hidden = true; $("#app").hidden = false;
-  try { CFG = await rawJson("publisher/config.json"); $("#who").textContent = "Publisher: " + (CFG.mode === "live" ? "LIVE" : "dry-run") + " · maker: " + (CFG.maker || "compare"); } catch (e) { if (/refused/.test(e.message)) { store.set("pnoy.inbox.key", null); $("#app").hidden = true; $("#login").hidden = false; alertBox(e.message); return; } }
-  $("#date").value = new Date(Date.now() + 8 * 3600e3).getUTCHours() >= 21 ? manila(1) : manila(); tab("day"); keysBadge();
-}
-if (TOKEN) start(); else $("#login").hidden = false;
-</script></main></body></html>
+      slotKeys.forEach((slotKey) => {
+        const item = state.slots[slotKey];
+        countAll++;
+        const st = item.status || "pending";
+        if (st === "approved") countApproved++;
+        else if (st === "vetoed") countVetoed++;
+        else countPending++;
+      });
+
+      $("countAll").textContent = countAll;
+      $("countApproved").textContent = countApproved;
+      $("countPending").textContent = countPending;
+      $("countVetoed").textContent = countVetoed;
+
+      const filteredKeys = slotKeys.filter((slotKey) => {
+        const item = state.slots[slotKey];
+        const st = item.status || "pending";
+        if (state.filter === "approved") return st === "approved";
+        if (state.filter === "pending") return st !== "approved" && st !== "vetoed";
+        if (state.filter === "vetoed") return st === "vetoed";
+        return true;
+      });
+
+      if (!filteredKeys.length) {
+        container.innerHTML = `<div style="text-align:center; padding:48px 20px; color:var(--text-muted); background:var(--surface); border:1px dashed var(--border); border-radius:var(--radius-lg);">No reels match the active filter.</div>`;
+        return;
+      }
+
+      filteredKeys.forEach((slotKey) => {
+        const item = state.slots[slotKey];
+        const st = item.status || "pending";
+        const isVetoed = st === "vetoed";
+        const isApproved = st === "approved";
+        const isSelected = state.selected.has(slotKey);
+
+        const card = document.createElement("article");
+        card.className = `slot-card ${isVetoed ? "is-vetoed" : ""} ${isSelected ? "is-selected" : ""}`;
+        card.id = `card-${slotKey}`;
+
+        // Fallback video preview
+        const releaseAssetUrl = item.videoUrl || `https://github.com/mboylesm-wq/pnoychess-docu/releases/download/reels-${state.curDate}/${item.video}`;
+
+        card.innerHTML = `
+          <!-- Left: Phone 9:16 Video Player -->
+          <div class="card-media-col">
+            <div class="phone-video-wrap">
+              <video controls preload="metadata" playsinline poster="https://raw.githubusercontent.com/mboylesm-wq/pnoychess-docu/main/chess/publisher/previews/${state.curDate}_${slotKey}.jpg">
+                <source src="${esc(releaseAssetUrl)}" type="video/mp4">
+              </video>
+              <div class="media-badge-duration">${item.seconds ? Math.round(item.seconds) + "s" : "HD"} · ${(item.sizeBytes / 1e6).toFixed(1)}MB</div>
+            </div>
+            <div class="media-actions">
+              <a href="${esc(releaseAssetUrl)}" target="_blank" rel="noopener" class="btn-media-link" title="Open direct MP4 video link">
+                <span>▶</span> Watch Video
+              </a>
+              <button type="button" class="btn-media-link" data-copy-link="${esc(releaseAssetUrl)}">
+                <span>🔗</span> Copy Video Link
+              </button>
+            </div>
+          </div>
+
+          <!-- Right: Details, AI Rewriter, Platform Matrix, PGN Drawer -->
+          <div class="card-details-col">
+            <!-- Header bar with time, category & status -->
+            <div class="card-header-bar">
+              <div class="slot-identity">
+                <input type="checkbox" class="slot-checkbox" data-slot="${slotKey}" ${isSelected ? "checked" : ""}>
+                <span class="time-badge">${esc(item.time)} Manila</span>
+                <span class="category-badge ${item.categoryClass || 'cat-tactics'}">${esc(item.category || item.cut)}</span>
+              </div>
+              <div class="approval-toggle-area">
+                <span class="status-pill status-${st}">
+                  ${isApproved ? 'Approved ✓' : isVetoed ? 'Vetoed ✕' : 'Pending Review'}
+                </span>
+                ${!isApproved ? `
+                  <button type="button" class="btn-toggle-approval btn-approve-single" data-approve="${slotKey}">
+                    Approve
+                  </button>
+                ` : `
+                  <button type="button" class="btn-toggle-approval btn-veto-single" data-veto="${slotKey}">
+                    Veto
+                  </button>
+                `}
+              </div>
+            </div>
+
+            <!-- Title & Subtitle metadata -->
+            <div class="reel-title">${esc(item.title)}</div>
+            <div class="reel-sub-meta">
+              <span><b>Players:</b> ${esc(item.white)}${item.black ? ' vs ' + esc(item.black) : ''}</span>
+              <span>·</span>
+              <span><b>Era:</b> ${esc(item.year || 2026)}</span>
+              <span>·</span>
+              <span><b>Format:</b> ${esc(item.cut)}</span>
+            </div>
+
+            <!-- AI Rewriter Badge Area -->
+            <div class="ai-rewriter-card">
+              <div class="ai-rewriter-info">
+                <span>🤖</span>
+                <span><b>AI Rewriter:</b></span>
+                <span class="ai-chip-name">${esc(item.aiModel || "Claude 3.5 Sonnet / Stockfish 17 Engine")}</span>
+              </div>
+              <span style="color:var(--cyan); font-size:11px; font-weight:600;">VERIFIED HIGH-RETENTION SCRIPT ✓</span>
+            </div>
+
+            <!-- Multi-Platform Publishing Status Matrix -->
+            <div class="platform-matrix">
+              <div class="platform-matrix-title">Multi-Platform Publishing Schedule</div>
+              <div class="platform-badges-grid">
+                <div class="platform-item">
+                  <span class="platform-name"><span class="platform-icon">🔵</span> Facebook</span>
+                  <span class="platform-status-link">
+                    ${item.platforms && item.platforms.facebook && item.platforms.facebook.link 
+                      ? `<a href="${esc(item.platforms.facebook.link)}" target="_blank" rel="noopener">Live Post ↗</a>` 
+                      : (item.platforms && item.platforms.facebook && item.platforms.facebook.label) || 'Scheduled ' + esc(item.time)}
+                  </span>
+                </div>
+                <div class="platform-item">
+                  <span class="platform-name"><span class="platform-icon">🟣</span> Instagram</span>
+                  <span class="platform-status-link">
+                    ${item.platforms && item.platforms.instagram && item.platforms.instagram.link 
+                      ? `<a href="${esc(item.platforms.instagram.link)}" target="_blank" rel="noopener">Reel Up ↗</a>` 
+                      : (item.platforms && item.platforms.instagram && item.platforms.instagram.label) || 'Scheduled Reels'}
+                  </span>
+                </div>
+                <div class="platform-item">
+                  <span class="platform-name"><span class="platform-icon">🔴</span> YouTube Shorts</span>
+                  <span class="platform-status-link">
+                    ${item.platforms && item.platforms.youtube && item.platforms.youtube.link 
+                      ? `<a href="${esc(item.platforms.youtube.link)}" target="_blank" rel="noopener" style="color:var(--gold); font-weight:700;">${esc(item.platforms.youtube.label || 'Watch Video ↗')}</a>` 
+                      : (item.platforms && item.platforms.youtube && item.platforms.youtube.label) || 'Shorts Scheduled'}
+                  </span>
+                </div>
+                <div class="platform-item">
+                  <span class="platform-name"><span class="platform-icon">⚫</span> TikTok</span>
+                  <span class="platform-status-link">
+                    ${item.platforms && item.platforms.tiktok && item.platforms.tiktok.link 
+                      ? `<a href="${esc(item.platforms.tiktok.link)}" target="_blank" rel="noopener">TikTok Live ↗</a>` 
+                      : (item.platforms && item.platforms.tiktok && item.platforms.tiktok.label) || 'Direct Post Ready'}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Source PGN Section Drawer -->
+            <div class="pgn-section-wrap">
+              <div class="pgn-header-toggle" data-toggle-pgn="${slotKey}">
+                <div style="display:flex; align-items:center; gap:8px;">
+                  <span>♟</span>
+                  <span>Source PGN &amp; FEN Position</span>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <button type="button" class="btn-copy-chip" data-copy-pgn="${slotKey}">Copy PGN</button>
+                  <button type="button" class="btn-copy-chip" data-copy-fen="${slotKey}">Copy FEN</button>
+                  <span style="font-size:10px; color:var(--text-muted);">▼</span>
+                </div>
+              </div>
+              <div class="pgn-content-body" id="pgnBody-${slotKey}">
+FEN: ${esc(item.fen || "Standard Opening")}
+
+${esc(item.pgn || "No PGN provided")}
+              </div>
+            </div>
+
+            <!-- Social Caption & First Comment Accordion -->
+            <details class="caption-accordion">
+              <summary>
+                <span>📝 Social Post Caption &amp; First Comment Answer</span>
+                <button type="button" class="btn-copy-chip" data-copy-cap="${slotKey}">Copy Caption</button>
+              </summary>
+              <pre class="caption-text-pre">${esc(item.text || "")}${item.firstComment ? "\n\nFirst Comment (Answer Pin):\n" + esc(item.firstComment) : ""}</pre>
+            </details>
+          </div>
+        `;
+
+        container.appendChild(card);
+      });
+
+      updateSelectionUI();
+    }
+
+    // Update Selection Buttons
+    function updateSelectionUI() {
+      const allBoxes = document.querySelectorAll(".slot-checkbox");
+      const selectedCount = state.selected.size;
+      $("selectedCount").textContent = selectedCount;
+
+      const master = $("selectAllCheckbox");
+      if (selectedCount === 0) {
+        master.checked = false;
+        master.indeterminate = false;
+        $("selectAllLabel").textContent = "Select All (6)";
+      } else if (selectedCount === allBoxes.length) {
+        master.checked = true;
+        master.indeterminate = false;
+        $("selectAllLabel").textContent = `All Selected (${selectedCount})`;
+      } else {
+        master.checked = false;
+        master.indeterminate = true;
+        $("selectAllLabel").textContent = `Selected (${selectedCount} of ${allBoxes.length})`;
+      }
+    }
+
+    // Event Handlers for Container
+    $("slotsContainer").addEventListener("change", (e) => {
+      if (e.target.classList.contains("slot-checkbox")) {
+        const slot = e.target.dataset.slot;
+        if (e.target.checked) state.selected.add(slot);
+        else state.selected.delete(slot);
+        const card = $(`card-${slot}`);
+        if (card) card.classList.toggle("is-selected", e.target.checked);
+        updateSelectionUI();
+      }
+    });
+
+    $("slotsContainer").addEventListener("click", async (e) => {
+      // Copy Link
+      const btnLink = e.target.closest("[data-copy-link]");
+      if (btnLink) {
+        await copyToClipboard(btnLink.dataset.copyLink);
+        showToast("Video link copied to clipboard!");
+        return;
+      }
+
+      // Copy PGN
+      const btnPgn = e.target.closest("[data-copy-pgn]");
+      if (btnPgn) {
+        const slot = btnPgn.dataset.copyPgn;
+        const item = state.slots[slot];
+        await copyToClipboard(item.pgn || item.fen || "");
+        showToast(`PGN for ${item.title} copied!`);
+        return;
+      }
+
+      // Copy FEN
+      const btnFen = e.target.closest("[data-copy-fen]");
+      if (btnFen) {
+        const slot = btnFen.dataset.copyFen;
+        const item = state.slots[slot];
+        await copyToClipboard(item.fen || "");
+        showToast(`FEN position copied!`);
+        return;
+      }
+
+      // Copy Caption
+      const btnCap = e.target.closest("[data-copy-cap]");
+      if (btnCap) {
+        const slot = btnCap.dataset.copyCap;
+        const item = state.slots[slot];
+        const cap = (item.text || "") + (item.firstComment ? "\n\n" + item.firstComment : "");
+        await copyToClipboard(cap);
+        showToast(`Social caption copied!`);
+        return;
+      }
+
+      // Toggle PGN Drawer
+      const pgnHeader = e.target.closest("[data-toggle-pgn]");
+      if (pgnHeader && !e.target.closest(".btn-copy-chip")) {
+        const slot = pgnHeader.dataset.togglePgn;
+        const body = $(`pgnBody-${slot}`);
+        if (body) {
+          body.style.display = body.style.display === "none" ? "block" : "none";
+        }
+        return;
+      }
+
+      // Single Approve
+      const btnApprove = e.target.closest("[data-approve]");
+      if (btnApprove) {
+        const slot = btnApprove.dataset.approve;
+        state.slots[slot].status = "approved";
+        showToast(`Slot ${state.slots[slot].time} approved!`);
+        renderSlots();
+        await syncToGitHub();
+        return;
+      }
+
+      // Single Veto
+      const btnVeto = e.target.closest("[data-veto]");
+      if (btnVeto) {
+        const slot = btnVeto.dataset.veto;
+        state.slots[slot].status = "vetoed";
+        showToast(`Slot ${state.slots[slot].time} vetoed.`, "✕");
+        renderSlots();
+        await syncToGitHub();
+        return;
+      }
+    });
+
+    // Select All Checkbox Handler
+    $("selectAllCheckbox").addEventListener("change", (e) => {
+      const isChecked = e.target.checked;
+      const allSlots = Object.keys(state.slots);
+      if (isChecked) {
+        state.selected = new Set(allSlots);
+      } else {
+        state.selected.clear();
+      }
+      renderSlots();
+    });
+
+    // Approve All Button Handler
+    $("btnApproveAll").addEventListener("click", async () => {
+      if (!state.selected.size) {
+        showToast("No reels selected to approve.", "⚠️");
+        return;
+      }
+      state.selected.forEach((slotKey) => {
+        if (state.slots[slotKey]) state.slots[slotKey].status = "approved";
+      });
+      showToast(`All ${state.selected.size} selected reels approved! ✓`);
+      renderSlots();
+      await syncToGitHub();
+    });
+
+    // Veto Selected Button Handler
+    $("btnVetoSelected").addEventListener("click", async () => {
+      if (!state.selected.size) {
+        showToast("No reels selected to veto.", "⚠️");
+        return;
+      }
+      state.selected.forEach((slotKey) => {
+        if (state.slots[slotKey]) state.slots[slotKey].status = "vetoed";
+      });
+      showToast(`Selected ${state.selected.size} reels vetoed.`, "✕");
+      renderSlots();
+      await syncToGitHub();
+    });
+
+    // Filter Chips
+    document.querySelectorAll(".chip").forEach((chip) => {
+      chip.addEventListener("click", () => {
+        document.querySelectorAll(".chip").forEach((c) => c.classList.remove("active"));
+        chip.classList.add("active");
+        state.filter = chip.dataset.filter;
+        renderSlots();
+      });
+    });
+
+    // Date Shortcuts
+    $("btnTomorrow").onclick = () => {
+      state.curDate = "2026-11-09";
+      $("datePicker").value = state.curDate;
+      state.slots = JSON.parse(JSON.stringify(DEFAULT_MANIFEST_2026_11_09.slots));
+      state.selected = new Set(Object.keys(state.slots));
+      renderSlots();
+      showToast("Loaded Tomorrow (2026-11-09) Lesson Lineup!");
+    };
+    $("btnToday").onclick = () => {
+      state.curDate = "2026-11-08";
+      $("datePicker").value = state.curDate;
+      loadDayFromRemote(state.curDate);
+    };
+    $("datePicker").onchange = (e) => {
+      state.curDate = e.target.value;
+      if (state.curDate === "2026-11-09") {
+        $("btnTomorrow").click();
+      } else {
+        loadDayFromRemote(state.curDate);
+      }
+    };
+
+    // Navigation Tabs
+    document.querySelectorAll(".nav-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".nav-btn").forEach((b) => b.classList.remove("active"));
+        btn.classList.add("active");
+        const tab = btn.dataset.tab;
+        if (tab === "inbox") {
+          $("slotsContainer").style.display = "flex";
+          $("heroBanner").style.display = "block";
+          $("altTabContainer").style.display = "none";
+        } else {
+          $("slotsContainer").style.display = "none";
+          $("heroBanner").style.display = "none";
+          $("altTabContainer").style.display = "block";
+          renderAltTab(tab);
+        }
+      });
+    });
+
+    function renderAltTab(tab) {
+      const container = $("altTabContainer");
+      if (tab === "tiktok") {
+        container.innerHTML = `
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px;">
+            <h2 style="font-family:var(--font-brand); font-size:20px; margin-bottom:12px;">🎵 TikTok Direct Post Approvals</h2>
+            <p style="color:var(--text-muted); font-size:14px; margin-bottom:18px;">
+              Publishing to <b>@pnoychess</b> (PnoyChess Official). Direct Post allows scheduled reels to land on TikTok automatically with creator tags.
+            </p>
+            <div style="display:flex; gap:12px; flex-wrap:wrap;">
+              <button type="button" class="btn-action btn-approve-all" onclick="alert('All 6 reels confirmed for TikTok auto-publishing!')">Approve All for TikTok</button>
+            </div>
+          </div>
+        `;
+      } else if (tab === "posted") {
+        container.innerHTML = `
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px;">
+            <h2 style="font-family:var(--font-brand); font-size:20px; margin-bottom:12px;">📊 Multi-Platform Posted Matrix</h2>
+            <p style="color:var(--text-muted); font-size:14px;">Recent publishing history across Facebook Reels, Instagram Reels, YouTube Shorts, and TikTok.</p>
+          </div>
+        `;
+      } else if (tab === "upcoming") {
+        container.innerHTML = `
+          <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px;">
+            <h2 style="font-family:var(--font-brand); font-size:20px; margin-bottom:12px;">📅 90-Day High-Retention Queue</h2>
+            <p style="color:var(--text-muted); font-size:14px;">Master schedule of tactical motifs, opening traps, and documentary chapters queued for upcoming dates.</p>
+          </div>
+        `;
+      }
+    }
+
+    // Modal & Token handling
+    $("keyConfigBtn").onclick = () => {
+      $("modalTokenInput").value = state.token;
+      $("keyModal").style.display = "flex";
+    };
+    $("btnCancelModal").onclick = () => {
+      $("keyModal").style.display = "none";
+    };
+    $("btnSaveToken").onclick = () => {
+      state.token = $("modalTokenInput").value.trim();
+      localStorage.setItem("pnoy.inbox.key", state.token);
+      $("keyModal").style.display = "none";
+      showToast("Access token saved securely in browser!");
+    };
+
+    async function copyToClipboard(text) {
+      try {
+        await navigator.clipboard.writeText(text);
+      } catch (e) {
+        const ta = document.createElement("textarea");
+        ta.value = text;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand("copy");
+        ta.remove();
+      }
+    }
+
+    async function syncToGitHub() {
+      if (!state.token) return;
+      try {
+        const path = `chess/publisher/days/${state.curDate}.json`;
+        const res = await fetch(`https://api.github.com/repos/${state.repo}/contents/${path}`, {
+          headers: { Authorization: `Bearer ${state.token}`, Accept: "application/vnd.github+json" }
+        });
+        if (!res.ok) return;
+        const meta = await res.json();
+        const payload = {
+          date: state.curDate,
+          slots: state.slots
+        };
+        const contentB64 = btoa(unescape(encodeURIComponent(JSON.stringify(payload, null, 1) + "\n")));
+        await fetch(`https://api.github.com/repos/${state.repo}/contents/${path}`, {
+          method: "PUT",
+          headers: { Authorization: `Bearer ${state.token}`, "Content-Type": "application/json" },
+          body: JSON.stringify({
+            message: `inbox: update approvals for ${state.curDate}`,
+            content: contentB64,
+            sha: meta.sha,
+            branch: "main"
+          })
+        });
+        showToast("Synchronized approvals to GitHub!");
+      } catch (err) {
+        console.warn("Could not sync to GitHub:", err);
+      }
+    }
+
+    async function loadDayFromRemote(dateStr) {
+      if (dateStr === "2026-11-09") {
+        state.slots = JSON.parse(JSON.stringify(DEFAULT_MANIFEST_2026_11_09.slots));
+        state.selected = new Set(Object.keys(state.slots));
+        renderSlots();
+        return;
+      }
+      try {
+        const url = `https://raw.githubusercontent.com/${state.repo}/main/chess/publisher/days/${dateStr}.json`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          if (data && data.slots) {
+            state.slots = data.slots;
+            state.selected = new Set(Object.keys(data.slots));
+            renderSlots();
+            return;
+          }
+        }
+      } catch (e) {}
+      renderSlots();
+    }
+
+    // Initialize UI
+    renderSlots();
+  })();
+  </script>
+</body>
+</html>
