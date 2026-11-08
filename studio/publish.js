@@ -83,6 +83,7 @@
       let files;
       try { files = await window.claude.use("files"); }
       catch (e) { box.lastChild.textContent = "Sign in with your GitHub key to see the publishing board."; return; }
+      await loadOnce("sources.js").catch(() => null); // draws each slot's source PGN
 
       const cfg = (await files.json(PUB + "config.json")) || {}, today = manila(), tomorrow = addDays(today, 1);
       if (!selectedDay) selectedDay = tomorrow;
@@ -257,6 +258,8 @@
               ) : null
             )
           );
+          // where this reel's game comes from (the PGN file, its folder, and a direct link to the PGN)
+          if (window.SlotSource) slotBox.append(window.SlotSource.box(item, selectedDay, sk, { compact: true }));
           slotsGrid.append(slotBox);
         }
         lineupCard.append(slotsGrid);
