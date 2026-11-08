@@ -1330,6 +1330,9 @@ function resolveHashView() {
   if (typeof location === "undefined") return null;
   const h = (location.hash || "").replace(/^#/, "").trim().toLowerCase();
   if (!h) return null;
+  // a direct link to one reel's source PGN: #pgn/2026-11-09/0800
+  const pgn = /^pgn\/(\d{4}-\d\d-\d\d)\/([a-z0-9]+)$/.exec(h);
+  if (pgn) { S.pgnRef = { date: pgn[1], key: pgn[2] }; return "pgn"; }
   if (h === "schedule" || h === "inbox") return "publish";
   if (h === "create") return "projects";
   if (h === "tools") return "tools";
@@ -1343,7 +1346,7 @@ if (typeof window !== "undefined" && typeof window.addEventListener === "functio
 }
 
 document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => {
-  S.view = b.dataset.view;
+  S.view = b.dataset.view; S.pgnRef = null;
   if (S.view !== "projects") S.cur = S.view === "write" ? S.cur : null;
   render();
 }));
@@ -1370,7 +1373,7 @@ function render() {
   try { localStorage.setItem("docu.view", S.view); } catch (e) {}
   const tab = (S.view === "write" || S.view === "reel" || S.view === "gamereview" || S.view === "trends") ? "projects"
     : (S.view === "music" || S.view === "health" || S.view === "tools") ? "tools"
-    : (S.view === "posts") ? "review"
+    : (S.view === "posts" || S.view === "pgn") ? "review"
     : S.view;
   document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === tab || b.dataset.view === S.view)));
   if (S.view !== "reel" && window.ReelStudio) window.ReelStudio.stop();
@@ -1380,6 +1383,7 @@ function render() {
     S.view === "write" ? viewWrite() :
     S.view === "gamereview" ? viewGameReview() :
     S.view === "reel" ? viewReel() :
+    S.view === "pgn" ? viewPgn() :
     S.view === "review" ? viewReview() :
     S.view === "publish" ? viewPublish() :
     S.view === "channel" ? viewChannel() :
@@ -3776,6 +3780,95 @@ function viewVault() {
   return panel;
 }
 
+// ---------- one reel's source PGN: #pgn/<date>/<slot key> (linked from every Schedule and Review card) ----------
+function viewPgn() {
+  const ref = S.pgnRef || {}, date = ref.date, key = ref.key;
+  const box = el("section", { class: "panel" },
+    el("div", { class: "row", style: "justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;" },
+      el("h2", { style: "margin:0;", text: "Source PGN" }),
+      el("div", { class: "row", style: "gap:6px;" },
+        el("button", { class: "btn", type: "button", text: "← Back to the lineup", onclick: () => { S.view = "review"; S.pgnRef = null; render(); } }),
+        el("button", { class: "btn", type: "button", text: "Schedule", onclick: () => { S.view = "publish"; S.pgnRef = null; render(); } })
+      )
+    )
+  );
+  const body = el("div", { class: "note", text: date && key ? "Loading the reel's record…" : "" });
+  box.append(body);
+  if (!date || !key) { body.append(el("div", { class: "empty", text: "Open a reel from the Schedule or Review tab: each card has a “Source PGN” block with a link to its game." })); return box; }
+
+  (async () => {
+    let slot = null, day = null, why = "";
+    try {
+      const files = await window.claude.use("files");
+      day = await files.json("chess/publisher/days/" + date + ".json");
+      const all = (day && day.slots) || {}, extras = (day && day.tiktokExtras) || {};
+      slot = all[key] || extras[String(key || "").replace(/^tt/, "")] || null;
+      if (!slot) why = "That day's file has no slot " + key + ".";
+    } catch (e) { why = "Sign in with your GitHub key to read the day file (the source paths are in the private repo)."; }
+
+    body.textContent = "";
+    body.className = "";
+    if (!slot) { body.append(el("div", { class: "empty", text: why || "Slot not found." })); return; }
+
+    const KIND = (window.SlotSource && window.SlotSource.KIND) || {};
+    const k = KIND[slot.sourceKind || "none"] || ["bad", "No PGN", ""];
+    const pgn = String(slot.pgn || "").trim();
+    const back = el("a", { class: "note", style: "font-size:11px;", href: "#pgn/" + date + "/" + key, text: "permalink #pgn/" + date + "/" + key });
+
+    body.append(el("div", { class: "row", style: "gap:8px;align-items:center;flex-wrap:wrap;margin:10px 0 4px 0;" },
+      el("span", { class: "pill", style: "font-weight:700;background:var(--border);color:var(--gold);", text: date + " " + (slot.time || key) }),
+      el("span", { class: "pill " + k[0], text: k[1], title: k[2] }),
+      slot.status ? el("span", { class: "pill " + (slot.status === "approved" ? "ok" : slot.status === "vetoed" ? "bad" : "warn"), text: slot.status }) : null
+    ));
+    body.append(el("h3", { style: "margin:6px 0 2px 0;font-size:17px;color:var(--text);", text: slot.title || slot.id || "Reel" }));
+    body.append(el("div", { class: "note", style: "font-size:12px;", text: [slot.white, slot.black].filter(Boolean).join(" vs ") + (slot.year ? " · " + slot.year : "") + (slot.id ? " · " + slot.id : "") }));
+
+    const rows = [
+      ["Source kind", k[1] + (k[2] ? " — " + k[2] : "")],
+      ["PGN file", slot.sourcePgnFile || "(none recorded)"],
+      ["Folder", slot.sourcePgnDir || "(none recorded)"],
+      ["Collection", slot.sourceCollection || ""],
+      ["Published at", slot.sourceUrl || ""],
+      ["Note", slot.sourceNote || ""],
+      ["Position", slot.fen || ""],
+    ].filter((r) => r[1]);
+    const table = el("div", { style: "display:grid;grid-template-columns:120px minmax(0,1fr);gap:4px 10px;margin:10px 0;font-size:12px;" });
+    rows.forEach(([a, b]) => {
+      table.append(el("div", { class: "note", style: "font-size:11px;", text: a }));
+      table.append(/^https?:\/\//.test(b)
+        ? el("a", { href: b, target: "_blank", rel: "noopener", style: "font-size:12px;color:var(--gold);word-break:break-all;", text: b })
+        : el("div", { class: /PGN file|Folder|Position/.test(a) ? "mono" : "", style: "font-size:12px;color:var(--text);word-break:break-all;", text: b }));
+    });
+    body.append(table);
+
+    const actions = el("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin:8px 0;" });
+    if (pgn) {
+      actions.append(el("button", {
+        class: "btn primary", type: "button", text: "Copy PGN",
+        onclick: async () => { try { await navigator.clipboard.writeText(pgn); say("PGN copied."); } catch (e) { say("Could not copy: " + (e.message || e)); } }
+      }));
+      actions.append(el("button", {
+        class: "btn", type: "button", text: "Download .pgn",
+        onclick: () => {
+          const a = el("a", { href: URL.createObjectURL(new Blob([pgn + "\n"], { type: "application/x-chess-pgn" })), download: date + "-" + key + "-" + String(slot.id || "reel").replace(/[^\w.-]+/g, "-") + ".pgn" });
+          document.body.append(a); a.click(); a.remove();
+        }
+      }));
+    }
+    if (slot.sourcePgnFile && /^chess\//.test(slot.sourcePgnFile)) actions.append(el("a", {
+      class: "btn", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(slot.sourcePgnFile), target: "_blank", rel: "noopener", text: "Open the file in GitHub ↗",
+    }));
+    if (slot.video && /^https?:\/\//.test(slot.videoUrl || "")) actions.append(el("a", { class: "btn", href: slot.videoUrl, target: "_blank", rel: "noopener", text: "▶ Watch the reel" }));
+    body.append(actions);
+
+    if (pgn) body.append(el("pre", { class: "desc", style: "max-height:60vh;overflow:auto;", text: pgn }));
+    else body.append(el("div", { class: "empty", text: (slot.sourceKind === "plan" ? "This reel was built from a position and its moves; " : "No PGN text is stored for this reel") + (slot.sourcePgnFile ? "see " + slot.sourcePgnFile + "." : "and no PGN file is recorded.") }));
+    body.append(el("div", { style: "margin-top:8px;" }, back));
+  })();
+
+  return box;
+}
+
 function viewReview() {
   const box = el("section", { class: "panel" }, el("h2", { text: "Review" }));
   const wait = S.projects.filter((p) => p.status === "review" || p.status === "pc");
@@ -3812,6 +3905,7 @@ function viewReview() {
 
   (async () => {
     try {
+      await loadOnce("sources.js").catch(() => null); // the source-PGN block under each card
       const files = await window.claude.use("files");
       const manilaToday = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
       const manilaTomorrow = new Date(Date.parse(manilaToday + "T00:00:00Z") + 864e5).toISOString().slice(0, 10);
@@ -3903,6 +3997,8 @@ function viewReview() {
             ) : null
           )
         );
+        // where the game came from: the PGN file and folder, the collection, and a direct link to the PGN
+        if (window.SlotSource) card.append(window.SlotSource.box(s, it.date, it.slotKey, { compact: true }));
         grid.append(card);
       });
       reelReviewContainer.append(grid);
