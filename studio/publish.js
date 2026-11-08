@@ -150,7 +150,7 @@
             el("span", { style: "font-weight:700;font-size:16px;color:var(--text);", text: "🎬 Daily 6-Slot Lineup" }),
             el("span", { class: "pill", style: "font-size:11px;", text: selectedDay === today ? "Today" : selectedDay === tomorrow ? "Tomorrow" : selectedDay })
           ),
-          el("div", { class: "row", style: "gap:6px;" },
+          el("div", { class: "row", style: "gap:6px;align-items:center;" },
             el("button", {
               class: "btn" + (selectedDay === today ? " primary" : ""),
               type: "button",
@@ -164,7 +164,23 @@
               style: "font-size:12px;padding:4px 10px;",
               text: "Tomorrow (" + tomorrow.slice(5) + ")",
               onclick: () => { selectedDay = tomorrow; load(); }
-            })
+            }),
+            files.saveJson ? el("button", {
+              class: "btn",
+              type: "button",
+              style: "font-size:12px;padding:4px 10px;border-color:var(--amber);color:var(--amber);",
+              text: "⟳ Re-render All",
+              title: "Queue all slots for re-render with the latest template and audio",
+              onclick: async () => {
+                let cnt = 0;
+                for (const sk of curSlotKeys) { curSlots[sk].reRender = true; cnt++; }
+                try {
+                  await files.saveJson(`chess/publisher/days/${selectedDay}.json`, curDayData.m, `studio: rerender all slots on ${selectedDay}`);
+                  say(`Queued all ${cnt} slots for re-render on ${selectedDay} ⟳.`);
+                  load();
+                } catch (e) { say("Could not save: " + (e.message || e)); }
+              }
+            }) : null
           )
         )
       );
@@ -185,13 +201,16 @@
                 el("span", { class: "pill", style: "font-weight:700;background:var(--border);color:var(--gold);", text: timeFormatted }),
                 el("span", { class: "note", style: "font-size:12px;", text: SLOT_NAME[sk] || "Reel" })
               ),
-              el("span", { class: "pill " + statusTone, text: statusLabel })
+              el("div", { class: "row", style: "gap:4px;" },
+                item.reRender ? el("span", { class: "pill warn", style: "font-size:11px;", text: "⟳ Re-render" }) : null,
+                el("span", { class: "pill " + statusTone, text: statusLabel })
+              )
             ),
             el("div", { style: "font-weight:600;font-size:14px;color:var(--text);line-height:1.3;", text: item.title || "Untitled Lesson" }),
             item.category ? el("div", { class: "note", style: "font-size:12px;", text: item.category }) : null,
             el("div", { class: "row", style: "justify-content:space-between;align-items:center;margin-top:4px;" },
               item.videoUrl ? el("a", { class: "note", href: item.videoUrl, target: "_blank", rel: "noopener", style: "color:var(--gold);font-size:12px;", text: "▶ Watch Video" }) : el("span", { class: "note", text: "Pending render" }),
-              files.saveJson ? el("div", { class: "row", style: "gap:6px;" },
+              files.saveJson ? el("div", { class: "row", style: "gap:4px;" },
                 el("button", {
                   class: "btn" + (isApproved ? "" : " primary"),
                   type: "button",
@@ -218,6 +237,21 @@
                       say(`Slot ${timeFormatted} vetoed for ${selectedDay}.`);
                       load();
                     } catch (e) { say("Could not save veto: " + (e.message || e)); }
+                  }
+                }),
+                el("button", {
+                  class: "btn" + (item.reRender ? " warn" : ""),
+                  type: "button",
+                  style: "font-size:11px;padding:3px 8px;" + (item.reRender ? "border-color:var(--amber);color:var(--amber);" : ""),
+                  text: item.reRender ? "⟳ Queued" : "⟳ Re-render",
+                  title: "Queue this reel to be re-rendered on PC with the latest visual & audio fixes",
+                  onclick: async () => {
+                    item.reRender = !item.reRender;
+                    try {
+                      await files.saveJson(`chess/publisher/days/${selectedDay}.json`, curDayData.m, `studio: toggle rerender slot ${sk} on ${selectedDay}`);
+                      say(`Slot ${timeFormatted} ${item.reRender ? "queued for re-render ⟳" : "removed from re-render queue"}.`);
+                      load();
+                    } catch (e) { say("Could not save: " + (e.message || e)); }
                   }
                 })
               ) : null

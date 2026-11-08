@@ -445,6 +445,12 @@ textarea.code { font: 12.5px/1.5 var(--mono); min-height: 64px; }
 video { width: 100%; max-width: 100%; border-radius: 10px; background: #000; box-shadow: var(--shadow-md); }
 .bar { height: 6px; background: var(--line); border-radius: 3px; overflow: hidden; }
 .bar > i { display: block; height: 100%; background: var(--gold); width: 0; transition: width 0.3s ease; }
+.bar.bar-pulse > i { animation: barPulse 1.5s ease-in-out infinite alternate; background: var(--gold); }
+@keyframes barPulse { 0% { opacity: 0.25; } 100% { opacity: 0.85; } }
+.active-render-bar { position: sticky; top: 0; z-index: 100; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 18px; background: var(--panel); border: 1px solid var(--gold); border-radius: 8px; margin: 8px 0; box-shadow: var(--shadow-md); font-size: 13px; }
+.active-render-bar.waiting { border-color: var(--warn); background: rgba(245, 158, 11, 0.08); }
+.active-render-bar.complete { border-color: var(--ok); background: rgba(34, 197, 94, 0.08); }
+.active-render-bar .render-bar-info { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 200px; }
 .reel-grid { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); gap: 20px; align-items: start; }
 .reel-stage { display: grid; gap: 12px; justify-items: center; position: sticky; top: 12px; }
 .reel-stage canvas { border-radius: 12px; border: 1px solid var(--line); background: #0c1517; height: auto; box-shadow: var(--shadow-md); }
@@ -544,6 +550,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
       <button type="button" id="nav-write" data-view="write" hidden>Write</button>
     </nav>
   </header>
+  <div id="active-render-bar" class="active-render-bar" style="display:none;" aria-live="polite"></div>
   <div id="status" class="note" role="status"></div>
   <main id="view"></main>
 </div>
@@ -799,7 +806,19 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
   const downloads = { async save({ filename, data }) { const b = data instanceof Blob ? data : new Blob([data], { type: "text/plain" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); } };
   const have = { db: backend.db, assets: backend.assets, downloads, actions: { dispatch: backend.dispatch, active: backend.active }, files: backend.files };
   window.claude = { github: true, repo: REPO, use: (name) => (have[name] ? Promise.resolve(have[name]) : Promise.reject(new Error(name + " needs Claude"))) };
-  setInterval(() => { if (document.visibilityState === "visible") backend.refreshAll(); }, POLL);
+  let pollTimer = null;
+  function schedulePoll() {
+    clearTimeout(pollTimer);
+    const hasActive = (typeof S !== "undefined" && S.projects && S.projects.some((p) => p.status === "rendering" || p.status === "waiting"));
+    const delay = hasActive ? 4000 : POLL;
+    pollTimer = setTimeout(async () => {
+      if (document.visibilityState === "visible") {
+        try { await backend.refreshAll(); } catch {}
+      }
+      schedulePoll();
+    }, delay);
+  }
+  schedulePoll();
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") backend.refreshAll(); });
   const out = () => panel(`<span style="color:#aaa">PnoyChess Studio on GitHub · saving to <b>${REPO}</b> · writing: Copilot in VS Code (Docu writer) or Claude</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = () => { localStorage.removeItem(KEY); location.reload(); }; });
   out();
@@ -1003,16 +1022,57 @@ const PC_WAIT = "Waiting for your PC: double-click render-pc.cmd";
 const STALE_MIN = 6;
 const ago = (iso) => { const s = Math.max(0, Math.round((Date.now() - Date.parse(iso)) / 1000)); return s < 90 ? s + " s" : Math.round(s / 60) + " min"; };
 function paintProgress(e, p) {
-  const g = p && p.status === "rendering" && p.progress; e.hidden = !g; if (!g) return;
-  const age = (Date.now() - Date.parse(g.at)) / 60000, quiet = age > STALE_MIN;
-  const pctVal = g.pct != null ? Math.max(0, Math.min(100, Math.round(g.pct))) : 0;
-  const txt = g.step + (g.pct != null ? " " + pctVal + "%" : " 0%") + " · updated " + ago(g.at) + " ago" + (quiet ? ". Nothing from your PC for a while: it may have stopped or lost the internet. Press Stop, then Render again." : "");
-  e.textContent = "";
-  e.append(
-    el("div", { text: txt }),
-    el("div", { class: "bar", style: "margin-top:4px" }, el("i", { style: "width:" + pctVal + "%" }))
-  );
-  e.style.color = quiet ? "var(--warn)" : "";
+  if (!p) { e.hidden = true; return; }
+  if (p.status === "rendering") {
+    e.hidden = false;
+    const g = p.progress;
+    if (g) {
+      const age = (Date.now() - Date.parse(g.at)) / 60000, quiet = age > STALE_MIN;
+      const pctVal = g.pct != null ? Math.max(0, Math.min(100, Math.round(g.pct))) : 0;
+      const txt = g.step + (g.pct != null ? " " + pctVal + "%" : " 0%") + " · updated " + ago(g.at) + " ago" + (quiet ? ". Nothing from your PC for a while: it may have stopped or lost the internet. Press Stop, then Render again." : "");
+      e.textContent = "";
+      e.append(
+        el("div", { text: txt }),
+        el("div", { class: "bar", style: "margin-top:4px" }, el("i", { style: "width:" + pctVal + "%" }))
+      );
+      e.style.color = quiet ? "var(--warn)" : "";
+    } else {
+      const txt = "Starting render on your PC 0% · updated just now";
+      e.textContent = "";
+      e.append(
+        el("div", { text: txt }),
+        el("div", { class: "bar", style: "margin-top:4px" }, el("i", { style: "width:0%" }))
+      );
+      e.style.color = "var(--warn)";
+    }
+    return;
+  }
+  if (p.status === "waiting") {
+    e.hidden = false;
+    const qn = queueNote(p);
+    const txt = "⏳ Waiting for render" + (qn ? " (" + qn + ")" : "") + (p.note ? ": " + p.note : "") + (GH() || p.renderOn === "pc" ? ". Double-click render-pc.cmd on your PC to start." : "");
+    e.textContent = "";
+    e.append(
+      el("div", { text: txt }),
+      el("div", { class: "bar bar-pulse", style: "margin-top:4px" }, el("i", { style: "width:100%;opacity:0.6" }))
+    );
+    e.style.color = "var(--warn)";
+    return;
+  }
+  if (p.result && p.result.renderedAt && (Date.now() - Date.parse(p.result.renderedAt) < 15 * 60000 || p._justCompleted)) {
+    e.hidden = false;
+    const sec = p.result.seconds || 0;
+    const timeStr = sec ? " (" + Math.floor(sec / 60) + ":" + String(Math.round(sec % 60)).padStart(2, "0") + ")" : "";
+    const txt = "✅ Video render complete 100%" + timeStr + " · Ready for review";
+    e.textContent = "";
+    e.append(
+      el("div", { text: txt }),
+      el("div", { class: "bar", style: "margin-top:4px" }, el("i", { style: "width:100%;background:var(--ok)" }))
+    );
+    e.style.color = "var(--ok)";
+    return;
+  }
+  e.hidden = true;
 }
 function errorBox(p) {
   if (!p || (p.status !== "failed" && !p.errorDetail)) return null;
@@ -1028,8 +1088,88 @@ function errorBox(p) {
     el("pre", { style: "margin:6px 0 0;white-space:pre-wrap;word-break:break-word;font-family:var(--mono);font-size:11px;max-height:180px;overflow:auto;", text: body })
   );
 }
+function updateActiveRenderBar() {
+  const bar = $("#active-render-bar");
+  if (!bar) return;
+  const rendering = (S.projects || []).find((p) => p.status === "rendering");
+  const waiting = (S.projects || []).find((p) => p.status === "waiting");
+  const completed = (S.projects || []).find((p) => p._justCompleted && Date.now() - p._justCompleted < 120000);
+
+  if (rendering) {
+    bar.style.display = "flex";
+    bar.className = "active-render-bar rendering";
+    const g = rendering.progress || {};
+    const pctVal = g.pct != null ? Math.max(0, Math.min(100, Math.round(g.pct))) : 0;
+    const stepTxt = g.step ? `${g.step} (${pctVal}%)` : `Starting render (${pctVal}%)`;
+    bar.textContent = "";
+    bar.append(
+      el("div", { class: "render-bar-info" },
+        el("span", { class: "dot on", style: "display:inline-block;margin-right:6px;" }),
+        el("strong", { text: "Rendering: " }),
+        el("span", { text: rendering.title || rendering.id, style: "font-weight:600;margin-right:8px;" }),
+        el("span", { class: "pill warn", text: stepTxt }),
+        g.at ? el("span", { class: "note", style: "margin-left:8px;", text: "updated " + ago(g.at) + " ago" }) : null
+      ),
+      el("div", { class: "bar", style: "flex:1;min-width:140px;max-width:320px;height:8px;" }, el("i", { style: "width:" + pctVal + "%;background:var(--gold);" })),
+      el("div", { class: "row", style: "gap:6px;" },
+        el("button", { class: "btn", type: "button", text: "View", onclick: () => { S.cur = rendering; S.view = "write"; render(); } }),
+        stopButton(rendering, "banner-stop-btn")
+      )
+    );
+    return;
+  }
+
+  if (waiting) {
+    bar.style.display = "flex";
+    bar.className = "active-render-bar waiting";
+    const qn = queueNote(waiting);
+    bar.textContent = "";
+    bar.append(
+      el("div", { class: "render-bar-info" },
+        el("span", { style: "margin-right:6px;" }, "⏳"),
+        el("strong", { text: "Waiting to Render: " }),
+        el("span", { text: waiting.title || waiting.id, style: "font-weight:600;margin-right:8px;" }),
+        qn ? el("span", { class: "pill", text: qn }) : null,
+        el("span", { class: "note", style: "margin-left:8px;", text: waiting.note || (GH() || waiting.renderOn === "pc" ? "Run render-pc.cmd on your PC" : "Queued") })
+      ),
+      el("div", { class: "row", style: "gap:6px;" },
+        el("button", { class: "btn", type: "button", text: "View", onclick: () => { S.cur = waiting; S.view = "write"; render(); } }),
+        stopButton(waiting, "banner-stop-btn")
+      )
+    );
+    return;
+  }
+
+  if (completed) {
+    bar.style.display = "flex";
+    bar.className = "active-render-bar complete";
+    bar.textContent = "";
+    bar.append(
+      el("div", { class: "render-bar-info" },
+        el("span", { style: "margin-right:6px;" }, "✅"),
+        el("strong", { text: "Render Complete! " }),
+        el("span", { text: completed.title || completed.id, style: "font-weight:600;margin-right:8px;" }),
+        el("span", { class: "pill ok", text: "Ready for review" })
+      ),
+      el("div", { class: "row", style: "gap:6px;" },
+        el("button", { class: "btn primary", type: "button", text: "Watch & Review", onclick: () => { completed._justCompleted = null; S.cur = completed; S.view = "write"; render(); } }),
+        el("button", { class: "btn", type: "button", text: "Dismiss", onclick: () => { completed._justCompleted = null; updateActiveRenderBar(); } })
+      )
+    );
+    return;
+  }
+
+  bar.style.display = "none";
+  bar.textContent = "";
+}
 const progressLine = (p, id = "progress-line") => { const e = el("div", { class: "note", id: id || null, "data-progress": p.id, "aria-live": "polite" }); paintProgress(e, p); return e; };
-setInterval(() => document.querySelectorAll("[data-progress]").forEach((e) => { const p = S.projects.find((x) => x.id === e.dataset.progress); if (p) paintProgress(e, p); }), 15000);
+setInterval(() => {
+  document.querySelectorAll("[data-progress]").forEach((e) => {
+    const p = S.projects.find((x) => x.id === e.dataset.progress);
+    if (p) paintProgress(e, p);
+  });
+  updateActiveRenderBar();
+}, 3000);
 // what a project needs before it can be rendered (the same two rules as the Render step), and how the PC queue runs: the video rendering
 // now first, then rushed ones, then by when each was asked for (tools/docu.mjs next)
 const voiceReady = (p) => !!(p.narration && (p.narration.kind === "clone" || p.narration.kind === "ai-stock" || p.narration.kind === "kokoro" || p.narration.kind === "elevenlabs" || (p.narration.parts && p.narration.parts.length)));
@@ -1154,7 +1294,23 @@ function saveDraft(data) {
   if (!db) say("Sign in to Claude to save projects.");
   if (db) {
     db.collection("reels").onSnapshot((snap) => { S.reels = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.view === "projects" && !S.cur) render(); }, () => {});
-    db.collection("projects").onSnapshot((snap) => { S.projects = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("projects").onSnapshot((snap) => {
+      const prev = S._prevStatuses || {};
+      const newProjects = snap.docs.map((d) => {
+        const item = { id: d.id, ...d.data() };
+        const oldSt = prev[d.id];
+        if (oldSt && (oldSt === "rendering" || oldSt === "waiting") && item.status === "review") {
+          item._justCompleted = Date.now();
+          say(`✅ Render complete: "${item.title || d.id}" is ready for your review!`);
+        }
+        prev[d.id] = item.status;
+        return item;
+      }).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
+      S._prevStatuses = prev;
+      S.projects = newProjects;
+      if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur;
+      if (!shouldSkipRenderOnSnapshot()) render();
+    }, () => {});
     db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if ((S.view === "music" || S.cur) && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("trendgames").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trendGames = snap.docs[0] ? snap.docs[0].data() : null; if (S.view === "gamereview" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
@@ -1233,6 +1389,7 @@ function render() {
     S.view === "tools" ? viewTools() :
     viewProjects()
   );
+  updateActiveRenderBar();
 }
 
 function viewTrends() {
@@ -1831,7 +1988,7 @@ function projectEditor(p) {
           onclick: () => save(p, { status: "waiting", stopRequested: null, rush: true, renderOn: "pc", note: "Preparing for your PC", requestedAt: new Date().toISOString() }).then(() => { say("The next cloud worker run prepares the voice and photos, then this video is ready for your PC."); render(); }) }),
         stopButton(p),
         p.note ? el("span", { class: "note", text: p.note }) : null),
-      GH() ? progressLine(p) : null,
+      progressLine(p),
       errorBox(p),
       p.status === "pc" ? pcBox(p) : null)),
     el("div", { class: "step" + (["approved", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Watch it, change the music if you like, approve" }), resultBox(p))),
@@ -2345,6 +2502,14 @@ function resultBox(p) {
     r.release ? el("div", { class: "row" },
       el("a", { class: "btn primary", href: `https://github.com/${window.claude.repo || "mboylesm-wq/pnoychess-docu"}/releases/tag/${encodeURIComponent(r.release.tag)}`, target: "_blank", rel: "noopener", text: "Watch or download on GitHub" }),
       r.pcFile ? el("span", { class: "note", text: "On your PC: " + r.pcFile }) : null) : null,
+    ["waiting", "rendering"].includes(p.status) ? el("div", { class: "panel", style: "border:2px solid var(--gold);background:rgba(245,158,11,0.08);padding:14px;display:grid;gap:8px" },
+      el("div", { class: "row", style: "justify-content:space-between;align-items:center" },
+        el("h3", { style: "margin:0", text: p.status === "rendering" ? "⚙️ Video is rendering..." : "⏳ Re-render in queue" }),
+        stopButton(p, "result-stop-btn")
+      ),
+      progressLine(p, "result-progress-line"),
+      el("div", { class: "note", text: p.status === "waiting" ? (GH() ? "Double-click render-pc.cmd in C:\\PnoyChess\\docu if your PC is not already running." : "Queued: the worker will pick this up.") : "Your PC is currently rendering this video. Progress updates automatically." })
+    ) : null,
     ["review", "approved"].includes(p.status) ? reviewControls(p) : null,
     el("div", { class: "row" },
       !hasParts ? null : el("button", { class: "btn", type: "button", text: "Watch preview", onclick: async () => { try { say("Loading preview…"); const b = await joined(r.previewParts, "video/mp4"); vid.textContent = ""; vid.append(el("video", { src: URL.createObjectURL(b), controls: true, playsinline: true })); say(""); } catch (e) { say("Preview failed: " + e.message); } } }),
@@ -3683,7 +3848,10 @@ function viewReview() {
               el("span", { class: "pill", style: "font-weight:700;font-size:11px;background:var(--border);color:var(--gold);", text: it.dateLabel + " " + (s.time || it.slotKey) }),
               s.category ? el("span", { class: "note", style: "font-size:11px;", text: s.category }) : null
             ),
-            el("span", { class: "pill " + statusTone, style: "font-size:11px;", text: isApproved ? "Approved" : isVetoed ? "Vetoed" : "Needs Review" })
+            el("div", { class: "row", style: "gap:4px;" },
+              s.reRender ? el("span", { class: "pill warn", style: "font-size:10px;", text: "⟳ Re-render" }) : null,
+              el("span", { class: "pill " + statusTone, style: "font-size:11px;", text: isApproved ? "Approved" : isVetoed ? "Vetoed" : "Needs Review" })
+            )
           ),
           el("div", { style: "font-weight:600;font-size:13px;color:var(--text);line-height:1.3;", text: s.title || "Lesson" }),
           el("div", { class: "row", style: "justify-content:space-between;align-items:center;margin-top:4px;" },
@@ -3713,6 +3881,21 @@ function viewReview() {
                   try {
                     await files.saveJson("chess/publisher/days/" + it.date + ".json", it.doc, "studio: veto " + it.slotKey);
                     say("Slot " + (s.time || it.slotKey) + " vetoed.");
+                    render();
+                  } catch (e) { say("Could not save: " + (e.message || e)); }
+                }
+              }),
+              el("button", {
+                class: "btn" + (s.reRender ? " warn" : ""),
+                type: "button",
+                style: "font-size:10px;padding:3px 8px;" + (s.reRender ? "border-color:var(--amber);color:var(--amber);" : ""),
+                text: s.reRender ? "⟳ Queued" : "⟳ Re-render",
+                title: "Queue this reel to be re-rendered on PC",
+                onclick: async () => {
+                  s.reRender = !s.reRender;
+                  try {
+                    await files.saveJson("chess/publisher/days/" + it.date + ".json", it.doc, "studio: toggle rerender " + it.slotKey);
+                    say("Slot " + (s.time || it.slotKey) + (s.reRender ? " queued for re-render ⟳" : " removed from re-render"));
                     render();
                   } catch (e) { say("Could not save: " + (e.message || e)); }
                 }
