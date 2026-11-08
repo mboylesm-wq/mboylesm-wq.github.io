@@ -1099,6 +1099,326 @@
         align-items: flex-start;
       }
     }
+  
+    /* --- Games for Reels & Collections View --- */
+    .gfr-container {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+    .gfr-hero-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 24px;
+      position: relative;
+      overflow: hidden;
+      box-shadow: var(--shadow-sm);
+    }
+    .gfr-hero-card::before {
+      content: "";
+      position: absolute;
+      top: 0; left: 0; right: 0; height: 3px;
+      background: linear-gradient(90deg, var(--gold), var(--emerald), var(--cyan), var(--gold));
+    }
+    .gfr-hero-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+      flex-wrap: wrap;
+      margin-bottom: 14px;
+    }
+    .gfr-title-box h2 {
+      font-family: var(--font-brand);
+      font-size: 22px;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+    }
+    .gfr-title-box p {
+      color: var(--text-muted);
+      font-size: 13.5px;
+      line-height: 1.5;
+      max-width: 780px;
+    }
+    .gfr-stats-pills {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .gfr-stat-badge {
+      font-size: 11.5px;
+      font-weight: 600;
+      padding: 4px 10px;
+      border-radius: var(--radius-sm);
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      color: var(--gold-light);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .gfr-mode-nav {
+      display: flex;
+      gap: 8px;
+      margin-top: 14px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 12px;
+      flex-wrap: wrap;
+    }
+    .gfr-mode-btn {
+      padding: 8px 16px;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+      background: var(--surface-card);
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .gfr-mode-btn:hover {
+      color: var(--text);
+      border-color: var(--gold);
+    }
+    .gfr-mode-btn.active {
+      background: var(--gold-glow);
+      border-color: var(--gold);
+      color: var(--gold-light);
+    }
+
+    /* Filter & Batch Toolbar */
+    .gfr-toolbar {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .gfr-toolbar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      flex: 1;
+      min-width: 280px;
+    }
+    .gfr-select {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      cursor: pointer;
+      max-width: 320px;
+      font-family: inherit;
+    }
+    .gfr-search-input {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 13px;
+      flex: 1;
+      min-width: 200px;
+      font-family: inherit;
+    }
+    .gfr-search-input:focus, .gfr-select:focus {
+      outline: none;
+      border-color: var(--gold);
+    }
+    .gfr-toolbar-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .gfr-counter-badge {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    /* Game Cards Grid */
+    .gfr-games-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 14px;
+    }
+    .gfr-game-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      transition: border-color 0.15s, transform 0.15s;
+      position: relative;
+    }
+    .gfr-game-card:hover {
+      border-color: var(--border-focus);
+      transform: translateY(-2px);
+    }
+    .gfr-game-card.is-selected {
+      border-color: var(--gold);
+      background: rgba(212, 175, 55, 0.05);
+    }
+    .gfr-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .gfr-pack-pill {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gold);
+      background: rgba(212, 175, 55, 0.1);
+      border: 1px solid rgba(212, 175, 55, 0.25);
+      border-radius: 4px;
+      padding: 1px 6px;
+    }
+    .gfr-game-title {
+      font-family: var(--font-brand);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 4px;
+      line-height: 1.3;
+    }
+    .gfr-matchup {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .gfr-result-pill {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      background: var(--surface-elevated);
+      color: var(--text);
+      border: 1px solid var(--border-subtle);
+    }
+    .gfr-hook-box {
+      font-size: 12px;
+      font-style: italic;
+      color: var(--text-muted);
+      background: rgba(0,0,0,0.25);
+      border-left: 2px solid var(--gold);
+      padding: 6px 10px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+    [data-theme="light"] .gfr-hook-box {
+      background: rgba(0,0,0,0.04);
+    }
+    .gfr-card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 11.5px;
+      color: var(--text-faint);
+      margin-bottom: 12px;
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 8px;
+    }
+    .gfr-card-actions {
+      display: flex;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    /* Study Catalog Grid */
+    .gfr-catalog-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+      gap: 16px;
+    }
+    .gfr-catalog-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 18px 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 14px;
+    }
+    .gfr-catalog-card:hover {
+      border-color: var(--gold);
+    }
+    .gfr-catalog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    .gfr-catalog-name {
+      font-family: var(--font-brand);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+    }
+    .gfr-catalog-author {
+      font-size: 12px;
+      color: var(--gold-light);
+      margin-top: 2px;
+    }
+    .gfr-catalog-desc {
+      font-size: 12.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
+    .gfr-catalog-tags {
+      display: flex;
+      gap: 4px;
+      flex-wrap: wrap;
+    }
+    .gfr-tag-pill {
+      font-size: 10.5px;
+      padding: 1px 6px;
+      border-radius: 3px;
+      background: var(--surface-elevated);
+      color: var(--text-faint);
+      border: 1px solid var(--border-subtle);
+    }
+    .gfr-catalog-path {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: #080a09;
+      padding: 5px 8px;
+      border-radius: var(--radius-sm);
+      color: var(--text-muted);
+      border: 1px solid var(--border-subtle);
+      word-break: break-all;
+    }
+    [data-theme="light"] .gfr-catalog-path {
+      background: #f0ece1;
+      color: #1d211f;
+    }
+
   </style>
 </head>
 <body>
@@ -1118,7 +1438,7 @@
           <button type="button" class="nav-btn active" data-tab="inbox">🎬 Inbox Lineup</button>
           <button type="button" class="nav-btn" data-tab="tiktok">🎵 TikTok Approvals</button>
           <button type="button" class="nav-btn" data-tab="posted">📊 Posted Matrix</button>
-          <button type="button" class="nav-btn" data-tab="upcoming">📅 90-Day Queue</button>
+          <button type="button" class="nav-btn" data-tab="upcoming" id="navBtnGames">♟️ Games for Reels</button>
         </nav>
         <button type="button" class="btn-icon" id="themeToggle" title="Toggle theme">🌓</button>
         <button type="button" class="btn-icon" id="keyConfigBtn" title="GitHub Access Key">🔑</button>
@@ -1471,6 +1791,163 @@
           }
         }
       }
+    };
+
+    
+    // Master Study Collections Catalog
+    const STUDY_CATALOG = [
+  {
+    "id": "moves-ahead",
+    "name": "Moves Ahead 1: Vision in Calculating Mate",
+    "filename": "moves-ahead.pgn",
+    "author": "AlanB",
+    "category": "calculation",
+    "itemCount": 101,
+    "description": "Calculation and visualization trainer featuring checkmate variations from master games (2300+ FIDE) with explicit candidate moves.",
+    "tags": [
+      "calculation",
+      "candidate-moves",
+      "visualization",
+      "checkmate"
+    ]
+  },
+  {
+    "id": "checkmate-patterns",
+    "name": "The Checkmate Patterns Manual",
+    "filename": "checkmate-patterns.pgn",
+    "author": "CraftyRaf & IM John Bartholomew",
+    "category": "checkmates",
+    "itemCount": 1000,
+    "description": "Comprehensive reference of 30 classic mating motifs (Anastasia, Boden, Epaulette, Arabian, Damiano, Greco, Morphy, etc.) across 1,000 positions.",
+    "tags": [
+      "mating-patterns",
+      "motifs",
+      "shorts",
+      "tactics",
+      "bartholomew"
+    ]
+  },
+  {
+    "id": "woodpecker",
+    "name": "The Woodpecker Method",
+    "filename": "woodpecker.pgn",
+    "author": "GM Axel Smith & GM Hans Tikkanen",
+    "category": "tactics",
+    "itemCount": 1128,
+    "description": "Celebrated tactical training system with 1,128 exercises from World Champion games arranged in Easy, Intermediate, and Advanced tiers.",
+    "tags": [
+      "tactics",
+      "world-champions",
+      "woodpecker",
+      "intermediate",
+      "advanced"
+    ]
+  },
+  {
+    "id": "1001-checkmates",
+    "name": "1001 Brilliant Checkmates",
+    "filename": "1001-checkmates.pgn",
+    "author": "Fred Reinfeld",
+    "category": "checkmates",
+    "itemCount": 995,
+    "description": "Timeless classical collection of 995 forced checkmates and attacking combinations ideal for quick tactical puzzle Shorts.",
+    "tags": [
+      "checkmate",
+      "classics",
+      "reinfeld",
+      "tactics",
+      "shorts"
+    ]
+  },
+  {
+    "id": "dvoretsky-endgame",
+    "name": "Dvoretsky's Endgame Manual",
+    "filename": "dvoretsky-endgame.pgn",
+    "author": "Mark Dvoretsky",
+    "category": "endgames",
+    "itemCount": 228,
+    "description": "The definitive modern manual on practical endgames and precise pawn, rook, and piece theoretical positions.",
+    "tags": [
+      "endgames",
+      "masterclass",
+      "dvoretsky",
+      "technique"
+    ]
+  },
+  {
+    "id": "endgame-studies-1234",
+    "name": "1234 Modern End-Game Studies",
+    "filename": "endgame-studies-1234.pgn",
+    "author": "Modern Endgame Composers",
+    "category": "endgames",
+    "itemCount": 1258,
+    "description": "Extensive library of 1,258 composed endgame studies demonstrating exceptional geometry, zugzwang, and fortress ideas.",
+    "tags": [
+      "endgames",
+      "studies",
+      "zugzwang",
+      "geometry"
+    ]
+  },
+  {
+    "id": "fischer-tactics",
+    "name": "Bobby Fischer: Tactics & Reversing Method",
+    "filename": "fischer-tactics.pgn",
+    "author": "AlanB / Bobby Fischer",
+    "category": "player-tactics",
+    "itemCount": 1552,
+    "description": "Extensive study of Bobby Fischer's aggressive tactical combinations, setup moves, and punishing refutations.",
+    "tags": [
+      "fischer",
+      "tactics",
+      "legends",
+      "world-champions"
+    ]
+  },
+  {
+    "id": "polgar-5334",
+    "name": "Chess: 5334 Problems, Combinations and Games",
+    "filename": "polgar-5334.pgn",
+    "author": "Laszlo Polgar",
+    "category": "tactics",
+    "itemCount": 4747,
+    "description": "The monumental puzzle compendium by Laszlo Polgar covering mates in 1, 2, 3, and tactical combinations.",
+    "tags": [
+      "polgar",
+      "tactics",
+      "mate-in-1",
+      "mate-in-2",
+      "shorts"
+    ]
+  },
+  {
+    "id": "khenkin-mating-combinations",
+    "name": "1000 Mating Combinations",
+    "filename": "khenkin-mating-combinations.pgn",
+    "author": "Victor Khenkin",
+    "category": "checkmates",
+    "itemCount": 1245,
+    "description": "Systematic breakdown of checkmating geometry, piece coordination, and attacking breakthroughs.",
+    "tags": [
+      "checkmates",
+      "combinations",
+      "geometry",
+      "tactics"
+    ]
+  }
+];
+
+    // 90-Day Production Reel Queue (273 Curated Games)
+    const EMBEDDED_QUEUE_REELS = [{"date":"2026-10-23","time":"12:00","slot":"Puzzle or short","id":"newyork1889-chigorin-bird","cut":"puzzle","seconds":29.8,"title":"Chigorin's King Hunt","white":"Mikhail Chigorin","black":"Henry Edward Bird","year":1889,"result":"1-0","pack":"New York 1889","score":188,"hook":"A rook sacrifice starts a mating hunt"},{"date":"2026-10-23","time":"17:00","slot":"Highlight","id":"gruenfeld-alekhine-1923","cut":"highlight","seconds":28.9,"title":"The Hidden Rook Sacrifice","white":"Ernst Gruenfeld","black":"Alexander Alekhine","year":1923,"result":"0-1","pack":null,"score":206,"hook":"White never saw the hidden point."},{"date":"2026-10-23","time":"20:00","slot":"Best full game","id":"pillsbury-lasker-1896","cut":"full","seconds":87.4,"title":"Two Rooks on a3","white":"Harry Nelson Pillsbury","black":"Emanuel Lasker","year":1896,"result":"0-1","pack":null,"score":217,"hook":"Two rooks sacrificed on the same square"},{"date":"2026-10-24","time":"12:00","slot":"Puzzle of the Day","id":"pod-4pxqh","cut":"puzzle","seconds":32.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1577},{"date":"2026-10-24","time":"17:00","slot":"Highlight","id":"kasparov-karpov-1990-g20","cut":"highlight","seconds":37,"title":"Kasparov's Queen Sacrifice, Lyon","white":"Garry Kasparov","black":"Anatoly Karpov","year":1990,"result":"1-0","pack":null,"score":187,"hook":"Ljubojević called it the game of the century"},{"date":"2026-10-24","time":"20:00","slot":"Best full game","id":"newyork1889-blackburne-lipschuetz","cut":"full","seconds":87.1,"title":"A Magnificent Surprise","white":"Joseph Henry Blackburne","black":"Samuel Lipschuetz","year":1889,"result":"1-0","pack":"New York 1889","score":191,"hook":"Rook sacrifice ends a quiet game"},{"date":"2026-10-25","time":"12:00","slot":"Puzzle or short","id":"newyork1889-chigorin-gossip","cut":"puzzle","seconds":28.5,"title":"Ponziani Miniature","white":"Mikhail Chigorin","black":"George Hatfeild Gossip","year":1889,"result":"1-0","pack":"New York 1889","score":176,"hook":"Black blunders into a double check"},{"date":"2026-10-25","time":"17:00","slot":"Highlight","id":"selezniev-alekhine-1921","cut":"highlight","seconds":37,"title":"The Long Triberg Grind","white":"Alexey Sergeevich Selezniev","black":"Alexander Alekhine","year":1921,"result":"0-1","pack":null,"score":180,"hook":"An exchange sacrifice that pays off slowly"},{"date":"2026-10-25","time":"20:00","slot":"Best full game","id":"hastings1895-pillsbury-tarrasch","cut":"full","seconds":88,"title":"Pillsbury's Kingside Storm","white":"Harry Nelson Pillsbury","black":"Siegbert Tarrasch","year":1895,"result":"1-0","pack":"Hastings 1895","score":187,"hook":"Tarrasch's pawns run. Pillsbury goes for mate."},{"date":"2026-10-26","time":"12:00","slot":"Puzzle of the Day","id":"pod-ctqav","cut":"puzzle","seconds":30.3,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1801},{"date":"2026-10-26","time":"17:00","slot":"Highlight","id":"capablanca-corzo-1901","cut":"highlight","seconds":42.6,"title":"The Boy's Queen Sacrifice","white":"Capablanca","black":"Corzo","year":1901,"result":"1-0","pack":null,"score":174,"hook":"A twelve-year-old sacrifices his queen."},{"date":"2026-10-26","time":"20:00","slot":"Best full game","id":"hastings1895-lasker-steinitz","cut":"full","seconds":88,"title":"Lasker Breaks Steinitz's Fortress","white":"Emanuel Lasker","black":"William Steinitz","year":1895,"result":"1-0","pack":"Hastings 1895","score":186,"hook":"Steinitz retreats everything. Lasker strikes."},{"date":"2026-10-27","time":"12:00","slot":"Puzzle or short","id":"newyork1889-weiss-pollock","cut":"puzzle","seconds":27.6,"title":"Pollock's Queen Sacrifice","white":"Miksa Weiss","black":"William Henry Kraus Pollock","year":1889,"result":"0-1","pack":"New York 1889","score":166,"hook":"A queen sacrificed for a mating net"},{"date":"2026-10-27","time":"17:00","slot":"Highlight","id":"london1851-kennedy-mucklow-2","cut":"highlight","seconds":31.6,"title":"Kennedy's Forced Mate","white":"Hugh Alexander Kennedy","black":"Mucklow","year":1851,"result":"1-0","pack":"London 1851","score":168,"hook":"A rook sacrifice forces mate"},{"date":"2026-10-27","time":"20:00","slot":"Best full game","id":"larsen-spassky-1970","cut":"full","seconds":63.7,"title":"Spassky's 17-Move Win","white":"Bent Larsen","black":"Boris Spassky","year":1970,"result":"0-1","pack":null,"score":155,"hook":"Larsen lasts only 17 moves"},{"date":"2026-10-28","time":"12:00","slot":"Puzzle of the Day","id":"pod-twxgq","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1428},{"date":"2026-10-28","time":"17:00","slot":"Highlight","id":"hastings1895-janowsky-pillsbury","cut":"highlight","seconds":36.4,"title":"Pillsbury's Queen Sacrifice","white":"Dawid Markelowicz Janowsky","black":"Harry Nelson Pillsbury","year":1895,"result":"0-1","pack":"Hastings 1895","score":165,"hook":"Pillsbury gives his queen, then hunts."},{"date":"2026-10-28","time":"20:00","slot":"Best full game","id":"torres-alekhine-1922","cut":"full","seconds":88,"title":"Seville Queen Sacrifice","white":"Antonio J Torres","black":"Alexander Alekhine","year":1922,"result":"0-1","pack":null,"score":174,"hook":"A hidden bishop ends it with mate"},{"date":"2026-10-29","time":"12:00","slot":"Puzzle or short","id":"reti-tartakower-1910","cut":"puzzle","seconds":31.3,"title":"Réti's Queen Sacrifice","white":"Richard Réti","black":"Savielly Tartakower","year":1910,"result":"1-0","pack":null,"score":150,"hook":"A queen sacrifice and mate in eleven"},{"date":"2026-10-29","time":"17:00","slot":"Highlight","id":"london1851-jaenisch-staunton-3","cut":"highlight","seconds":35.5,"title":"Staunton's Fatal Error","white":"Carl Jaenisch","black":"Howard Staunton","year":1851,"result":"1-0","pack":"London 1851","score":162,"hook":"Staunton's one slip decides it"},{"date":"2026-10-29","time":"20:00","slot":"Best full game","id":"newyork1889-macleod-pollock","cut":"full","seconds":84.6,"title":"Pollock Mates MacLeod","white":"Nicholas MacLeod","black":"William Henry Kraus Pollock","year":1889,"result":"0-1","pack":"New York 1889","score":165,"hook":"Black announces mate in nine"},{"date":"2026-10-30","time":"12:00","slot":"Puzzle of the Day","id":"pod-wcvnh","cut":"puzzle","seconds":29.6,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1804},{"date":"2026-10-30","time":"17:00","slot":"Highlight","id":"hastings1895-marco-tarrasch","cut":"highlight","seconds":24.1,"title":"Tarrasch Announces Mate","white":"Georg Marco","black":"Siegbert Tarrasch","year":1895,"result":"0-1","pack":"Hastings 1895","score":159,"hook":"Tarrasch announces mate in five"},{"date":"2026-10-30","time":"20:00","slot":"Best full game","id":"newyork1889-chigorin-lipschuetz","cut":"full","seconds":87.1,"title":"Hungarian Defence Squeezed","white":"Mikhail Chigorin","black":"Samuel Lipschuetz","year":1889,"result":"1-0","pack":"New York 1889","score":162,"hook":"Knight sacrifice wins the g6 knight"},{"date":"2026-10-31","time":"12:00","slot":"Puzzle or short","id":"london1851-deacon-gilby","cut":"puzzle","seconds":26.2,"title":"Deacon Throws It Away","white":"Frederic Deacon","black":"Gilby","year":1851,"result":"0-1","pack":"London 1851","score":145,"hook":"Deacon refines too much and loses"},{"date":"2026-10-31","time":"17:00","slot":"Highlight","id":"newyork1889-pollock-baird-3","cut":"highlight","seconds":28.7,"title":"Pollock's Evans Gambit Mate","white":"William Henry Kraus Pollock","black":"John Washington Baird","year":1889,"result":"1-0","pack":"New York 1889","score":158,"hook":"An Evans Gambit innovation ends in mate"},{"date":"2026-10-31","time":"20:00","slot":"Best full game","id":"bogoljubow-alekhine-1922","cut":"full","seconds":87.3,"title":"Alekhine's Pawn Becomes a Queen","white":"Efim Bogoljubow","black":"Alexander Alekhine","year":1922,"result":"0-1","pack":null,"score":159,"hook":"Alekhine gives up his queen for a pawn"},{"date":"2026-11-01","time":"12:00","slot":"Puzzle of the Day","id":"pod-viyje","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1650},{"date":"2026-11-01","time":"17:00","slot":"Highlight","id":"london1851-anderssen-staunton-3","cut":"highlight","seconds":18.7,"title":"Staunton's Queen Raid Backfires","white":"Adolf Anderssen","black":"Howard Staunton","year":1851,"result":"1-0","pack":"London 1851","score":154,"hook":"Staunton grabs a pawn and pays"},{"date":"2026-11-01","time":"20:00","slot":"Best full game","id":"newyork1889-martinez-pollock-2","cut":"full","seconds":87,"title":"Greco Counter-Gambit Mate","white":"Dion M. Martinez","black":"William Henry Kraus Pollock","year":1889,"result":"1-0","pack":"New York 1889","score":158,"hook":"Queens off, yet a mating net"},{"date":"2026-11-02","time":"12:00","slot":"Puzzle or short","id":"london1851-gilby-deacon","cut":"puzzle","seconds":26.2,"title":"Evans Gambit Mate","white":"Gilby","black":"Frederic Deacon","year":1851,"result":"0-1","pack":"London 1851","score":133,"hook":"Gilby gets a capital attack, loses it"},{"date":"2026-11-02","time":"17:00","slot":"Highlight","id":"newyork1889-blackburne-macleod","cut":"highlight","seconds":26.8,"title":"Danish Gambit Upset","white":"Joseph Henry Blackburne","black":"Nicholas MacLeod","year":1889,"result":"0-1","pack":"New York 1889","score":152,"hook":"Blackburne's gambit falls to a young player"},{"date":"2026-11-02","time":"20:00","slot":"Best full game","id":"steinitz-lasker-1894-g4","cut":"full","seconds":88,"title":"The Rook Ending Swings","white":"Wilhelm Steinitz","black":"Emanuel Lasker","year":1894,"result":"1-0","pack":null,"score":152,"hook":"A rook ending that swung twice"},{"date":"2026-11-03","time":"12:00","slot":"Puzzle of the Day","id":"pod-r8eqi","cut":"puzzle","seconds":28,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 3. Can you see it?","pod":true,"rating":1968},{"date":"2026-11-03","time":"17:00","slot":"Highlight","id":"karpov-kasparov-1985-g16","cut":"highlight","seconds":38.5,"title":"Kasparov's Octopus Knight","white":"Anatoly Karpov","black":"Garry Kasparov","year":1985,"result":"0-1","pack":null,"score":148,"hook":"One knight paralyses the champion"},{"date":"2026-11-03","time":"20:00","slot":"Best full game","id":"tarrasch-alekhine-1922","cut":"full","seconds":88,"title":"Blumenfeld Gambit Brilliancy","white":"Siegbert Tarrasch","black":"Alexander Alekhine","year":1922,"result":"0-1","pack":null,"score":152,"hook":"Tarrasch takes a pawn and pays"},{"date":"2026-11-04","time":"12:00","slot":"Puzzle or short","id":"tylkowski-wojciechowski-1931","cut":"puzzle","seconds":22.9,"title":"Pawns Beat the Rook","white":"Tylkowski","black":"Antoni Wojciechowski","year":1931,"result":"0-1","pack":null,"score":131,"hook":"Two pawns outrun a rook"},{"date":"2026-11-04","time":"17:00","slot":"Highlight","id":"london1851-staunton-williams-7","cut":"highlight","seconds":47.2,"title":"Staunton's Knight Coup","white":"Howard Staunton","black":"Elijah Williams","year":1851,"result":"1-0","pack":"London 1851","score":148,"hook":"Knight sacrifice and a coup in reserve"},{"date":"2026-11-04","time":"20:00","slot":"Best full game","id":"sundin-andersson-1964","cut":"full","seconds":87.3,"title":"The Correspondence Immortal","white":"Karl Arvid Sundin","black":"Erik Andersson","year":1964,"result":"1-0","pack":null,"score":139,"hook":"He resigned with two extra queens"},{"date":"2026-11-05","time":"12:00","slot":"Puzzle of the Day","id":"pod-agmjw","cut":"puzzle","seconds":29.6,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1497},{"date":"2026-11-05","time":"17:00","slot":"Highlight","id":"newyork1889-showalter-gossip","cut":"highlight","seconds":31.7,"title":"Gossip's Brilliant Sacrifice","white":"Jackson Whipps Showalter","black":"George Hatfeild Gossip","year":1889,"result":"0-1","pack":"New York 1889","score":147,"hook":"Gossip's combination eight moves deep"},{"date":"2026-11-05","time":"20:00","slot":"Best full game","id":"zukertort-blackburne-1883","cut":"full","seconds":88,"title":"Zukertort's Immortal","white":"Johannes Zukertort","black":"Joseph Henry Blackburne","year":1883,"result":"1-0","pack":null,"score":147,"hook":"Steinitz called it one of the greatest combinations"},{"date":"2026-11-06","time":"12:00","slot":"Puzzle or short","id":"hastings1895-tarrasch-lasker","cut":"puzzle","seconds":26.5,"title":"Lasker Misses the Win","white":"Siegbert Tarrasch","black":"Emanuel Lasker","year":1895,"result":"1-0","pack":"Hastings 1895","score":120,"hook":"Lasker misses a win in the ending"},{"date":"2026-11-06","time":"17:00","slot":"Highlight","id":"newyork1889-mason-baird","cut":"highlight","seconds":32.3,"title":"Mason's Beautiful Finish","white":"James Mason","black":"David Graham Baird","year":1889,"result":"1-0","pack":"New York 1889","score":145,"hook":"Steinitz: a very beautiful ending"},{"date":"2026-11-06","time":"20:00","slot":"Best full game","id":"alekhine-saemisch-1923","cut":"full","seconds":76.5,"title":"Pawn Beats Queen","white":"Alexander Alekhine","black":"Fritz Saemisch","year":1923,"result":"1-0","pack":null,"score":147,"hook":"A pawn stronger than a queen"},{"date":"2026-11-07","time":"12:00","slot":"Puzzle of the Day","id":"pod-3imyv","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1874},{"date":"2026-11-07","time":"17:00","slot":"Highlight","id":"newyork1889-taubenhaus-martinez","cut":"highlight","seconds":44.4,"title":"Black's Gambit Counterattack","white":"Jean Taubenhaus","black":"Dion M. Martinez","year":1889,"result":"0-1","pack":"New York 1889","score":140,"hook":"A blunder hands Black the attack"},{"date":"2026-11-07","time":"20:00","slot":"Best full game","id":"hastings1895-burn-teichmann","cut":"full","seconds":88,"title":"Teichmann's Elegant Mating Net","white":"Amos Burn","black":"Richard Teichmann","year":1895,"result":"0-1","pack":"Hastings 1895","score":142,"hook":"Black announces mate in four moves"},{"date":"2026-11-08","time":"12:00","slot":"Puzzle or short","id":"newyork1889-baird-chigorin-2","cut":"puzzle","seconds":30.7,"title":"Chigorin Strikes Back","white":"John Washington Baird","black":"Mikhail Chigorin","year":1889,"result":"0-1","pack":"New York 1889","score":130,"hook":"Black gives a pawn and keeps attacking"},{"date":"2026-11-08","time":"17:00","slot":"Highlight","id":"zukertort-steinitz-1886-g7","cut":"highlight","seconds":33.5,"title":"Steinitz Hunts the d-Pawn","white":"Johannes Zukertort","black":"Wilhelm Steinitz","year":1886,"result":"0-1","pack":null,"score":145,"hook":"The first world title match, game 7"},{"date":"2026-11-08","time":"20:00","slot":"Best full game","id":"capablanca-chajes-1913","cut":"full","seconds":87.2,"title":"Knight Sacrifice on f7","white":"Capablanca","black":"Chajes","year":1913,"result":"1-0","pack":null,"score":137,"hook":"One knight sacrifice blows the king open."},{"date":"2026-11-09","time":"12:00","slot":"Puzzle of the Day","id":"pod-dphpc","cut":"puzzle","seconds":29.6,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1506},{"date":"2026-11-09","time":"17:00","slot":"Highlight","id":"hastings1895-lasker-blackburne","cut":"highlight","seconds":30.5,"title":"Blackburne Beats Lasker","white":"Emanuel Lasker","black":"Joseph Henry Blackburne","year":1895,"result":"0-1","pack":"Hastings 1895","score":142,"hook":"Blackburne topples Lasker, but missed faster wins"},{"date":"2026-11-09","time":"20:00","slot":"Best full game","id":"alekhine-wolf-1922","cut":"full","seconds":88,"title":"The Knight Promotion","white":"Alexander Alekhine","black":"Heinrich Wolf","year":1922,"result":"1-0","pack":null,"score":145,"hook":"He promoted to a knight. Why?"},{"date":"2026-11-10","time":"12:00","slot":"Puzzle or short","id":"hastings1895-pillsbury-burn","cut":"puzzle","seconds":29.5,"title":"Pillsbury's Greek Gift","white":"Harry Nelson Pillsbury","black":"Amos Burn","year":1895,"result":"1-0","pack":"Hastings 1895","score":119,"hook":"Pillsbury sacrifices a Bishop on h7"},{"date":"2026-11-10","time":"17:00","slot":"Highlight","id":"stpetersburg1909-perlis-freyman","cut":"highlight","seconds":21.5,"title":"Perlis Storms the Kingside","white":"Julius Perlis","black":"Sergey von Freymann","year":1909,"result":"0-1","pack":"St. Petersburg 1909","score":134,"hook":"Black waits too long on the queenside"},{"date":"2026-11-10","time":"20:00","slot":"Best full game","id":"newyork1889-delmar-hanham-2","cut":"full","seconds":88,"title":"Delmar's Mating Attack","white":"Eugene Delmar","black":"James Moore Hanham","year":1889,"result":"1-0","pack":"New York 1889","score":135,"hook":"Delmar mates Hanham in 25 moves"},{"date":"2026-11-11","time":"12:00","slot":"Puzzle of the Day","id":"pod-eguuk","cut":"puzzle","seconds":28.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1714},{"date":"2026-11-11","time":"17:00","slot":"Highlight","id":"hastings1895-schiffers-chigorin","cut":"highlight","seconds":41.5,"title":"Schiffers Punishes an Oversight","white":"Emanuel Stepanovich Schiffers","black":"Mikhail Chigorin","year":1895,"result":"1-0","pack":"Hastings 1895","score":134,"hook":"One slip, and Chigorin is lost."},{"date":"2026-11-11","time":"20:00","slot":"Best full game","id":"capablanca-marshall-1918","cut":"full","seconds":88,"title":"Marshall's Secret Weapon","white":"Capablanca","black":"Marshall","year":1918,"result":"1-0","pack":null,"score":134,"hook":"Marshall springs ten years of preparation."},{"date":"2026-11-12","time":"12:00","slot":"Puzzle or short","id":"london1851-lowe-deacon-2","cut":"puzzle","seconds":26.5,"title":"Löwe's Queen Sacrifice Attack","white":"Edward Löwe","black":"Frederic Deacon","year":1851,"result":"1-0","pack":"London 1851","score":116,"hook":"Queen for rook, then a mating hunt"},{"date":"2026-11-12","time":"17:00","slot":"Highlight","id":"newyork1889-blackburne-showalter","cut":"highlight","seconds":23.8,"title":"Blackburne's Brilliant Mate","white":"Joseph Henry Blackburne","black":"Jackson Whipps Showalter","year":1889,"result":"1-0","pack":"New York 1889","score":141,"hook":"A rook sac, then a king hunt"},{"date":"2026-11-12","time":"20:00","slot":"Best full game","id":"alekhine-tarrasch-1914","cut":"full","seconds":87.3,"title":"Squeezing Tarrasch","white":"Alexander Alekhine","black":"Siegbert Tarrasch","year":1914,"result":"1-0","pack":null,"score":142,"hook":"One extra pawn, then a slow squeeze."},{"date":"2026-11-13","time":"12:00","slot":"Puzzle of the Day","id":"pod-8axgi","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1414},{"date":"2026-11-13","time":"17:00","slot":"Highlight","id":"newyork1889-mason-baird-3","cut":"highlight","seconds":20.5,"title":"Mason's Mating Attack","white":"James Mason","black":"John Washington Baird","year":1889,"result":"1-0","pack":"New York 1889","score":131,"hook":"Steinitz: brilliant, profound, decisive"},{"date":"2026-11-13","time":"20:00","slot":"Best full game","id":"steinitz-lasker-1894-g2","cut":"full","seconds":88,"title":"Steinitz Strikes Back","white":"Wilhelm Steinitz","black":"Emanuel Lasker","year":1894,"result":"1-0","pack":null,"score":133,"hook":"The old champion hits back"},{"date":"2026-11-14","time":"12:00","slot":"Puzzle or short","id":"stpetersburg1909-forgacs-bernstein","cut":"puzzle","seconds":34.5,"title":"Bernstein Falls to Forgacs","white":"Leo Forgacs","black":"Ossip Bernstein","year":1909,"result":"1-0","pack":"St. Petersburg 1909","score":115,"hook":"Caro-Kann kingside play meets queenside majority"},{"date":"2026-11-14","time":"17:00","slot":"Highlight","id":"hastings1895-gunsberg-mason","cut":"highlight","seconds":31.8,"title":"Gunsberg's Attack Beats Mason","white":"Isidor Gunsberg","black":"James Mason","year":1895,"result":"1-0","pack":"Hastings 1895","score":130,"hook":"A grabbed pawn invites a strong attack"},{"date":"2026-11-14","time":"20:00","slot":"Best full game","id":"newyork1889-lipschuetz-chigorin","cut":"full","seconds":88,"title":"Lipschuetz Mates Chigorin","white":"Samuel Lipschuetz","black":"Mikhail Chigorin","year":1889,"result":"1-0","pack":"New York 1889","score":134,"hook":"Chigorin loses to a quick mate"},{"date":"2026-11-15","time":"12:00","slot":"Puzzle of the Day","id":"pod-mbfsu","cut":"puzzle","seconds":28.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1851},{"date":"2026-11-15","time":"17:00","slot":"Highlight","id":"newyork1889-gossip-hanham-2","cut":"highlight","seconds":37.8,"title":"Mate on f6","white":"George Hatfeild Gossip","black":"James Moore Hanham","year":1889,"result":"1-0","pack":"New York 1889","score":129,"hook":"A Vienna ends in checkmate"},{"date":"2026-11-15","time":"20:00","slot":"Best full game","id":"alekhine-sterk-1921","cut":"full","seconds":87.2,"title":"Bishop to f6!!","white":"Alexander Alekhine","black":"Karoly Sterk","year":1921,"result":"1-0","pack":null,"score":141,"hook":"A brilliancy prize from Budapest"},{"date":"2026-11-16","time":"12:00","slot":"Puzzle or short","id":"newyork1889-baird-burn","cut":"puzzle","seconds":31.3,"title":"Baird's Bishop Stroke","white":"David Graham Baird","black":"Amos Burn","year":1889,"result":"1-0","pack":"New York 1889","score":115,"hook":"Prepared for with two quiet moves"},{"date":"2026-11-16","time":"17:00","slot":"Highlight","id":"hastings1895-steinitz-tarrasch","cut":"highlight","seconds":24.1,"title":"Tarrasch Grinds Down Steinitz","white":"William Steinitz","black":"Siegbert Tarrasch","year":1895,"result":"0-1","pack":"Hastings 1895","score":132,"hook":"Tarrasch outplays Steinitz in a long ending"},{"date":"2026-11-16","time":"20:00","slot":"Best full game","id":"capablanca-janowsky-1911","cut":"full","seconds":87.2,"title":"Surviving Janowski's Storm","white":"Capablanca","black":"Janowski","year":1911,"result":"1-0","pack":null,"score":124,"hook":"Outplayed for 23 moves, then a masterpiece."},{"date":"2026-11-17","time":"12:00","slot":"Puzzle of the Day","id":"pod-e84xk","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1440},{"date":"2026-11-17","time":"17:00","slot":"Highlight","id":"newyork1889-chigorin-martinez-2","cut":"highlight","seconds":47.3,"title":"Chigorin Sacrifices the Exchange","white":"Mikhail Chigorin","black":"Dion M. Martinez","year":1889,"result":"1-0","pack":"New York 1889","score":127,"hook":"Rook given up to trap a knight"},{"date":"2026-11-17","time":"20:00","slot":"Best full game","id":"london1851-wyvill-anderssen-2","cut":"full","seconds":88,"title":"Anderssen Punishes Wasted Moves","white":"Marmaduke Wyvill","black":"Adolf Anderssen","year":1851,"result":"0-1","pack":"London 1851","score":129,"hook":"Wasted moves meet a crushing attack"},{"date":"2026-11-18","time":"12:00","slot":"Puzzle or short","id":"kramnik-anand-2008-g5","cut":"puzzle","seconds":28.6,"title":"The Match-Deciding Blunder","white":"Vladimir Kramnik","black":"Viswanathan Anand","year":2008,"result":"0-1","pack":null,"score":114,"hook":"One capture decides the match"},{"date":"2026-11-18","time":"17:00","slot":"Highlight","id":"newyork1889-lipschuetz-blackburne","cut":"highlight","seconds":28.4,"title":"Blackburne Overshoots","white":"Samuel Lipschuetz","black":"Joseph Henry Blackburne","year":1889,"result":"1-0","pack":"New York 1889","score":127,"hook":"Black's counter-attack costs a piece"},{"date":"2026-11-18","time":"20:00","slot":"Best full game","id":"alekhine-bogoljubow-1921","cut":"full","seconds":88,"title":"The Bishop Hammer-Blow","white":"Alexander Alekhine","black":"Efim Bogoljubow","year":1921,"result":"1-0","pack":null,"score":136,"hook":"A brilliancy prize won by one bishop."},{"date":"2026-11-19","time":"12:00","slot":"Puzzle of the Day","id":"pod-rfmoy","cut":"puzzle","seconds":28.6,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1778},{"date":"2026-11-19","time":"17:00","slot":"Highlight","id":"newyork1889-burn-baird","cut":"highlight","seconds":33.6,"title":"Baird's Endgame Masterclass","white":"Amos Burn","black":"David Graham Baird","year":1889,"result":"0-1","pack":"New York 1889","score":121,"hook":"A queen against a rook, by theory"},{"date":"2026-11-19","time":"20:00","slot":"Best full game","id":"london1851-williams-staunton-3","cut":"full","seconds":88,"title":"Williams Outlasts Staunton","white":"Elijah Williams","black":"Howard Staunton","year":1851,"result":"1-0","pack":"London 1851","score":127,"hook":"Williams wins a long, difficult ending"},{"date":"2026-11-20","time":"12:00","slot":"Puzzle or short","id":"hastings1895-teichmann-tinsley","cut":"puzzle","seconds":26.6,"title":"Teichmann Mates Tinsley","white":"Richard Teichmann","black":"Samuel Tinsley","year":1895,"result":"1-0","pack":"Hastings 1895","score":114,"hook":"Teichmann sets a trap, then mates"},{"date":"2026-11-20","time":"17:00","slot":"Highlight","id":"newyork1889-lipschuetz-gossip","cut":"highlight","seconds":42.3,"title":"Vienna Game Punished","white":"Samuel Lipschuetz","black":"George Hatfeild Gossip","year":1889,"result":"1-0","pack":"New York 1889","score":120,"hook":"Two premature moves cost Black"},{"date":"2026-11-20","time":"20:00","slot":"Best full game","id":"capablanca-raubitschek-1906","cut":"full","seconds":88,"title":"Rook Sacrifice on a7","white":"Capablanca","black":"Raubitschek","year":1906,"result":"1-0","pack":null,"score":117,"hook":"Teenage Capablanca gives a pawn, then mates."},{"date":"2026-11-21","time":"12:00","slot":"Puzzle of the Day","id":"pod-crl6w","cut":"puzzle","seconds":28.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1408},{"date":"2026-11-21","time":"17:00","slot":"Highlight","id":"newyork1889-blackburne-judd","cut":"highlight","seconds":55.5,"title":"Blackburne's Rook Lift","white":"Joseph Henry Blackburne","black":"Max Judd","year":1889,"result":"1-0","pack":"New York 1889","score":123,"hook":"A rook lift, then a sudden finish"},{"date":"2026-11-21","time":"20:00","slot":"Best full game","id":"alekhine-yates-1922","cut":"full","seconds":87.2,"title":"The King Walks In","white":"Alexander Alekhine","black":"Frederick Yates","year":1922,"result":"1-0","pack":null,"score":127,"hook":"Watch White's king lead the attack."},{"date":"2026-11-22","time":"12:00","slot":"Puzzle or short","id":"byrne-fischer-1963","cut":"puzzle","seconds":27.7,"title":"Fischer's Brilliancy, 1963","white":"Robert Byrne","black":"Bobby Fischer","year":1963,"result":"0-1","pack":null,"score":110,"hook":"Grandmasters thought Byrne was winning"},{"date":"2026-11-22","time":"17:00","slot":"Highlight","id":"newyork1889-macleod-burn","cut":"highlight","seconds":44.6,"title":"Burn Escapes the Checks","white":"Nicholas MacLeod","black":"Amos Burn","year":1889,"result":"0-1","pack":"New York 1889","score":119,"hook":"Down the exchange, still winning"},{"date":"2026-11-22","time":"20:00","slot":"Best full game","id":"london1851-anderssen-staunton","cut":"full","seconds":87.2,"title":"Anderssen's Kingside Attack","white":"Adolf Anderssen","black":"Howard Staunton","year":1851,"result":"1-0","pack":"London 1851","score":120,"hook":"White's pieces swarm, Black's stay home"},{"date":"2026-11-23","time":"12:00","slot":"Puzzle of the Day","id":"pod-yoddi","cut":"puzzle","seconds":30.2,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 3. Can you see it?","pod":true,"rating":1800},{"date":"2026-11-23","time":"17:00","slot":"Highlight","id":"stpetersburg1909-rubinstein-duschotimirsky","cut":"highlight","seconds":42.1,"title":"Rubinstein Overlooks A Combination","white":"Akiba Rubinstein","black":"Fedor Ivanovich Dus-Chotimirsky","year":1909,"result":"0-1","pack":"St. Petersburg 1909","score":116,"hook":"Rubinstein falls to a counter-combination"},{"date":"2026-11-23","time":"20:00","slot":"Best full game","id":"london1851-ranken-hodges-2","cut":"full","seconds":87.4,"title":"Ranken Survives the Attack","white":"Charles Ranken","black":"Hodges","year":1851,"result":"1-0","pack":"London 1851","score":117,"hook":"Hodges attacks but misses the win"},{"date":"2026-11-24","time":"12:00","slot":"Puzzle or short","id":"stpetersburg1909-lasker-duras","cut":"puzzle","seconds":26.9,"title":"Lasker Grinds Down Duras","white":"Emanuel Lasker","black":"Oldrich Duras","year":1909,"result":"1-0","pack":"St. Petersburg 1909","score":108,"hook":"Lasker's patient win over Duras"},{"date":"2026-11-24","time":"17:00","slot":"Highlight","id":"hastings1895-blackburne-gunsberg","cut":"highlight","seconds":35.8,"title":"Gunsberg Beats Blackburne","white":"Joseph Henry Blackburne","black":"Isidor Gunsberg","year":1895,"result":"0-1","pack":"Hastings 1895","score":116,"hook":"A quiet Knight move wrecks the attack"},{"date":"2026-11-24","time":"20:00","slot":"Best full game","id":"capablanca-alekhine-1913","cut":"full","seconds":87.3,"title":"The Quiet Bishop Trade","white":"Capablanca","black":"Alekhine","year":1913,"result":"1-0","pack":null,"score":134,"hook":"A simple-looking move that wins everything."},{"date":"2026-11-25","time":"12:00","slot":"Puzzle of the Day","id":"pod-4rus4","cut":"puzzle","seconds":29.6,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1412},{"date":"2026-11-25","time":"17:00","slot":"Highlight","id":"kramnik-topalov-2006-g10","cut":"highlight","seconds":30.5,"title":"Kramnik Levels the Match","white":"Vladimir Kramnik","black":"Veselin Topalov","year":2006,"result":"1-0","pack":null,"score":115,"hook":"One pawn, then two, then mate threats"},{"date":"2026-11-25","time":"20:00","slot":"Best full game","id":"newyork1889-delmar-baird-2","cut":"full","seconds":88,"title":"Delmar's Giuoco Piano","white":"Eugene Delmar","black":"John Washington Baird","year":1889,"result":"1-0","pack":"New York 1889","score":116,"hook":"A kingside storm ends in mate"},{"date":"2026-11-26","time":"12:00","slot":"Puzzle or short","id":"hastings1895-schlechter-bardeleben","cut":"puzzle","seconds":26.9,"title":"Schlechter's Exchange Sacrifice","white":"Carl Schlechter","black":"Curt Von Bardeleben","year":1895,"result":"1/2-1/2","pack":"Hastings 1895","score":108,"hook":"A rook given up for one pawn."},{"date":"2026-11-26","time":"17:00","slot":"Highlight","id":"london1851-lowenthal-williams-3","cut":"highlight","seconds":33.6,"title":"Queen Trade, Rook Invasion","white":"Johann Löwenthal","black":"Elijah Williams","year":1851,"result":"0-1","pack":"London 1851","score":115,"hook":"White trades queens; Black's rook invades"},{"date":"2026-11-26","time":"20:00","slot":"Best full game","id":"newyork1889-macleod-bird","cut":"full","seconds":88,"title":"Bird's Lucky Rook","white":"Nicholas MacLeod","black":"Henry Edward Bird","year":1889,"result":"0-1","pack":"New York 1889","score":116,"hook":"A blunder hands Bird a rook"},{"date":"2026-11-27","time":"12:00","slot":"Puzzle of the Day","id":"pod-zf4yo","cut":"puzzle","seconds":29.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1915},{"date":"2026-11-27","time":"17:00","slot":"Highlight","id":"newyork1889-gossip-showalter-2","cut":"highlight","seconds":20.1,"title":"Vienna Game Blunder","white":"George Hatfeild Gossip","black":"Jackson Whipps Showalter","year":1889,"result":"0-1","pack":"New York 1889","score":115,"hook":"One blunder costs Gossip two pieces"},{"date":"2026-11-27","time":"20:00","slot":"Best full game","id":"alekhine-rubinstein-1923","cut":"full","seconds":88,"title":"The Coup de Grâce","white":"Alexander Alekhine","black":"Akiba Rubinstein","year":1923,"result":"1-0","pack":null,"score":123,"hook":"One bishop move ended Rubinstein"},{"date":"2026-11-28","time":"12:00","slot":"Puzzle or short","id":"london1851-staunton-williams-4","cut":"puzzle","seconds":20,"title":"Williams Mates Staunton","white":"Howard Staunton","black":"Elijah Williams","year":1851,"result":"0-1","pack":"London 1851","score":113,"hook":"Staunton had a win, then slipped"},{"date":"2026-11-28","time":"17:00","slot":"Highlight","id":"steinitz-blackburne-1876-g7","cut":"highlight","seconds":37.3,"title":"Steinitz Completes 7-0","white":"Wilhelm Steinitz","black":"Joseph Henry Blackburne","year":1876,"result":"1-0","pack":null,"score":114,"hook":"The final game of a 7-0 whitewash"},{"date":"2026-11-28","time":"20:00","slot":"Best full game","id":"marshall-capablanca-1909-g23","cut":"full","seconds":88,"title":"Full Command of the Board","white":"Frank Marshall","black":"José Raúl Capablanca","year":1909,"result":"0-1","pack":null,"score":114,"hook":"Lasker called this a model of technique"},{"date":"2026-11-29","time":"12:00","slot":"Puzzle of the Day","id":"pod-t31jf","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1591},{"date":"2026-11-29","time":"17:00","slot":"Highlight","id":"newyork1889-chigorin-baird-2","cut":"highlight","seconds":41,"title":"King's Gambit Declined","white":"Mikhail Chigorin","black":"John Washington Baird","year":1889,"result":"1-0","pack":"New York 1889","score":112,"hook":"Steinitz's own Lopez idea, tested by Chigorin"},{"date":"2026-11-29","time":"20:00","slot":"Best full game","id":"hastings1895-schiffers-pillsbury","cut":"full","seconds":87.4,"title":"Pillsbury's Bit of Morphy","white":"Emanuel Stepanovich Schiffers","black":"Harry Nelson Pillsbury","year":1895,"result":"0-1","pack":"Hastings 1895","score":114,"hook":"Pillsbury leaves his queen hanging."},{"date":"2026-11-30","time":"12:00","slot":"Puzzle or short","id":"newyork1889-lipschuetz-showalter","cut":"puzzle","seconds":30.1,"title":"Lipschuetz's Queen Sacrifice","white":"Samuel Lipschuetz","black":"Jackson Whipps Showalter","year":1889,"result":"1-0","pack":"New York 1889","score":108,"hook":"Queen sacrifice flips a drawn game"},{"date":"2026-11-30","time":"17:00","slot":"Highlight","id":"london1851-szen-anderssen-3","cut":"highlight","seconds":23.3,"title":"Anderssen Clinches the Match","white":"József Szén","black":"Adolf Anderssen","year":1851,"result":"0-1","pack":"London 1851","score":112,"hook":"Two slips, then Anderssen's attack"},{"date":"2026-11-30","time":"20:00","slot":"Best full game","id":"alekhine-isakov-1919","cut":"full","seconds":87.1,"title":"Danish Gambit Mating Net","white":"Alexander Alekhine","black":"Dmitrij Isakov","year":1919,"result":"1-0","pack":null,"score":116,"hook":"One pawn down, attack all the way"},{"date":"2026-12-01","time":"12:00","slot":"Puzzle of the Day","id":"pod-nhlgs","cut":"puzzle","seconds":28,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 3. Can you see it?","pod":true,"rating":1702},{"date":"2026-12-01","time":"17:00","slot":"Highlight","id":"newyork1889-hanham-delmar","cut":"highlight","seconds":35.2,"title":"Delmar's Deep Combination","white":"James Moore Hanham","black":"Eugene Delmar","year":1889,"result":"0-1","pack":"New York 1889","score":111,"hook":"A deep combination wins for Black"},{"date":"2026-12-01","time":"20:00","slot":"Best full game","id":"london1851-staunton-williams","cut":"full","seconds":87.5,"title":"Staunton's Long Squeeze","white":"Howard Staunton","black":"Elijah Williams","year":1851,"result":"1-0","pack":"London 1851","score":112,"hook":"Staunton grinds out a 70-move win"},{"date":"2026-12-02","time":"12:00","slot":"Puzzle or short","id":"newyork1889-martinez-hanham","cut":"puzzle","seconds":31.3,"title":"Martinez Wins the Exchange","white":"Dion M. Martinez","black":"James Moore Hanham","year":1889,"result":"1-0","pack":"New York 1889","score":108,"hook":"Queen trade nets the exchange"},{"date":"2026-12-02","time":"17:00","slot":"Highlight","id":"hastings1895-mieses-pillsbury","cut":"highlight","seconds":39.7,"title":"Pillsbury's Exchange Sacrifice","white":"Jacques Mieses","black":"Harry Nelson Pillsbury","year":1895,"result":"0-1","pack":"Hastings 1895","score":113,"hook":"Pillsbury sacrifices the exchange, then attacks."},{"date":"2026-12-02","time":"20:00","slot":"Best full game","id":"maroczy-tartakower-1922-r4","cut":"full","seconds":87.5,"title":"Tartakower's Two Rooks","white":"Géza Maróczy","black":"Savielly Tartakower","year":1922,"result":"0-1","pack":null,"score":108,"hook":"Two rooks sacrificed, a brilliancy prize"},{"date":"2026-12-03","time":"12:00","slot":"Puzzle of the Day","id":"pod-jp4qs","cut":"puzzle","seconds":31.4,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1436},{"date":"2026-12-03","time":"17:00","slot":"Highlight","id":"london1851-wyvill-williams","cut":"highlight","seconds":43.3,"title":"Williams Presses the Attack","white":"Marmaduke Wyvill","black":"Elijah Williams","year":1851,"result":"0-1","pack":"London 1851","score":111,"hook":"Williams's kingside pawns break through"},{"date":"2026-12-03","time":"20:00","slot":"Best full game","id":"rabinovich-alekhine-1920","cut":"full","seconds":88,"title":"The Knight on c4","white":"Ilya Leontievich Rabinovich","black":"Alexander Alekhine","year":1920,"result":"0-1","pack":null,"score":116,"hook":"Two pawns given, the first rank breaks."},{"date":"2026-12-04","time":"12:00","slot":"Puzzle or short","id":"spassky-bronstein-1960","cut":"puzzle","seconds":31.3,"title":"The James Bond Game","white":"Boris Spassky","black":"David Bronstein","year":1960,"result":"1-0","pack":null,"score":107,"hook":"The game from a James Bond film"},{"date":"2026-12-04","time":"17:00","slot":"Highlight","id":"newyork1889-martinez-blackburne","cut":"highlight","seconds":45.5,"title":"Centre Counter Squeeze","white":"Dion M. Martinez","black":"Joseph Henry Blackburne","year":1889,"result":"0-1","pack":"New York 1889","score":110,"hook":"A pawn up, Blackburne grinds on"},{"date":"2026-12-04","time":"20:00","slot":"Best full game","id":"london1851-horwitz-bird-8","cut":"full","seconds":87.4,"title":"Horwitz's Allgaier Attack","white":"Bernhard Horwitz","black":"Henry Bird","year":1851,"result":"1-0","pack":"London 1851","score":111,"hook":"The Allgaier Gambit, annotated by Staunton"},{"date":"2026-12-05","time":"12:00","slot":"Puzzle of the Day","id":"pod-7aw58","cut":"puzzle","seconds":28.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1840},{"date":"2026-12-05","time":"17:00","slot":"Highlight","id":"london1851-horwitz-staunton","cut":"highlight","seconds":22,"title":"Staunton's Winning Coup","white":"Bernhard Horwitz","black":"Howard Staunton","year":1851,"result":"0-1","pack":"London 1851","score":110,"hook":"Staunton wins despite poor health"},{"date":"2026-12-05","time":"20:00","slot":"Best full game","id":"hastings1895-bird-pillsbury","cut":"full","seconds":88,"title":"Pillsbury Revives an Old Defence","white":"Henry Edward Bird","black":"Harry Nelson Pillsbury","year":1895,"result":"0-1","pack":"Hastings 1895","score":110,"hook":"A Bird joke before the end"},{"date":"2026-12-06","time":"12:00","slot":"Puzzle or short","id":"karpov-korchnoi-1978-g8","cut":"puzzle","seconds":29.8,"title":"Karpov's First Win","white":"Anatoly Karpov","black":"Viktor Korchnoi","year":1978,"result":"1-0","pack":null,"score":107,"hook":"An idea found at the board backfires"},{"date":"2026-12-06","time":"17:00","slot":"Highlight","id":"newyork1889-mason-chigorin","cut":"highlight","seconds":40.8,"title":"Mason's Queen Raid","white":"James Mason","black":"Mikhail Chigorin","year":1889,"result":"1-0","pack":"New York 1889","score":108,"hook":"Chigorin's knight grab loses his queen"},{"date":"2026-12-06","time":"20:00","slot":"Best full game","id":"mieses-alekhine-1913","cut":"full","seconds":88,"title":"Rook and Knight for Queen","white":"Jacques Mieses","black":"Alexander Alekhine","year":1913,"result":"0-1","pack":null,"score":114,"hook":"Alekhine gives his queen at move 11."},{"date":"2026-12-07","time":"12:00","slot":"Puzzle of the Day","id":"pod-zthvj","cut":"puzzle","seconds":28.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1553},{"date":"2026-12-07","time":"17:00","slot":"Highlight","id":"newyork1889-showalter-mason","cut":"highlight","seconds":40.8,"title":"Mason Springs the Trap","white":"Jackson Whipps Showalter","black":"James Mason","year":1889,"result":"0-1","pack":"New York 1889","score":107,"hook":"Mason's knight sacrifice wins"},{"date":"2026-12-07","time":"20:00","slot":"Best full game","id":"london1851-ranken-boden","cut":"full","seconds":69.5,"title":"Boden's Beautiful Finish","white":"Charles Ranken","black":"Samuel Boden","year":1851,"result":"0-1","pack":"London 1851","score":108,"hook":"A beautiful finish by Boden"},{"date":"2026-12-08","time":"12:00","slot":"Puzzle or short","id":"spassky-fischer-1972-g13","cut":"puzzle","seconds":27.3,"title":"Fischer's Masterpiece","white":"Boris Spassky","black":"Bobby Fischer","year":1972,"result":"0-1","pack":null,"score":105,"hook":"Botvinnik's pick for Fischer's best"},{"date":"2026-12-08","time":"17:00","slot":"Highlight","id":"hastings1895-tarrasch-blackburne","cut":"highlight","seconds":34.1,"title":"Tarrasch's Rook Sacrifice","white":"Siegbert Tarrasch","black":"Joseph Henry Blackburne","year":1895,"result":"1-0","pack":"Hastings 1895","score":106,"hook":"Quiet buildup, then a Rook sacrifice"},{"date":"2026-12-08","time":"20:00","slot":"Best full game","id":"london1851-horwitz-staunton-2","cut":"full","seconds":88,"title":"Runaway b-Pawn Finish","white":"Bernhard Horwitz","black":"Howard Staunton","year":1851,"result":"0-1","pack":"London 1851","score":108,"hook":"Horwitz resigns to a runaway b-pawn"},{"date":"2026-12-09","time":"12:00","slot":"Puzzle of the Day","id":"pod-cuhop","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1879},{"date":"2026-12-09","time":"17:00","slot":"Highlight","id":"hastings1895-chigorin-pillsbury","cut":"highlight","seconds":32.2,"title":"Chigorin's Rook-Down Attack","white":"Mikhail Chigorin","black":"Harry Nelson Pillsbury","year":1895,"result":"1-0","pack":"Hastings 1895","score":109,"hook":"A rook down, White still wins."},{"date":"2026-12-09","time":"20:00","slot":"Best full game","id":"alekhine-rubinstein-1921","cut":"full","seconds":88,"title":"Do or Die","white":"Alexander Alekhine","black":"Akiba Rubinstein","year":1921,"result":"1-0","pack":null,"score":110,"hook":"Alekhine vowed to do or die"},{"date":"2026-12-10","time":"12:00","slot":"Puzzle or short","id":"hastings1895-vergani-teichmann","cut":"puzzle","seconds":29.1,"title":"Teichmann's Dutch Hammer","white":"Beniamino Vergani","black":"Richard Teichmann","year":1895,"result":"0-1","pack":"Hastings 1895","score":102,"hook":"Watch Black's pawns crash through White's king."},{"date":"2026-12-10","time":"17:00","slot":"Highlight","id":"london1851-trelawney-brien","cut":"highlight","seconds":30.2,"title":"Brien's Mating Finish","white":"J. Trelawney","black":"Robert Brien","year":1851,"result":"0-1","pack":"London 1851","score":107,"hook":"Trelawney's rook grab walks into mate"},{"date":"2026-12-10","time":"20:00","slot":"Best full game","id":"marshall-capablanca-1918","cut":"full","seconds":87.6,"title":"Marshall's Slow Death","white":"F. J. Marshall","black":"J. R. Capablanca","year":1918,"result":"0-1","pack":null,"score":104,"hook":"Capablanca squeezes Marshall move by move"},{"date":"2026-12-11","time":"12:00","slot":"Puzzle of the Day","id":"pod-8d0mt","cut":"puzzle","seconds":28.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1437},{"date":"2026-12-11","time":"17:00","slot":"Highlight","id":"hastings1895-marco-pollock","cut":"highlight","seconds":49,"title":"Marco Traps the Queen","white":"Georg Marco","black":"William Henry Kraus Pollock","year":1895,"result":"1-0","pack":"Hastings 1895","score":105,"hook":"One careless pawn move, then disaster."},{"date":"2026-12-11","time":"20:00","slot":"Best full game","id":"newyork1889-baird-blackburne-3","cut":"full","seconds":88,"title":"Blackburne's Fianchetto Counter","white":"John Washington Baird","black":"Joseph Henry Blackburne","year":1889,"result":"0-1","pack":"New York 1889","score":106,"hook":"The centre counter that worked"},{"date":"2026-12-12","time":"12:00","slot":"Puzzle or short","id":"london1851-brien-hodges","cut":"puzzle","seconds":29.6,"title":"Hodges Invades With Rooks","white":"Robert Brien","black":"Hodges","year":1851,"result":"0-1","pack":"London 1851","score":96,"hook":"Hodges' rooks invade; Brien falls"},{"date":"2026-12-12","time":"17:00","slot":"Highlight","id":"nimzowitsch-rubinstein-1926","cut":"highlight","seconds":34.5,"title":"The Mysterious Nh1","white":"Aron Nimzowitsch","black":"Akiba Rubinstein","year":1926,"result":"1-0","pack":null,"score":105,"hook":"One of chess's most mysterious moves"},{"date":"2026-12-12","time":"20:00","slot":"Best full game","id":"newyork1889-chigorin-burille","cut":"full","seconds":87.1,"title":"Burille Hunts Chigorin","white":"Mikhail Chigorin","black":"Constant Fedinand Burille","year":1889,"result":"0-1","pack":"New York 1889","score":106,"hook":"A bold line, then a lost advantage"},{"date":"2026-12-13","time":"12:00","slot":"Puzzle of the Day","id":"pod-7o9jp","cut":"puzzle","seconds":30.6,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1712},{"date":"2026-12-13","time":"17:00","slot":"Highlight","id":"london1851-bird-horwitz-2","cut":"highlight","seconds":37,"title":"Horwitz's Winning Pawn","white":"Henry Bird","black":"Bernhard Horwitz","year":1851,"result":"0-1","pack":"London 1851","score":105,"hook":"A pawn on f2 ends it"},{"date":"2026-12-13","time":"20:00","slot":"Best full game","id":"newyork1889-lipschuetz-judd","cut":"full","seconds":88,"title":"Judd Springs a Combination","white":"Samuel Lipschuetz","black":"Max Judd","year":1889,"result":"0-1","pack":"New York 1889","score":105,"hook":"Judd wins with a deep combination"},{"date":"2026-12-14","time":"12:00","slot":"Puzzle or short","id":"newyork1889-lipschuetz-gossip-2","cut":"puzzle","seconds":24.1,"title":"A Won Game Thrown Away","white":"Samuel Lipschuetz","black":"George Hatfeild Gossip","year":1889,"result":"0-1","pack":"New York 1889","score":99,"hook":"White blunders a won position"},{"date":"2026-12-14","time":"17:00","slot":"Highlight","id":"london1851-anderssen-staunton-2","cut":"highlight","seconds":48.4,"title":"Anderssen Wins the Scotch Gambit","white":"Adolf Anderssen","black":"Howard Staunton","year":1851,"result":"1-0","pack":"London 1851","score":105,"hook":"One small slip turns the game"},{"date":"2026-12-14","time":"20:00","slot":"Best full game","id":"anand-topalov-2010-g4","cut":"full","seconds":87.6,"title":"Anand's Sacrificial Attack","white":"Viswanathan Anand","black":"Veselin Topalov","year":2010,"result":"1-0","pack":null,"score":104,"hook":"Two pieces given for a mating attack"},{"date":"2026-12-15","time":"12:00","slot":"Puzzle of the Day","id":"pod-1jfrz","cut":"puzzle","seconds":29.6,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1611},{"date":"2026-12-15","time":"17:00","slot":"Highlight","id":"london1851-lowenthal-buckle","cut":"highlight","seconds":31.2,"title":"Buckle's Queen Raid","white":"Johann Löwenthal","black":"Henry Thomas Buckle","year":1851,"result":"0-1","pack":"London 1851","score":105,"hook":"A queen raid decides the French"},{"date":"2026-12-15","time":"20:00","slot":"Best full game","id":"newyork1889-chigorin-blackburne","cut":"full","seconds":88,"title":"Chigorin Grinds Blackburne","white":"Mikhail Chigorin","black":"Joseph Henry Blackburne","year":1889,"result":"1-0","pack":"New York 1889","score":105,"hook":"A small edge, slowly converted"},{"date":"2026-12-16","time":"12:00","slot":"Puzzle or short","id":"newyork1889-hanham-weiss","cut":"puzzle","seconds":23.8,"title":"Weiss Calculates Ahead","white":"James Moore Hanham","black":"Miksa Weiss","year":1889,"result":"0-1","pack":"New York 1889","score":90,"hook":"Weiss calculates the finish from move 30"},{"date":"2026-12-16","time":"17:00","slot":"Highlight","id":"stpetersburg1909-rubinstein-znoskoborovsky","cut":"highlight","seconds":49.3,"title":"Rubinstein's Calculated Attack","white":"Akiba Rubinstein","black":"Eugene Znosko-Borovsky","year":1909,"result":"1-0","pack":"St. Petersburg 1909","score":104,"hook":"Bishop sacrifice, then Black collapses"},{"date":"2026-12-16","time":"20:00","slot":"Best full game","id":"caruana-carlsen-2018-tb2","cut":"full","seconds":81.2,"title":"Carlsen in the Tiebreak","white":"Fabiano Caruana","black":"Magnus Carlsen","year":2018,"result":"0-1","pack":null,"score":104,"hook":"Two blunders in the rapid tiebreak"},{"date":"2026-12-17","time":"12:00","slot":"Puzzle of the Day","id":"pod-ohbh0","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1763},{"date":"2026-12-17","time":"17:00","slot":"Highlight","id":"london1851-anderssen-szen","cut":"highlight","seconds":42.4,"title":"Anderssen's Slow Squeeze","white":"Adolf Anderssen","black":"József Szén","year":1851,"result":"1-0","pack":"London 1851","score":103,"hook":"A pawn grab Staunton questioned"},{"date":"2026-12-17","time":"20:00","slot":"Best full game","id":"hastings1895-bardeleben-vergani","cut":"full","seconds":87.5,"title":"Bardeleben's Pawn Avalanche","white":"Curt Von Bardeleben","black":"Beniamino Vergani","year":1895,"result":"1-0","pack":"Hastings 1895","score":103,"hook":"Watch White's kingside pawns crash through."},{"date":"2026-12-18","time":"12:00","slot":"Puzzle or short","id":"newyork1889-mason-burn","cut":"puzzle","seconds":30.7,"title":"Burn Blunders a Piece","white":"James Mason","black":"Amos Burn","year":1889,"result":"1-0","pack":"New York 1889","score":88,"hook":"Burn was fine until move 28"},{"date":"2026-12-18","time":"17:00","slot":"Highlight","id":"steinitz-blackburne-1876-g3","cut":"highlight","seconds":38.2,"title":"Steinitz's King's Gambit","white":"Wilhelm Steinitz","black":"Joseph Henry Blackburne","year":1876,"result":"1-0","pack":null,"score":104,"hook":"Seven hours, and a missed trick"},{"date":"2026-12-18","time":"20:00","slot":"Best full game","id":"euwe-alekhine-1935-g26","cut":"full","seconds":87.5,"title":"The Pearl of Zandvoort","white":"Max Euwe","black":"Alexander Alekhine","year":1935,"result":"1-0","pack":null,"score":102,"hook":"The Pearl of Zandvoort"},{"date":"2026-12-19","time":"12:00","slot":"Puzzle of the Day","id":"pod-nszui","cut":"puzzle","seconds":29.3,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1463},{"date":"2026-12-19","time":"17:00","slot":"Highlight","id":"marshall-capablanca-1909-g5","cut":"highlight","seconds":20.8,"title":"Marshall Match, Game Five","white":"Frank Marshall","black":"José Raúl Capablanca","year":1909,"result":"0-1","pack":null,"score":98,"hook":"Praised by critics, faulted by Capablanca himself"},{"date":"2026-12-19","time":"20:00","slot":"Best full game","id":"newyork1889-burille-chigorin","cut":"full","seconds":88,"title":"Burille Misses His Chance","white":"Constant Fedinand Burille","black":"Mikhail Chigorin","year":1889,"result":"0-1","pack":"New York 1889","score":103,"hook":"Chigorin pounces on a weakened kingside"},{"date":"2026-12-20","time":"12:00","slot":"Puzzle or short","id":"stpetersburg1909-rubinstein-lasker","cut":"highlight","seconds":45.6,"title":"Rubinstein Beats Lasker","white":"Akiba Rubinstein","black":"Emanuel Lasker","year":1909,"result":"1-0","pack":"St. Petersburg 1909","score":97,"hook":"Lasker annotates his own defeat"},{"date":"2026-12-20","time":"17:00","slot":"Highlight","id":"london1851-kieseritzky-anderssen","cut":"highlight","seconds":35,"title":"Anderssen's Mating Net","white":"Lionel Kieseritzky","black":"Adolf Anderssen","year":1851,"result":"0-1","pack":"London 1851","score":101,"hook":"One rook move loses everything"},{"date":"2026-12-20","time":"20:00","slot":"Best full game","id":"newyork1889-showalter-weiss","cut":"full","seconds":87.1,"title":"Showalter Falls to Attack","white":"Jackson Whipps Showalter","black":"Miksa Weiss","year":1889,"result":"0-1","pack":"New York 1889","score":101,"hook":"Black's kingside attack crushes White"},{"date":"2026-12-21","time":"12:00","slot":"Puzzle of the Day","id":"pod-shxqb","cut":"puzzle","seconds":29.6,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1790},{"date":"2026-12-21","time":"17:00","slot":"Highlight","id":"nimzowitsch-alekhine-1912","cut":"highlight","seconds":39.8,"title":"Trap Meets Counter-Trap","white":"Aaron Nimzowitsch","black":"Alexander Alekhine","year":1912,"result":"0-1","pack":null,"score":101,"hook":"Nimzowitsch sets a trap. Alekhine answers."},{"date":"2026-12-21","time":"20:00","slot":"Best full game","id":"hastings1895-steinitz-vergani","cut":"full","seconds":88,"title":"Steinitz Traps a Knight","white":"William Steinitz","black":"Beniamino Vergani","year":1895,"result":"1-0","pack":"Hastings 1895","score":102,"hook":"A pawn storm, then a trapped knight."},{"date":"2026-12-22","time":"12:00","slot":"Puzzle or short","id":"london1851-deacon-lowe","cut":"puzzle","seconds":30.3,"title":"Staunton Scolds Deacon's g3","white":"Frederic Deacon","black":"Edward Löwe","year":1851,"result":"1-0","pack":"London 1851","score":86,"hook":"A pawn grab Staunton wished for"},{"date":"2026-12-22","time":"17:00","slot":"Highlight","id":"newyork1889-chigorin-macleod","cut":"highlight","seconds":19.4,"title":"Chigorin Crushes MacLeod","white":"Mikhail Chigorin","black":"Nicholas MacLeod","year":1889,"result":"1-0","pack":"New York 1889","score":102,"hook":"An early pawn decides it"},{"date":"2026-12-22","time":"20:00","slot":"Best full game","id":"capablanca-marshall-1909-g6","cut":"full","seconds":88,"title":"Rooks on the h-File","white":"Capablanca","black":"Marshall","year":1909,"result":"1-0","pack":null,"score":97,"hook":"Marshall opens a file. Capablanca uses it."},{"date":"2026-12-23","time":"12:00","slot":"Puzzle of the Day","id":"pod-bmam8","cut":"puzzle","seconds":28.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1496},{"date":"2026-12-23","time":"17:00","slot":"Highlight","id":"hastings1895-mieses-blackburne","cut":"highlight","seconds":44.7,"title":"Mieses Hunts Blackburne's King","white":"Jacques Mieses","black":"Joseph Henry Blackburne","year":1895,"result":"1-0","pack":"Hastings 1895","score":100,"hook":"Blackburne's king walks into a crossfire."},{"date":"2026-12-23","time":"20:00","slot":"Best full game","id":"newyork1889-lipschuetz-hanham-2","cut":"full","seconds":87.2,"title":"A Beautifully Conceived Attack","white":"Samuel Lipschuetz","black":"James Moore Hanham","year":1889,"result":"1-0","pack":"New York 1889","score":101,"hook":"White builds a winning combination"},{"date":"2026-12-24","time":"12:00","slot":"Puzzle or short","id":"hastings1895-steinitz-bird","cut":"highlight","seconds":34.4,"title":"Bird's Fine Pawn Sacrifice","white":"William Steinitz","black":"Henry Edward Bird","year":1895,"result":"0-1","pack":"Hastings 1895","score":98,"hook":"Steinitz gives a piece. Bird strikes back."},{"date":"2026-12-24","time":"17:00","slot":"Highlight","id":"london1851-staunton-anderssen","cut":"highlight","seconds":38.6,"title":"Staunton's Weary Loss","white":"Howard Staunton","black":"Adolf Anderssen","year":1851,"result":"0-1","pack":"London 1851","score":99,"hook":"A tired Staunton falls to Anderssen"},{"date":"2026-12-24","time":"20:00","slot":"Best full game","id":"newyork1889-taubenhaus-lipschuetz-2","cut":"full","seconds":88,"title":"Lipschuetz Turns the Tables","white":"Jean Taubenhaus","black":"Samuel Lipschuetz","year":1889,"result":"0-1","pack":"New York 1889","score":101,"hook":"A trap that flips the whole game"},{"date":"2026-12-25","time":"12:00","slot":"Puzzle of the Day","id":"pod-ls0jd","cut":"puzzle","seconds":31.4,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1721},{"date":"2026-12-25","time":"17:00","slot":"Highlight","id":"london1851-wyvill-williams-3","cut":"highlight","seconds":39,"title":"The Queen Raid Fails","white":"Marmaduke Wyvill","black":"Elijah Williams","year":1851,"result":"1-0","pack":"London 1851","score":98,"hook":"Black's queen raid backfires"},{"date":"2026-12-25","time":"20:00","slot":"Best full game","id":"newyork1889-delmar-chigorin","cut":"full","seconds":87.3,"title":"Chigorin's Master Coup","white":"Eugene Delmar","black":"Mikhail Chigorin","year":1889,"result":"0-1","pack":"New York 1889","score":101,"hook":"A rook sacrifice decides the game"},{"date":"2026-12-26","time":"12:00","slot":"Puzzle or short","id":"hastings1895-blackburne-bardeleben","cut":"highlight","seconds":37.1,"title":"Blackburne's Exchange Sacrifice","white":"Joseph Henry Blackburne","black":"Curt Von Bardeleben","year":1895,"result":"1-0","pack":"Hastings 1895","score":98,"hook":"Blackburne at his very best."},{"date":"2026-12-26","time":"17:00","slot":"Highlight","id":"newyork1889-gossip-mason-2","cut":"highlight","seconds":31.1,"title":"Mason's French Endgame","white":"George Hatfeild Gossip","black":"James Mason","year":1889,"result":"0-1","pack":"New York 1889","score":99,"hook":"Queens off, Mason wins the ending"},{"date":"2026-12-26","time":"20:00","slot":"Best full game","id":"stpetersburg1909-freyman-forgacs","cut":"full","seconds":82.2,"title":"Dutch Defence Collapses","white":"Sergey von Freymann","black":"Leo Forgacs","year":1909,"result":"1-0","pack":"St. Petersburg 1909","score":97,"hook":"A problem-like knight strike ends it"},{"date":"2026-12-27","time":"12:00","slot":"Puzzle of the Day","id":"pod-s0tqp","cut":"puzzle","seconds":29.6,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1517},{"date":"2026-12-27","time":"17:00","slot":"Highlight","id":"london1851-szen-kennedy","cut":"highlight","seconds":40.7,"title":"Szén Beats Kennedy","white":"József Szén","black":"Hugh Alexander Kennedy","year":1851,"result":"1-0","pack":"London 1851","score":98,"hook":"Szén grinds down an off-form Kennedy"},{"date":"2026-12-27","time":"20:00","slot":"Best full game","id":"newyork1889-martinez-taubenhaus","cut":"full","seconds":88,"title":"Taubenhaus Crushes Martinez","white":"Dion M. Martinez","black":"Jean Taubenhaus","year":1889,"result":"0-1","pack":"New York 1889","score":98,"hook":"A masterly bishop sacrifice"},{"date":"2026-12-28","time":"12:00","slot":"Puzzle or short","id":"capablanca-chajes-1918","cut":"highlight","seconds":28.9,"title":"The March of the White King","white":"J. R. Capablanca","black":"O. Chajes","year":1918,"result":"1-0","pack":null,"score":95,"hook":"Capablanca's king marches to win"},{"date":"2026-12-28","time":"17:00","slot":"Highlight","id":"london1851-bird-horwitz-4","cut":"highlight","seconds":30.7,"title":"Horwitz Plays On a Piece Down","white":"Henry Bird","black":"Bernhard Horwitz","year":1851,"result":"1-0","pack":"London 1851","score":98,"hook":"Bird wins a piece early; Horwitz fights"},{"date":"2026-12-28","time":"20:00","slot":"Best full game","id":"newyork1889-chigorin-burn","cut":"full","seconds":88,"title":"Chigorin's Quick Attack","white":"Mikhail Chigorin","black":"Amos Burn","year":1889,"result":"1-0","pack":"New York 1889","score":98,"hook":"Black's feeble move loses quickly"},{"date":"2026-12-29","time":"12:00","slot":"Puzzle of the Day","id":"pod-9sfgm","cut":"puzzle","seconds":30.2,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 3. Can you see it?","pod":true,"rating":1700},{"date":"2026-12-29","time":"17:00","slot":"Highlight","id":"london1851-staunton-brodie","cut":"highlight","seconds":30.9,"title":"Staunton's Quick Mate","white":"Howard Staunton","black":"Brodie","year":1851,"result":"1-0","pack":"London 1851","score":97,"hook":"Staunton mates Brodie in fifteen moves"},{"date":"2026-12-29","time":"20:00","slot":"Best full game","id":"newyork1889-blackburne-gossip","cut":"full","seconds":87.4,"title":"Gossip Falls to Blackburne","white":"Joseph Henry Blackburne","black":"George Hatfeild Gossip","year":1889,"result":"1-0","pack":"New York 1889","score":98,"hook":"A fatal queen move ends Black's attack"},{"date":"2026-12-30","time":"12:00","slot":"Puzzle or short","id":"london1851-kennedy-wyvill-2","cut":"highlight","seconds":20.1,"title":"Wyvill's Mating Finish","white":"Hugh Alexander Kennedy","black":"Marmaduke Wyvill","year":1851,"result":"0-1","pack":"London 1851","score":96,"hook":"A combination backfires; Wyvill mates"},{"date":"2026-12-30","time":"17:00","slot":"Highlight","id":"newyork1889-macleod-burille","cut":"highlight","seconds":20.1,"title":"Burille Mates MacLeod","white":"Nicholas MacLeod","black":"Constant Fedinand Burille","year":1889,"result":"0-1","pack":"New York 1889","score":98,"hook":"White gets a bad game, Black mates"},{"date":"2026-12-30","time":"20:00","slot":"Best full game","id":"alekhine-nimzowitsch-1914","cut":"full","seconds":87.2,"title":"Refuting Nimzowitsch's Novelty","white":"Alexander Alekhine","black":"Aaron Nimzowitsch","year":1914,"result":"1-0","pack":null,"score":95,"hook":"Nimzowitsch tried a new idea here"},{"date":"2026-12-31","time":"12:00","slot":"Puzzle of the Day","id":"pod-dncyj","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1410},{"date":"2026-12-31","time":"17:00","slot":"Highlight","id":"hastings1895-chigorin-steinitz","cut":"highlight","seconds":30.7,"title":"Steinitz Defends the Evans","white":"Mikhail Chigorin","black":"William Steinitz","year":1895,"result":"0-1","pack":"Hastings 1895","score":95,"hook":"Two pawns up, king stuck centrally"},{"date":"2026-12-31","time":"20:00","slot":"Best full game","id":"newyork1889-gunsberg-weiss","cut":"full","seconds":88,"title":"Weiss's Masterstroke","white":"Isidor Gunsberg","black":"Miksa Weiss","year":1889,"result":"0-1","pack":"New York 1889","score":97,"hook":"Weiss sacrifices a rook for the attack"},{"date":"2027-01-01","time":"12:00","slot":"Puzzle or short","id":"kortchmar-polyak-1937","cut":"highlight","seconds":42.6,"title":"The Ukrainian Immortal","white":"Yefim Kortchmar","black":"Yevsey Polyak","year":1937,"result":"1-0","pack":null,"score":94,"hook":"Queen offered twice, then double check"},{"date":"2027-01-01","time":"17:00","slot":"Highlight","id":"london1851-williams-lowenthal","cut":"highlight","seconds":34.1,"title":"Pawns Win the Ending","white":"Elijah Williams","black":"Johann Löwenthal","year":1851,"result":"0-1","pack":"London 1851","score":95,"hook":"Rb8 prepares a knight fork"},{"date":"2027-01-01","time":"20:00","slot":"Best full game","id":"newyork1889-blackburne-mason","cut":"full","seconds":88,"title":"Relentless Kingside Attack","white":"Joseph Henry Blackburne","black":"James Mason","year":1889,"result":"1-0","pack":"New York 1889","score":98,"hook":"A French Defence crushed on the kingside"},{"date":"2027-01-02","time":"12:00","slot":"Puzzle of the Day","id":"pod-qhtos","cut":"puzzle","seconds":32.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1741},{"date":"2027-01-02","time":"17:00","slot":"Highlight","id":"london1851-staunton-williams-3","cut":"highlight","seconds":37.7,"title":"Staunton's Deciding Game","white":"Howard Staunton","black":"Elijah Williams","year":1851,"result":"0-1","pack":"London 1851","score":95,"hook":"Deciding game, a piece thrown away"},{"date":"2027-01-02","time":"20:00","slot":"Best full game","id":"newyork1889-taubenhaus-baird","cut":"full","seconds":87.5,"title":"Baird Crushes Taubenhaus","white":"Jean Taubenhaus","black":"David Graham Baird","year":1889,"result":"0-1","pack":"New York 1889","score":97,"hook":"Baird's counterattack wins the queen"},{"date":"2027-01-03","time":"12:00","slot":"Puzzle or short","id":"london1851-lowenthal-williams-2","cut":"highlight","seconds":36,"title":"The Knight's Costly Retreat","white":"Johann Löwenthal","black":"Elijah Williams","year":1851,"result":"0-1","pack":"London 1851","score":94,"hook":"A retreat Staunton thought blameable"},{"date":"2027-01-03","time":"17:00","slot":"Highlight","id":"newyork1889-baird-chigorin","cut":"highlight","seconds":34.9,"title":"Chigorin Outplays Baird","white":"David Graham Baird","black":"Mikhail Chigorin","year":1889,"result":"0-1","pack":"New York 1889","score":95,"hook":"Chigorin's king and pieces take over"},{"date":"2027-01-03","time":"20:00","slot":"Best full game","id":"marshall-capablanca-1909-g11","cut":"full","seconds":88,"title":"Defending the Impossible","white":"Marshall","black":"Capablanca","year":1909,"result":"0-1","pack":null,"score":93,"hook":"Marshall attacks. Capablanca refuses to break."},{"date":"2027-01-04","time":"12:00","slot":"Puzzle of the Day","id":"pod-w0msx","cut":"puzzle","seconds":22.7,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1486},{"date":"2027-01-04","time":"17:00","slot":"Highlight","id":"newyork1889-taubenhaus-burille","cut":"highlight","seconds":37,"title":"Burille's Queen Sacrifice Attack","white":"Jean Taubenhaus","black":"Constant Fedinand Burille","year":1889,"result":"0-1","pack":"New York 1889","score":94,"hook":"Black sacrifices the queen"},{"date":"2027-01-04","time":"20:00","slot":"Best full game","id":"hastings1895-blackburne-steinitz","cut":"full","seconds":88,"title":"Steinitz Squeezes Blackburne","white":"Joseph Henry Blackburne","black":"William Steinitz","year":1895,"result":"0-1","pack":"Hastings 1895","score":95,"hook":"Weak pawns, picked off one by one."},{"date":"2027-01-05","time":"12:00","slot":"Puzzle or short","id":"newyork1889-lipschuetz-gunsberg","cut":"puzzle","seconds":29.8,"title":"Gunsberg's Lucky Escape","white":"Samuel Lipschuetz","black":"Isidor Gunsberg","year":1889,"result":"1/2-1/2","pack":"New York 1889","score":79,"hook":"Draw, but White missed a win"},{"date":"2027-01-05","time":"17:00","slot":"Highlight","id":"spassky-fischer-1972-g5","cut":"highlight","seconds":20,"title":"Fischer Levels the Match","white":"Boris Spassky","black":"Bobby Fischer","year":1972,"result":"0-1","pack":null,"score":91,"hook":"One blunder levels the match"},{"date":"2027-01-05","time":"20:00","slot":"Best full game","id":"london1851-horwitz-szen","cut":"full","seconds":88,"title":"Szen's Cureless Ruin","white":"Bernhard Horwitz","black":"József Szén","year":1851,"result":"0-1","pack":"London 1851","score":94,"hook":"Horwitz plays a move Staunton condemns"},{"date":"2027-01-06","time":"12:00","slot":"Puzzle of the Day","id":"pod-dn1p4","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1719},{"date":"2027-01-06","time":"17:00","slot":"Highlight","id":"corzo-capablanca-1901","cut":"highlight","seconds":42.5,"title":"The Boy Beats Corzo","white":"Juan Corzo","black":"José Raúl Capablanca","year":1901,"result":"0-1","pack":null,"score":92,"hook":"A twelve-year-old refutes a prepared gambit"},{"date":"2027-01-06","time":"20:00","slot":"Best full game","id":"london1851-staunton-williams-5","cut":"full","seconds":88,"title":"Williams Wins a Long Endgame","white":"Howard Staunton","black":"Elijah Williams","year":1851,"result":"0-1","pack":"London 1851","score":93,"hook":"Blunders on both sides in the ending"},{"date":"2027-01-07","time":"12:00","slot":"Puzzle or short","id":"hastings1895-schiffers-steinitz","cut":"highlight","seconds":39.9,"title":"Steinitz's Fine Ending","white":"Emanuel Stepanovich Schiffers","black":"William Steinitz","year":1895,"result":"0-1","pack":"Hastings 1895","score":92,"hook":"One blunder, then a masterclass ending."},{"date":"2027-01-07","time":"17:00","slot":"Highlight","id":"newyork1889-bird-blackburne","cut":"highlight","seconds":44.2,"title":"Bird's Bold Venture Punished","white":"Henry Edward Bird","black":"Joseph Henry Blackburne","year":1889,"result":"0-1","pack":"New York 1889","score":93,"hook":"Blackburne punishes Bird's early boldness"},{"date":"2027-01-07","time":"20:00","slot":"Best full game","id":"kasparov-andersson-1981","cut":"full","seconds":87.4,"title":"Kasparov Rips It Open","white":"Garry Kasparov","black":"Ulf Andersson","year":1981,"result":"1-0","pack":null,"score":90,"hook":"Teenage Kasparov throws everything forward"},{"date":"2027-01-08","time":"12:00","slot":"Puzzle of the Day","id":"pod-vpome","cut":"puzzle","seconds":29.3,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1532},{"date":"2027-01-08","time":"17:00","slot":"Highlight","id":"hastings1895-walbrodt-tinsley","cut":"highlight","seconds":34.8,"title":"Tinsley's Strange Combination","white":"Carl August Walbrodt","black":"Samuel Tinsley","year":1895,"result":"1-0","pack":"Hastings 1895","score":91,"hook":"Black sacrifices a bishop. Will it work?"},{"date":"2027-01-08","time":"20:00","slot":"Best full game","id":"newyork1889-chigorin-hanham","cut":"full","seconds":88,"title":"Chigorin's Evans Gambit","white":"Mikhail Chigorin","black":"James Moore Hanham","year":1889,"result":"1-0","pack":"New York 1889","score":92,"hook":"Black was winning, then one slip"},{"date":"2027-01-09","time":"12:00","slot":"Puzzle or short","id":"newyork1889-gossip-judd","cut":"puzzle","seconds":27.3,"title":"Judd's Four Pawns","white":"George Hatfeild Gossip","black":"Max Judd","year":1889,"result":"0-1","pack":"New York 1889","score":75,"hook":"Four pawns outweigh a piece"},{"date":"2027-01-09","time":"17:00","slot":"Highlight","id":"capablanca-bernstein-1914","cut":"highlight","seconds":33.2,"title":"A Hundred Moves of Calculation","white":"José Raúl Capablanca","black":"Ossip Bernstein","year":1914,"result":"1-0","pack":null,"score":91,"hook":"He calculated a hundred moves before Bh4"},{"date":"2027-01-09","time":"20:00","slot":"Best full game","id":"london1851-staunton-jaenisch-2","cut":"full","seconds":88,"title":"Staunton Over-reaches","white":"Howard Staunton","black":"Carl Jaenisch","year":1851,"result":"0-1","pack":"London 1851","score":93,"hook":"Staunton, a pawn up, over-reaches"},{"date":"2027-01-10","time":"12:00","slot":"Puzzle of the Day","id":"pod-oaom7","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1770},{"date":"2027-01-10","time":"17:00","slot":"Highlight","id":"newyork1889-burille-blackburne","cut":"highlight","seconds":29.8,"title":"Blackburne Beats the English","white":"Constant Fedinand Burille","black":"Joseph Henry Blackburne","year":1889,"result":"0-1","pack":"New York 1889","score":91,"hook":"Burille's attack opens lines for Blackburne"},{"date":"2027-01-10","time":"20:00","slot":"Best full game","id":"hastings1895-janowsky-steinitz","cut":"full","seconds":83,"title":"Janowsky Overpowers Steinitz","white":"Dawid Markelowicz Janowsky","black":"William Steinitz","year":1895,"result":"1-0","pack":"Hastings 1895","score":92,"hook":"Steinitz's king stuck in the centre"},{"date":"2027-01-11","time":"12:00","slot":"Puzzle or short","id":"newyork1889-chigorin-judd","cut":"highlight","seconds":37.7,"title":"King's Gambit Declined","white":"Mikhail Chigorin","black":"Max Judd","year":1889,"result":"1-0","pack":"New York 1889","score":91,"hook":"Chigorin's f-pawn storm wins material"},{"date":"2027-01-11","time":"17:00","slot":"Highlight","id":"hastings1895-lasker-pillsbury","cut":"highlight","seconds":37.6,"title":"Lasker's Great Escape","white":"Emanuel Lasker","black":"Harry Nelson Pillsbury","year":1895,"result":"1-0","pack":"Hastings 1895","score":91,"hook":"Pillsbury was winning. Then he wasn't."},{"date":"2027-01-11","time":"20:00","slot":"Best full game","id":"kasparov-lautier-1994","cut":"full","seconds":87.7,"title":"Lautier Beats Kasparov","white":"Garry Kasparov","black":"Joël Lautier","year":1994,"result":"0-1","pack":null,"score":90,"hook":"The world champion falls in 29 moves"},{"date":"2027-01-12","time":"12:00","slot":"Puzzle of the Day","id":"pod-ciok6","cut":"puzzle","seconds":29.3,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1455},{"date":"2027-01-12","time":"17:00","slot":"Highlight","id":"alekhine-fahrni-1914","cut":"highlight","seconds":32.5,"title":"The h4 Attack","white":"Alexander Alekhine","black":"Hans Fahrni","year":1914,"result":"1-0","pack":null,"score":90,"hook":"A new attack against the French"},{"date":"2027-01-12","time":"20:00","slot":"Best full game","id":"london1851-staunton-horwitz-4","cut":"full","seconds":87.2,"title":"Staunton's Last-Game Win","white":"Howard Staunton","black":"Bernhard Horwitz","year":1851,"result":"1-0","pack":"London 1851","score":92,"hook":"Staunton wins the seventh and last"},{"date":"2027-01-13","time":"12:00","slot":"Puzzle or short","id":"shamkovich-prokhorovich-1961","cut":"highlight","seconds":36.3,"title":"Shamkovich Leaves His Queen","white":"Leonid Shamkovich","black":"Prokhorovich","year":1961,"result":"1-0","pack":null,"score":89,"hook":"He leaves his queen hanging, on purpose"},{"date":"2027-01-13","time":"17:00","slot":"Highlight","id":"newyork1889-macleod-weiss","cut":"highlight","seconds":44.4,"title":"Weiss Springs a Trap","white":"Nicholas MacLeod","black":"Miksa Weiss","year":1889,"result":"0-1","pack":"New York 1889","score":90,"hook":"MacLeod's bishop move falls into a trap"},{"date":"2027-01-13","time":"20:00","slot":"Best full game","id":"london1851-anderssen-wyvill-2","cut":"full","seconds":87.3,"title":"Wyvill's Knight Outpost","white":"Adolf Anderssen","black":"Marmaduke Wyvill","year":1851,"result":"0-1","pack":"London 1851","score":91,"hook":"Wyvill's knight takes over"},{"date":"2027-01-14","time":"12:00","slot":"Puzzle of the Day","id":"pod-d58fm","cut":"puzzle","seconds":29.3,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1718},{"date":"2027-01-14","time":"17:00","slot":"Highlight","id":"hastings1895-chigorin-janowsky","cut":"highlight","seconds":40.6,"title":"Janowsky's Swift Attack","white":"Mikhail Chigorin","black":"Dawid Markelowicz Janowsky","year":1895,"result":"0-1","pack":"Hastings 1895","score":90,"hook":"Chigorin loses in sixteen moves"},{"date":"2027-01-14","time":"20:00","slot":"Best full game","id":"london1851-williams-lowenthal-5","cut":"full","seconds":87.6,"title":"Mate After a Queen Blunder","white":"Elijah Williams","black":"Johann Löwenthal","year":1851,"result":"0-1","pack":"London 1851","score":91,"hook":"Short game, big attack, queen lost"},{"date":"2027-01-15","time":"12:00","slot":"Puzzle or short","id":"steinitz-blackburne-1876-g1","cut":"highlight","seconds":34.8,"title":"Steinitz's Kingside Squeeze","white":"Wilhelm Steinitz","black":"Joseph Henry Blackburne","year":1876,"result":"1-0","pack":null,"score":89,"hook":"The 7-0 match begins"},{"date":"2027-01-15","time":"17:00","slot":"Highlight","id":"newyork1889-gunsberg-baird","cut":"highlight","seconds":41.9,"title":"Gunsberg Squeezes Baird","white":"Isidor Gunsberg","black":"John Washington Baird","year":1889,"result":"1-0","pack":"New York 1889","score":90,"hook":"Black's rook defends the wrong pawn"},{"date":"2027-01-15","time":"20:00","slot":"Best full game","id":"nimzowitsch-capablanca-1914","cut":"full","seconds":87.2,"title":"A Pawn for a Plan","white":"Nimzowitsch","black":"Capablanca","year":1914,"result":"0-1","pack":null,"score":89,"hook":"Down a pawn, playing to a plan."},{"date":"2027-01-16","time":"12:00","slot":"Puzzle of the Day","id":"pod-nw80j","cut":"puzzle","seconds":29.6,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1439},{"date":"2027-01-16","time":"17:00","slot":"Highlight","id":"korchnoi-karpov-1978-g17","cut":"highlight","seconds":22.3,"title":"Time Trouble in Baguio","white":"Viktor Korchnoi","black":"Anatoly Karpov","year":1978,"result":"0-1","pack":null,"score":88,"hook":"Time trouble ends in a mating net"},{"date":"2027-01-16","time":"20:00","slot":"Best full game","id":"newyork1889-gunsberg-macleod","cut":"full","seconds":87.1,"title":"Gunsberg Outlasts MacLeod","white":"Isidor Gunsberg","black":"Nicholas MacLeod","year":1889,"result":"1-0","pack":"New York 1889","score":90,"hook":"Ninety-two moves, and the g-pawn queens"},{"date":"2027-01-17","time":"12:00","slot":"Puzzle or short","id":"alekhine-bogoljubow-1921b","cut":"highlight","seconds":31.8,"title":"Centre Pawns Roll Forward","white":"Alexander Alekhine","black":"Efim Bogoljubow","year":1921,"result":"1-0","pack":null,"score":87,"hook":"Why a queenside majority meant nothing"},{"date":"2027-01-17","time":"17:00","slot":"Highlight","id":"carlsen-nepomniachtchi-2021-g6","cut":"highlight","seconds":28.9,"title":"The 136-Move Game","white":"Magnus Carlsen","black":"Ian Nepomniachtchi","year":2021,"result":"1-0","pack":null,"score":87,"hook":"The longest world title game ever"},{"date":"2027-01-17","time":"20:00","slot":"Best full game","id":"newyork1889-judd-baird","cut":"full","seconds":87.1,"title":"Baird Outlasts Judd","white":"Max Judd","black":"David Graham Baird","year":1889,"result":"0-1","pack":"New York 1889","score":90,"hook":"Eighty-two moves of patient pressure"},{"date":"2027-01-18","time":"12:00","slot":"Puzzle of the Day","id":"pod-tjcvq","cut":"puzzle","seconds":28.9,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Can you find the winning move?","pod":true,"rating":1710},{"date":"2027-01-18","time":"17:00","slot":"Highlight","id":"capablanca-dus-chotimirsky-1913","cut":"highlight","seconds":46.4,"title":"A Plan Against a Plan","white":"José Raúl Capablanca","black":"Fedor Dus-Chotimirsky","year":1913,"result":"1-0","pack":null,"score":87,"hook":"He let Black play into his trap"},{"date":"2027-01-18","time":"20:00","slot":"Best full game","id":"newyork1889-blackburne-delmar","cut":"full","seconds":82,"title":"Blackburne Crushes Delmar","white":"Joseph Henry Blackburne","black":"Eugene Delmar","year":1889,"result":"1-0","pack":"New York 1889","score":90,"hook":"Re1 pays off seven moves later"},{"date":"2027-01-19","time":"12:00","slot":"Puzzle or short","id":"hastings1895-pillsbury-pollock","cut":"highlight","seconds":39.4,"title":"Pillsbury's Audacious Ending","white":"Harry Nelson Pillsbury","black":"William Henry Kraus Pollock","year":1895,"result":"1-0","pack":"Hastings 1895","score":87,"hook":"A pawn down, Pillsbury plays for mate."},{"date":"2027-01-19","time":"17:00","slot":"Highlight","id":"newyork1889-baird-showalter","cut":"highlight","seconds":32.2,"title":"Showalter Outlasts Baird","white":"John Washington Baird","black":"Jackson Whipps Showalter","year":1889,"result":"0-1","pack":"New York 1889","score":90,"hook":"Showalter grinds out a first-round win"},{"date":"2027-01-19","time":"20:00","slot":"Best full game","id":"stpetersburg1909-lasker-burn","cut":"full","seconds":88,"title":"Lasker Grinds Burn Down","white":"Emanuel Lasker","black":"Amos Burn","year":1909,"result":"1-0","pack":"St. Petersburg 1909","score":87,"hook":"Two bishops squeeze a Ruy Lopez"},{"date":"2027-01-20","time":"12:00","slot":"Puzzle of the Day","id":"pod-zr9vc","cut":"puzzle","seconds":28.1,"title":"Puzzle of the Day","white":"Lichess puzzle","black":"","year":null,"result":"","pack":"Puzzle of the Day","score":0,"hook":"Mate in 2. Can you see it?","pod":true,"rating":1494},{"date":"2027-01-20","time":"17:00","slot":"Highlight","id":"carlsen-anand-2014-g2","cut":"highlight","seconds":21.8,"title":"Carlsen's Qb7","white":"Magnus Carlsen","black":"Viswanathan Anand","year":2014,"result":"1-0","pack":null,"score":87,"hook":"One blunder, instant resignation"},{"date":"2027-01-20","time":"20:00","slot":"Best full game","id":"newyork1889-hanham-gunsberg-2","cut":"full","seconds":87.1,"title":"Gunsberg's Stonewall Finish","white":"James Moore Hanham","black":"Isidor Gunsberg","year":1889,"result":"0-1","pack":"New York 1889","score":88,"hook":"A rook sacrifice ends it"},{"date":"2027-01-21","time":"12:00","slot":"Puzzle or short","id":"hastings1895-tarrasch-chigorin","cut":"highlight","seconds":38.9,"title":"Chigorin's Deep Trap","white":"Siegbert Tarrasch","black":"Mikhail Chigorin","year":1895,"result":"0-1","pack":"Hastings 1895","score":87,"hook":"Chigorin gives the exchange for unstoppable pawns."},{"date":"2027-01-21","time":"17:00","slot":"Highlight","id":"corzo-capablanca-1913","cut":"highlight","seconds":35.9,"title":"Brilliancy Against Corzo","white":"Corzo","black":"Capablanca","year":1913,"result":"0-1","pack":null,"score":87,"hook":"Capablanca's rematch with his first rival."},{"date":"2027-01-21","time":"20:00","slot":"Best full game","id":"newyork1889-blackburne-hanham","cut":"full","seconds":87.1,"title":"Blackburne's Charming Finish","white":"Joseph Henry Blackburne","black":"James Moore Hanham","year":1889,"result":"1-0","pack":"New York 1889","score":90,"hook":"Queen sacrifice ends a Vienna attack"}];
+
+    // Games for Reels State
+    const gfrState = {
+      mode: "queue", // "queue" | "study"
+      collection: "all",
+      cutFilter: "all",
+      searchQuery: "",
+      selectedGameIds: new Set(),
+      studyCategory: "all"
     };
 
     // State management
@@ -1970,6 +2447,7 @@ ${esc(item.pgn || "No PGN provided")}</div>
       });
     });
 
+    
     function renderAltTab(tab) {
       const container = $("altTabContainer");
       if (tab === "tiktok") {
@@ -1992,22 +2470,403 @@ ${esc(item.pgn || "No PGN provided")}</div>
           </div>
         `;
       } else if (tab === "upcoming") {
-        container.innerHTML = `
-          <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px;">
-            <h2 style="font-family:var(--font-brand); font-size:20px; margin-bottom:12px;">📅 90-Day High-Retention Queue</h2>
-            <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px;">Master schedule of tactical motifs, opening traps, and documentary chapters queued for upcoming dates.</p>
-            <div style="background:var(--surface-card); border:1px solid var(--border); border-left:4px solid var(--gold); border-radius:var(--radius-md); padding:12px 16px; margin-top:14px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
-              <div>
-                <div style="color:var(--gold); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">📁 Local PC Source PGN Library</div>
-                <div style="font-family:var(--font-mono); font-size:13px; color:var(--text); margin-top:3px;">C:\\PnoyChess\\study\\games\\</div>
-                <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Indexed in <code>catalog.json</code> across 9 master study books and 10,000+ positions.</div>
-              </div>
-              <button type="button" class="btn-copy-chip btn-copy-highlight" data-copy-text="C:\\PnoyChess\\study\\games\\">Copy Local Path</button>
-            </div>
-          </div>
-        `;
+        renderGamesForReelsTab();
       }
     }
+
+    function renderGamesForReelsTab() {
+      const container = $("altTabContainer");
+      
+      // Calculate collection counts
+      const packCounts = { "all": EMBEDDED_QUEUE_REELS.length };
+      EMBEDDED_QUEUE_REELS.forEach((r) => {
+        const p = r.pack || "Classic Immortals";
+        packCounts[p] = (packCounts[p] || 0) + 1;
+      });
+
+      // Filter games based on gfrState
+      let filteredGames = EMBEDDED_QUEUE_REELS.filter((game) => {
+        const gamePack = game.pack || "Classic Immortals";
+        if (gfrState.collection !== "all" && gamePack !== gfrState.collection) {
+          return false;
+        }
+        if (gfrState.cutFilter !== "all" && game.cut !== gfrState.cutFilter) {
+          return false;
+        }
+        if (gfrState.searchQuery) {
+          const q = gfrState.searchQuery.toLowerCase();
+          const matchStr = `${game.title || ""} ${game.white || ""} ${game.black || ""} ${game.hook || ""} ${game.year || ""} ${gamePack}`.toLowerCase();
+          if (!matchStr.includes(q)) return false;
+        }
+        return true;
+      });
+
+      // Filter catalog collections
+      let filteredCatalog = STUDY_CATALOG.filter((cat) => {
+        if (gfrState.studyCategory !== "all" && cat.category !== gfrState.studyCategory) {
+          return false;
+        }
+        return true;
+      });
+
+      container.innerHTML = `
+        <div class="gfr-container">
+          <!-- Top Hero Card -->
+          <div class="gfr-hero-card">
+            <div class="gfr-hero-header">
+              <div class="gfr-title-box">
+                <h2><span>♟️</span> Games for Reels · Database &amp; Collections</h2>
+                <p>
+                  Explore master study collections, tactical pattern manuals, and the 90-day production queue. Select games and stage them directly into daily reel lineups.
+                </p>
+              </div>
+              <div class="gfr-stats-pills">
+                <div class="gfr-stat-badge"><span>📚</span> 9 Study Databases</div>
+                <div class="gfr-stat-badge"><span>🎬</span> ${EMBEDDED_QUEUE_REELS.length} Production Reels</div>
+                <div class="gfr-stat-badge"><span>📁</span> C:\\PnoyChess\\study\\games\\</div>
+              </div>
+            </div>
+
+            <!-- Mode Switcher -->
+            <div class="gfr-mode-nav">
+              <button type="button" class="gfr-mode-btn ${gfrState.mode === 'queue' ? 'active' : ''}" id="gfrModeQueue">
+                <span>🎬</span> 90-Day Reel Production Queue (${EMBEDDED_QUEUE_REELS.length})
+              </button>
+              <button type="button" class="gfr-mode-btn ${gfrState.mode === 'study' ? 'active' : ''}" id="gfrModeStudy">
+                <span>📚</span> Master Study PGN Databases (9 Collections · 12,000+ Motifs)
+              </button>
+            </div>
+          </div>
+
+          <!-- Dynamic Mode Views -->
+          <div id="gfrModeContent"></div>
+        </div>
+      `;
+
+      const modeContent = $("gfrModeContent");
+
+      if (gfrState.mode === "queue") {
+        // --- QUEUE MODE ---
+        let cardsHtml = "";
+        if (!filteredGames.length) {
+          cardsHtml = `<div style="grid-column: 1 / -1; text-align: center; padding: 48px 20px; color: var(--text-muted); background: var(--surface); border: 1px dashed var(--border); border-radius: var(--radius-lg);">No games found matching "${esc(gfrState.searchQuery || gfrState.collection)}".</div>`;
+        } else {
+          cardsHtml = filteredGames.map((game) => {
+            const isSel = gfrState.selectedGameIds.has(game.id);
+            const packLabel = game.pack || "Classic Immortals";
+            const cutClass = game.cut === "puzzle" ? "cat-tactics" : (game.cut === "highlight" ? "cat-opening" : "cat-docu");
+            return `
+              <article class="gfr-game-card ${isSel ? 'is-selected' : ''}" id="gfr-card-${game.id}">
+                <div>
+                  <div class="gfr-card-top">
+                    <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                      <input type="checkbox" class="gfr-game-cb" data-game-id="${game.id}" ${isSel ? 'checked' : ''}>
+                      <span class="gfr-pack-pill">${esc(packLabel)}</span>
+                    </label>
+                    <span class="category-badge ${cutClass}">${esc(game.cut.toUpperCase())}</span>
+                  </div>
+                  <h3 class="gfr-game-title">${esc(game.title)}</h3>
+                  <div class="gfr-matchup">
+                    <span>${esc(game.white)} vs. ${esc(game.black)}</span>
+                    <span>(${game.year || 'Historic'})</span>
+                    <span class="gfr-result-pill">${esc(game.result || '*')}</span>
+                  </div>
+                  ${game.hook ? `<div class="gfr-hook-box">“${esc(game.hook)}”</div>` : ''}
+                </div>
+                <div>
+                  <div class="gfr-card-meta">
+                    <span>⏱️ ${game.seconds ? Math.round(game.seconds) + 's' : 'HD'} · Score: ${game.score || 'Tactical'}</span>
+                    <span>📅 ${game.date || 'Queue'} ${game.time ? '· ' + game.time : ''}</span>
+                  </div>
+                  <div class="gfr-card-actions">
+                    <button type="button" class="btn-copy-chip" data-copy-game="${game.id}">📋 Copy Info</button>
+                    <button type="button" class="btn-copy-chip btn-copy-highlight" data-stage-single="${game.id}">📥 Stage to Inbox</button>
+                  </div>
+                </div>
+              </article>
+            `;
+          }).join("");
+        }
+
+        modeContent.innerHTML = `
+          <!-- Toolbar -->
+          <div class="gfr-toolbar">
+            <div class="gfr-toolbar-left">
+              <!-- Collection Select -->
+              <select class="gfr-select" id="gfrColSelect">
+                <option value="all" ${gfrState.collection === 'all' ? 'selected' : ''}>🌟 All Reel Collections (${EMBEDDED_QUEUE_REELS.length} Games)</option>
+                <option value="New York 1889" ${gfrState.collection === 'New York 1889' ? 'selected' : ''}>🏆 New York 1889 Tournament (${packCounts['New York 1889'] || 0} Games)</option>
+                <option value="London 1851" ${gfrState.collection === 'London 1851' ? 'selected' : ''}>👑 London 1851 Immortal Pack (${packCounts['London 1851'] || 0} Games)</option>
+                <option value="Hastings 1895" ${gfrState.collection === 'Hastings 1895' ? 'selected' : ''}>⚔️ Hastings 1895 Master Collection (${packCounts['Hastings 1895'] || 0} Games)</option>
+                <option value="St. Petersburg 1909" ${gfrState.collection === 'St. Petersburg 1909' ? 'selected' : ''}>🏛️ St. Petersburg 1909 Brilliancy (${packCounts['St. Petersburg 1909'] || 0} Games)</option>
+                <option value="Classic Immortals" ${gfrState.collection === 'Classic Immortals' ? 'selected' : ''}>⭐ Classic Master Immortals (${packCounts['Classic Immortals'] || 0} Games)</option>
+                <option value="Puzzle of the Day" ${gfrState.collection === 'Puzzle of the Day' ? 'selected' : ''}>🧩 Puzzle of the Day Pack (${packCounts['Puzzle of the Day'] || 0} Puzzles)</option>
+              </select>
+
+              <!-- Cut Filters -->
+              <div class="filter-chips">
+                <button type="button" class="chip ${gfrState.cutFilter === 'all' ? 'active' : ''}" data-gfr-cut="all">All Cuts</button>
+                <button type="button" class="chip ${gfrState.cutFilter === 'puzzle' ? 'active' : ''}" data-gfr-cut="puzzle">🧩 Puzzles</button>
+                <button type="button" class="chip ${gfrState.cutFilter === 'highlight' ? 'active' : ''}" data-gfr-cut="highlight">⚡ Highlights</button>
+                <button type="button" class="chip ${gfrState.cutFilter === 'full' ? 'active' : ''}" data-gfr-cut="full">📜 Full Games</button>
+              </div>
+
+              <!-- Search input -->
+              <input type="text" class="gfr-search-input" id="gfrSearchInput" placeholder="Search player, opening, hook, or year..." value="${esc(gfrState.searchQuery)}">
+            </div>
+
+            <!-- Toolbar Right: Batch actions -->
+            <div class="gfr-toolbar-right">
+              <span class="gfr-counter-badge" id="gfrSelCount">Selected: ${gfrState.selectedGameIds.size} / ${filteredGames.length}</span>
+              <button type="button" class="btn-action" id="gfrBtnSelectAllFiltered" style="background:var(--surface-elevated); border:1px solid var(--border); color:var(--text);">
+                ${gfrState.selectedGameIds.size === filteredGames.length && filteredGames.length > 0 ? 'Deselect All' : 'Select All Filtered'}
+              </button>
+              <button type="button" class="btn-action btn-approve-all" id="gfrBtnStageSelected">
+                <span>📥</span> Stage to Lineup (${gfrState.selectedGameIds.size})
+              </button>
+              <button type="button" class="btn-copy-chip btn-copy-highlight" id="gfrBtnCopySelected">
+                <span>📋</span> Copy List
+              </button>
+            </div>
+          </div>
+
+          <!-- Cards Grid -->
+          <div class="gfr-games-grid">
+            ${cardsHtml}
+          </div>
+        `;
+
+        // Queue Event Listeners
+        $("gfrColSelect").onchange = (e) => {
+          gfrState.collection = e.target.value;
+          renderGamesForReelsTab();
+        };
+
+        document.querySelectorAll("[data-gfr-cut]").forEach((btn) => {
+          btn.onclick = () => {
+            gfrState.cutFilter = btn.dataset.gfrCut;
+            renderGamesForReelsTab();
+          };
+        });
+
+        let searchDebounce;
+        $("gfrSearchInput").oninput = (e) => {
+          clearTimeout(searchDebounce);
+          searchDebounce = setTimeout(() => {
+            gfrState.searchQuery = e.target.value.trim();
+            renderGamesForReelsTab();
+          }, 200);
+        };
+
+        // Select All Filtered button
+        $("gfrBtnSelectAllFiltered").onclick = () => {
+          if (gfrState.selectedGameIds.size === filteredGames.length && filteredGames.length > 0) {
+            gfrState.selectedGameIds.clear();
+          } else {
+            filteredGames.forEach(g => gfrState.selectedGameIds.add(g.id));
+          }
+          renderGamesForReelsTab();
+        };
+
+        // Checkbox toggles
+        document.querySelectorAll(".gfr-game-cb").forEach((cb) => {
+          cb.onchange = (e) => {
+            const id = cb.dataset.gameId;
+            if (e.target.checked) gfrState.selectedGameIds.add(id);
+            else gfrState.selectedGameIds.delete(id);
+            const card = $(`gfr-card-${id}`);
+            if (card) card.classList.toggle("is-selected", e.target.checked);
+            $("gfrSelCount").textContent = `Selected: ${gfrState.selectedGameIds.size} / ${filteredGames.length}`;
+            $("gfrBtnStageSelected").innerHTML = `<span>📥</span> Stage to Lineup (${gfrState.selectedGameIds.size})`;
+          };
+        });
+
+        // Stage Selected to Inbox Lineup
+        $("gfrBtnStageSelected").onclick = () => {
+          if (!gfrState.selectedGameIds.size) {
+            showToast("Please select at least 1 game to stage into the lineup.", "⚠️");
+            return;
+          }
+          const selectedGames = EMBEDDED_QUEUE_REELS.filter(g => gfrState.selectedGameIds.has(g.id));
+          const slotTimes = ["0800", "1130", "1430", "1700", "2000", "2200"];
+          const slotDisplayTimes = ["08:00", "11:30", "14:30", "17:00", "20:00", "22:00"];
+
+          selectedGames.slice(0, 6).forEach((game, idx) => {
+            const slotKey = slotTimes[idx];
+            const cutClass = game.cut === "puzzle" ? "cat-tactics" : (game.cut === "highlight" ? "cat-opening" : "cat-docu");
+            const catName = game.cut === "puzzle" ? "Tactical pattern masterclass" : (game.cut === "highlight" ? "Opening trap lesson" : "Flagship docu lesson");
+            
+            state.slots[slotKey] = {
+              time: slotDisplayTimes[idx],
+              id: game.id,
+              cut: game.cut,
+              title: game.title,
+              category: catName,
+              categoryClass: cutClass,
+              white: game.white,
+              black: game.black,
+              year: game.year || 2026,
+              status: "pending",
+              seconds: game.seconds || 35.0,
+              sizeBytes: 15000000,
+              video: `${state.curDate}_${slotKey}.mp4`,
+              videoUrl: null,
+              text: `${game.title}!\n♟ ${game.white} vs. ${game.black} (${game.year})\n${game.hook || 'Tactical masterclass'}\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess`,
+              firstComment: game.hook ? `Key idea: ${game.hook}` : "Answer in the video!",
+              platforms: {
+                facebook: { status: "scheduled", label: `Scheduled ${slotDisplayTimes[idx]}`, link: null },
+                instagram: { status: "scheduled", label: "Scheduled Reels", link: null },
+                youtube: { status: "scheduled", label: "Shorts Scheduled", link: null },
+                tiktok: { status: "ready", label: "Direct Post Ready", link: null }
+              }
+            };
+          });
+
+          // Switch back to inbox tab
+          document.querySelector('[data-tab="inbox"]').click();
+          renderSlots();
+          showToast(`Staged ${Math.min(selectedGames.length, 6)} games into ${state.curDate} lineup!`, "✓");
+        };
+
+        // Copy Selected List
+        $("gfrBtnCopySelected").onclick = async () => {
+          const gamesToCopy = gfrState.selectedGameIds.size 
+            ? EMBEDDED_QUEUE_REELS.filter(g => gfrState.selectedGameIds.has(g.id))
+            : filteredGames;
+          
+          const text = gamesToCopy.map((g, i) => `${i + 1}. ${g.title} (${g.white} vs ${g.black}, ${g.year || 'Historic'}) - [${(g.cut || 'cut').toUpperCase()}] "${g.hook || ''}"`).join("\n");
+          await copyToClipboard(text);
+          showToast(`Copied ${gamesToCopy.length} games summary to clipboard!`, "📋");
+        };
+
+        // Single Game Action: Stage Single Game
+        document.querySelectorAll("[data-stage-single]").forEach((btn) => {
+          btn.onclick = () => {
+            const gameId = btn.dataset.stageSingle;
+            const game = EMBEDDED_QUEUE_REELS.find(g => g.id === gameId);
+            if (!game) return;
+
+            // Find next pending or first slot
+            const slotTimes = ["0800", "1130", "1430", "1700", "2000", "2200"];
+            const slotDisplayTimes = ["08:00", "11:30", "14:30", "17:00", "20:00", "22:00"];
+            const targetSlot = slotTimes[0];
+            const cutClass = game.cut === "puzzle" ? "cat-tactics" : (game.cut === "highlight" ? "cat-opening" : "cat-docu");
+            
+            state.slots[targetSlot] = {
+              time: slotDisplayTimes[0],
+              id: game.id,
+              cut: game.cut,
+              title: game.title,
+              category: "Staged lesson",
+              categoryClass: cutClass,
+              white: game.white,
+              black: game.black,
+              year: game.year || 2026,
+              status: "pending",
+              seconds: game.seconds || 35.0,
+              sizeBytes: 15000000,
+              video: `${state.curDate}_${targetSlot}.mp4`,
+              videoUrl: null,
+              text: `${game.title}!\n♟ ${game.white} vs. ${game.black} (${game.year})\n${game.hook || ''}\nFollow @PnoyChess for bite-sized chess lessons.\n#chess #PnoyChess`,
+              firstComment: game.hook || "Check the tactical line!",
+              platforms: {
+                facebook: { status: "scheduled", label: `Scheduled ${slotDisplayTimes[0]}`, link: null },
+                instagram: { status: "scheduled", label: "Scheduled Reels", link: null },
+                youtube: { status: "scheduled", label: "Shorts Scheduled", link: null },
+                tiktok: { status: "ready", label: "Direct Post Ready", link: null }
+              }
+            };
+            document.querySelector('[data-tab="inbox"]').click();
+            renderSlots();
+            showToast(`Staged "${game.title}" into ${slotDisplayTimes[0]} slot!`, "✓");
+          };
+        });
+
+        // Single Game Action: Copy Info
+        document.querySelectorAll("[data-copy-game]").forEach((btn) => {
+          btn.onclick = async () => {
+            const gameId = btn.dataset.copyGame;
+            const game = EMBEDDED_QUEUE_REELS.find(g => g.id === gameId);
+            if (!game) return;
+            const summary = `${game.title}\nMatchup: ${game.white} vs. ${game.black} (${game.year}) · Result: ${game.result}\nFormat: ${(game.cut || '').toUpperCase()} · Tactical Score: ${game.score}\nHook: "${game.hook || ''}"\nPack: ${game.pack || 'Classic Immortals'}`;
+            await copyToClipboard(summary);
+            showToast(`Copied details for "${game.title}"! 📋`);
+          };
+        });
+
+      } else {
+        // --- STUDY CATALOG MODE ---
+        modeContent.innerHTML = `
+          <!-- Study Category Filter Toolbar -->
+          <div class="gfr-toolbar">
+            <div class="gfr-toolbar-left">
+              <span style="font-size:12.5px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.04em;">Filter by Category:</span>
+              <div class="filter-chips">
+                <button type="button" class="chip ${gfrState.studyCategory === 'all' ? 'active' : ''}" data-gfr-cat="all">All (9)</button>
+                <button type="button" class="chip ${gfrState.studyCategory === 'checkmates' ? 'active' : ''}" data-gfr-cat="checkmates">Checkmates (3)</button>
+                <button type="button" class="chip ${gfrState.studyCategory === 'tactics' ? 'active' : ''}" data-gfr-cat="tactics">Tactics (2)</button>
+                <button type="button" class="chip ${gfrState.studyCategory === 'endgames' ? 'active' : ''}" data-gfr-cat="endgames">Endgames (2)</button>
+                <button type="button" class="chip ${gfrState.studyCategory === 'calculation' ? 'active' : ''}" data-gfr-cat="calculation">Calculation (1)</button>
+                <button type="button" class="chip ${gfrState.studyCategory === 'player-tactics' ? 'active' : ''}" data-gfr-cat="player-tactics">Fischer Tactics (1)</button>
+              </div>
+            </div>
+            <div class="gfr-toolbar-right">
+              <button type="button" class="btn-copy-chip btn-copy-highlight" data-copy-text="C:\\PnoyChess\\study\\games\\">
+                <span>📁</span> Copy Local Directory Path
+              </button>
+            </div>
+          </div>
+
+          <!-- Catalog Cards Grid -->
+          <div class="gfr-catalog-grid">
+            ${filteredCatalog.map(cat => `
+              <article class="gfr-catalog-card">
+                <div>
+                  <div class="gfr-catalog-header">
+                    <div>
+                      <h3 class="gfr-catalog-name">${esc(cat.name)}</h3>
+                      <div class="gfr-catalog-author">Author: ${esc(cat.author)}</div>
+                    </div>
+                    <span class="category-badge cat-tactics">${cat.itemCount} ITEMS</span>
+                  </div>
+                  <p class="gfr-catalog-desc" style="margin: 10px 0;">${esc(cat.description)}</p>
+                  <div class="gfr-catalog-tags">
+                    ${cat.tags.map(t => `<span class="gfr-tag-pill">#${esc(t)}</span>`).join('')}
+                  </div>
+                </div>
+
+                <div>
+                  <div style="font-size:11px; font-weight:600; color:var(--gold); text-transform:uppercase; margin-bottom:4px;">Local PC PGN Archive</div>
+                  <div class="gfr-catalog-path">C:\\PnoyChess\\study\\games\\${cat.filename}</div>
+                  <div style="display:flex; gap:8px; margin-top:10px;">
+                    <button type="button" class="btn-copy-chip btn-copy-highlight" data-copy-text="C:\\PnoyChess\\study\\games\\${cat.filename}">📋 Copy Path</button>
+                    <button type="button" class="btn-copy-chip" data-copy-text="npm run docu -- import \"C:\\PnoyChess\\study\\games\\${cat.filename}\"">⚡ Copy Import Cmd</button>
+                  </div>
+                </div>
+              </article>
+            `).join('')}
+          </div>
+        `;
+
+        document.querySelectorAll("[data-gfr-cat]").forEach((btn) => {
+          btn.onclick = () => {
+            gfrState.studyCategory = btn.dataset.gfrCat;
+            renderGamesForReelsTab();
+          };
+        });
+      }
+
+      // Mode Switcher Buttons
+      $("gfrModeQueue").onclick = () => {
+        gfrState.mode = "queue";
+        renderGamesForReelsTab();
+      };
+      $("gfrModeStudy").onclick = () => {
+        gfrState.mode = "study";
+        renderGamesForReelsTab();
+      };
+    }
+
 
     // Modal & Token handling
     $("keyConfigBtn").onclick = () => {
