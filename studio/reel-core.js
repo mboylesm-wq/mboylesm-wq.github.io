@@ -2313,34 +2313,21 @@ function blep(t, dt) { if (t < dt) { t /= dt; return t + t - t * t - 1; } if (t 
 var REEL_MUSIC_TEMPLATES = {
   puzzle: {
     buildup: [
-      "el-lib-review-hook-v1",
-      "el-lib-review-middlegame-c-v2",
-      "el-the-18-year-old-who-became-world-chess-champion-haml-open1-ac6aec"
+      "el-the-18-year-old-who-became-world-chess-champion-haml-c3s1-37c199"
     ],
     payoff: [
-      "el-lib-review-result-v1",
-      "inspirational-battle",
-      "el-wesley-so-the-champion-the-philippines-let-go-044o-c5s1-e70d23"
+      "el-the-18-year-old-who-became-world-chess-champion-haml-c3s1-37c199"
     ]
   },
   highlight: [
-    "inspirational-battle",
-    "el-lib-review-middlegame-a-v2",
-    "el-lib-review-middlegame-b-v2",
-    "el-eugenio-torre-how-asia-got-its-first-grandmaster-fuh8-c3s1-20301b",
-    "el-rodolfo-tan-cardoso-the-filipino-who-beat-bobby--igkc-c3s1-624a2c",
     "el-the-18-year-old-who-became-world-chess-champion-haml-c3s1-37c199"
   ],
   full: {
     opening: [
-      "el-lib-review-opening-v1",
-      "el-lib-review-middlegame-c-v2",
-      "el-lib-review-middlegame-a-v2"
+      "el-the-18-year-old-who-became-world-chess-champion-haml-c3s1-37c199"
     ],
     payoff: [
-      "inspirational-battle",
-      "el-lib-review-result-v1",
-      "el-lib-review-middlegame-b-v2"
+      "el-the-18-year-old-who-became-world-chess-champion-haml-c3s1-37c199"
     ]
   }
 };
