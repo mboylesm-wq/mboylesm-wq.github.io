@@ -532,14 +532,15 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
       </div>
     </div>
     <nav aria-label="Views">
-      <button type="button" id="nav-trends" data-view="trends">Ideas</button>
+      <button type="button" id="nav-publish" data-view="publish">Schedule</button>
       <button type="button" id="nav-projects" data-view="projects">Create</button>
       <button type="button" id="nav-review" data-view="review">Review</button>
-      <button type="button" id="nav-publish" data-view="publish">Publish</button>
       <button type="button" id="nav-channel" data-view="channel">Channel</button>
-      <button type="button" id="nav-posts" data-view="posts">Posts</button>
-      <button type="button" id="nav-music" data-view="music">Music</button>
-      <button type="button" id="nav-health" data-view="health">Health</button>
+      <button type="button" id="nav-tools" data-view="tools">Tools</button>
+      <button type="button" id="nav-trends" data-view="trends" hidden>Ideas</button>
+      <button type="button" id="nav-posts" data-view="posts" hidden>Posts</button>
+      <button type="button" id="nav-music" data-view="music" hidden>Music</button>
+      <button type="button" id="nav-health" data-view="health" hidden>Health</button>
       <button type="button" id="nav-write" data-view="write" hidden>Write</button>
     </nav>
   </header>
@@ -723,6 +724,13 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
       async json(path) { if (!/^[\w./-]+\.json$/.test(path) || path.includes("..")) throw new Error("not a file: " + path); const d = await readDoc(path); return d ? d.data : null; },
       async text(path) { if (!/^[\w./-]+$/.test(path) || path.includes("..")) throw new Error("not a file: " + path); const r = await call(`/contents/${path}${ref}`, { accept: "application/vnd.github.raw" }); return r.ok ? r.text() : null; },
       async list(dir) { try { return ((await json(`/contents/${dir}${ref}`)).body || []).map((f) => f.name); } catch (e) { if (e.status === 404) return []; throw e; } },
+      async saveJson(path, data, message = "studio: save " + path) {
+        if (!/^[\w./-]+\.json$/.test(path) || path.includes("..")) throw new Error("not a file: " + path);
+        return serial(path, () => retry(async () => {
+          const cur = await readDoc(path);
+          return await writeDoc(path, data, cur && cur.sha, message);
+        }));
+      },
     };
     return { db, assets, blob, dispatch, active, refresh, refreshAll, call, files };
   }
@@ -1162,8 +1170,33 @@ function saveDraft(data) {
   }
   render();
 })();
-document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => { S.view = b.dataset.view; if (S.view !== "projects") S.cur = S.view === "write" ? S.cur : null; render(); }));
-try { const v = localStorage.getItem("docu.view"); if (v) S.view = v; } catch (e) {}
+function resolveHashView() {
+  if (typeof location === "undefined") return null;
+  const h = (location.hash || "").replace(/^#/, "").trim().toLowerCase();
+  if (!h) return null;
+  if (h === "schedule" || h === "inbox") return "publish";
+  if (h === "create") return "projects";
+  if (h === "tools") return "tools";
+  return h;
+}
+if (typeof window !== "undefined" && typeof window.addEventListener === "function") {
+  window.addEventListener("hashchange", () => {
+    const hv = resolveHashView();
+    if (hv) { S.view = hv; if (S.view !== "projects") S.cur = S.view === "write" ? S.cur : null; render(); }
+  });
+}
+
+document.querySelectorAll("nav button").forEach((b) => b.addEventListener("click", () => {
+  S.view = b.dataset.view;
+  if (S.view !== "projects") S.cur = S.view === "write" ? S.cur : null;
+  render();
+}));
+
+try {
+  const hv = resolveHashView();
+  const v = hv || localStorage.getItem("docu.view");
+  if (v) S.view = v;
+} catch (e) {}
 
 async function save(p, patch) {
   if (!S.db) return say("Saving needs Claude sign-in.");
@@ -1179,12 +1212,27 @@ async function save(p, patch) {
 // ---------- views ----------
 function render() {
   try { localStorage.setItem("docu.view", S.view); } catch (e) {}
-  const tab = S.view === "write" || S.view === "reel" || S.view === "gamereview" ? "projects" : S.view;
-  document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === tab)));
+  const tab = (S.view === "write" || S.view === "reel" || S.view === "gamereview" || S.view === "trends") ? "projects"
+    : (S.view === "music" || S.view === "health" || S.view === "tools") ? "tools"
+    : (S.view === "posts") ? "review"
+    : S.view;
+  document.querySelectorAll("nav button").forEach((b) => b.setAttribute("aria-current", String(b.dataset.view === tab || b.dataset.view === S.view)));
   if (S.view !== "reel" && window.ReelStudio) window.ReelStudio.stop();
   const v = $("#view"); v.textContent = "";
-  v.append(S.view === "trends" ? viewTrends() : S.view === "write" ? viewWrite() : S.view === "gamereview" ? viewGameReview() : S.view === "reel" ? viewReel() : S.view === "review" ? viewReview() : S.view === "publish" ? viewPublish()
-    : S.view === "music" ? viewMusic() : S.view === "channel" ? viewChannel() : S.view === "posts" ? viewPosts() : S.view === "health" ? viewHealth() : viewProjects());
+  v.append(
+    S.view === "trends" ? viewTrends() :
+    S.view === "write" ? viewWrite() :
+    S.view === "gamereview" ? viewGameReview() :
+    S.view === "reel" ? viewReel() :
+    S.view === "review" ? viewReview() :
+    S.view === "publish" ? viewPublish() :
+    S.view === "channel" ? viewChannel() :
+    S.view === "posts" ? viewPosts() :
+    S.view === "music" ? viewTools("music") :
+    S.view === "health" ? viewTools("health") :
+    S.view === "tools" ? viewTools() :
+    viewProjects()
+  );
 }
 
 function viewTrends() {
@@ -3472,19 +3520,233 @@ function lazyView(src, make) {
 }
 function viewReel() { return lazyView("reel.js", () => window.ReelStudio.view(S.reelOpen)); }
 function viewPublish() { return lazyView("publish.js", () => window.PublishBoard.view()); }
+function viewTools(initialSub) {
+  if (initialSub) S.toolTab = initialSub;
+  if (!S.toolTab) S.toolTab = "music";
+
+  const box = el("div", { class: "tools-view", style: "display:flex;flex-direction:column;gap:18px;" });
+  const navRow = el("div", { class: "row", style: "justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:6px;" },
+    el("div", {},
+      el("h2", { style: "margin:0 0 4px 0;", text: "Studio Tools & Diagnostics" }),
+      el("div", { class: "note", text: "Production audio library, ElevenLabs voice quotas, safety guard checks, and player assets." })
+    ),
+    el("div", { class: "row", style: "gap:6px;background:var(--card);padding:4px;border-radius:var(--radius-md);border:1px solid var(--border);" },
+      el("button", {
+        class: "btn" + (S.toolTab === "music" ? " primary" : ""),
+        type: "button",
+        style: "font-size:12px;padding:6px 14px;",
+        text: "🎵 Music Library",
+        onclick: () => { S.toolTab = "music"; render(); }
+      }),
+      el("button", {
+        class: "btn" + (S.toolTab === "health" ? " primary" : ""),
+        type: "button",
+        style: "font-size:12px;padding:6px 14px;",
+        text: "⚡ System Health",
+        onclick: () => { S.toolTab = "health"; render(); }
+      }),
+      el("button", {
+        class: "btn" + (S.toolTab === "vault" ? " primary" : ""),
+        type: "button",
+        style: "font-size:12px;padding:6px 14px;",
+        text: "👤 Player Vault",
+        onclick: () => { S.toolTab = "vault"; render(); }
+      })
+    )
+  );
+  box.append(navRow);
+
+  if (S.toolTab === "health") {
+    box.append(viewHealth());
+  } else if (S.toolTab === "vault") {
+    box.append(viewVault());
+  } else {
+    box.append(viewMusic());
+  }
+  return box;
+}
+
+function viewVault() {
+  const panel = el("section", { class: "panel" });
+  panel.append(
+    el("div", { class: "row", style: "justify-content:space-between;align-items:center;margin-bottom:12px;" },
+      el("div", {},
+        el("h3", { style: "margin:0 0 4px 0;", text: "Grandmaster & Player Asset Vault" }),
+        el("div", { class: "note", text: "Verified historical portraits, vector busts, and cutouts for documentary and reel scenes." })
+      )
+    )
+  );
+
+  const players = [
+    { id: "eugene-torre", name: "Eugene Torre", title: "GM", country: "Philippines", birth: "1951", bio: "Asia's first Grandmaster (1974 Nice Olympiad). Board 1 legend and Bobby Fischer confidant." },
+    { id: "rodolfo-tan-cardoso", name: "Rodolfo Tan Cardoso", title: "IM", country: "Philippines", birth: "1937–2013", bio: "First Asian International Master. Defeated 14-year-old Bobby Fischer in Manila match (1957)." },
+    { id: "wesley-so", name: "Wesley So", title: "GM", country: "Philippines / USA", birth: "1993", bio: "World Fischer Random Champion and 3-time US Champion. Philippine-born prodigy." },
+    { id: "janelle-mae-frayna", name: "Janelle Mae Frayna", title: "WGM", country: "Philippines", birth: "1996", bio: "First Filipina Woman Grandmaster, achieving the title at the 2016 Baku Chess Olympiad." },
+    { id: "bobby-fischer", name: "Bobby Fischer", title: "GM", country: "USA", birth: "1943–2008", bio: "11th World Chess Champion. 1972 World Championship in Reykjavik, 1992 Sveti Stefan." },
+    { id: "garry-kasparov", name: "Garry Kasparov", title: "GM", country: "Russia / Croatia", birth: "1963", bio: "13th World Chess Champion, highest peak rating 2851. Fought Deep Blue in 1996–1997." },
+    { id: "viswanathan-anand", name: "Viswanathan Anand", title: "GM", country: "India", birth: "1969", bio: "5-time World Chess Champion. Sparked the Indian chess revolution." },
+    { id: "dommaraju-gukesh", name: "Dommaraju Gukesh", title: "GM", country: "India", birth: "2006", bio: "Youngest ever Candidates Tournament winner (2024 Toronto) and World Championship challenger." }
+  ];
+
+  const grid = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fill, minmax(280px, 1fr));gap:14px;margin-top:14px;" });
+  players.forEach((p) => {
+    const card = el("div", { class: "proj", style: "display:flex;flex-direction:column;gap:8px;padding:14px;margin:0;" },
+      el("div", { class: "row", style: "justify-content:space-between;align-items:flex-start;" },
+        el("div", {},
+          el("div", { style: "font-weight:700;font-size:15px;color:var(--text);", text: p.name }),
+          el("div", { class: "note", text: `${p.title} · ${p.country} (${p.birth})` })
+        ),
+        el("span", { class: "pill ok", text: "Verified" })
+      ),
+      el("div", { style: "font-size:13px;color:var(--text-muted);line-height:1.4;", text: p.bio }),
+      el("div", { class: "row", style: "gap:6px;margin-top:4px;" },
+        el("span", { class: "pill", style: "font-size:11px;", text: "Portrait" }),
+        el("span", { class: "pill", style: "font-size:11px;", text: "Vector Cutout" }),
+        el("span", { class: "pill", style: "font-size:11px;", text: "CC0 Verified" })
+      )
+    );
+    grid.append(card);
+  });
+  panel.append(grid);
+  return panel;
+}
+
 function viewReview() {
   const box = el("section", { class: "panel" }, el("h2", { text: "Review" }));
   const wait = S.projects.filter((p) => p.status === "review" || p.status === "pc");
   const waitingCards = (S.cards || []).reduce((n, d) => n + ((d.items || d.cards) || []).filter((c) => c.status === "waiting").length, 0);
-  box.append(el("p", { class: "note", text: "Everything waiting for your yes before it goes out. Reels and documentary Shorts that are already approved are on the Publish board." }));
-  if (!wait.length && !waitingCards) box.append(el("div", { class: "empty", text: S.db ? "Nothing is waiting for your review." : "Sign in to see what waits for your review." }));
-  wait.forEach((p) => box.append(el("div", { class: "proj" }, el("div", {}, el("div", { class: "kind", text: p.kind === "review" ? "Game review" : "Documentary" }), el("div", { class: "t", text: p.title }), el("div", { class: "row", style: "gap:6px;flex-wrap:wrap;margin-top:6px" }, statusPill(p))),
-    el("button", { class: "btn primary", type: "button", text: "Open", onclick: () => { S.cur = p; S.view = "projects"; render(); } }))));
-  if (waitingCards > 0) box.append(el("div", { class: "proj" }, el("div", {}, el("div", { class: "kind", text: "Posts (10:45 & 18:45)" }), el("div", { class: "t", text: `${waitingCards} Quote / Tip / Puzzle card${waitingCards === 1 ? "" : "s"} waiting for approval` })),
-    el("button", { class: "btn primary", type: "button", text: "Review cards", onclick: () => { S.view = "posts"; render(); } })));
-  box.append(el("div", { class: "row", style: "margin-top:10px" },
-    el("button", { class: "btn", type: "button", text: "Open the Publish board", onclick: () => { S.view = "publish"; render(); } }),
-    el("button", { class: "btn", type: "button", text: "Open Posts", onclick: () => { S.view = "posts"; render(); } })));
+
+  box.append(el("p", { class: "note", text: "Everything waiting for your yes before it goes out: Documentaries, 6-Slot Daily Reels, and Community Cards." }));
+
+  // Section 1: Documentaries & Game Reviews
+  box.append(el("h3", { style: "margin:16px 0 8px 0;font-size:15px;", text: "Documentaries & Game Reviews" }));
+  if (!wait.length) {
+    box.append(el("div", { class: "note", style: "font-style:italic;margin-bottom:12px;", text: S.db ? "No long-form documentaries currently waiting for review." : "Sign in to see what waits for your review." }));
+  } else {
+    wait.forEach((p) => box.append(el("div", { class: "proj" },
+      el("div", {},
+        el("div", { class: "kind", text: p.kind === "review" ? "Game review" : "Documentary" }),
+        el("div", { class: "t", text: p.title }),
+        el("div", { class: "row", style: "gap:6px;flex-wrap:wrap;margin-top:6px" }, statusPill(p))
+      ),
+      el("button", { class: "btn primary", type: "button", text: "Open", onclick: () => { S.cur = p; S.view = "projects"; render(); } })
+    )));
+  }
+
+  // Section 2: 6-Slot Daily Reel Lineup Review
+  const reelReviewSection = el("div", { style: "margin-top:20px;" },
+    el("div", { class: "row", style: "justify-content:space-between;align-items:center;margin-bottom:8px;" },
+      el("h3", { style: "margin:0;font-size:15px;", text: "Daily 6-Slot Reels (Today & Tomorrow)" }),
+      el("button", { class: "btn", type: "button", style: "font-size:11px;padding:3px 8px;", text: "View Full Schedule", onclick: () => { S.view = "publish"; render(); } })
+    )
+  );
+
+  const reelReviewContainer = el("div", { class: "note", text: "Loading upcoming reels for review…" });
+  reelReviewSection.append(reelReviewContainer);
+  box.append(reelReviewSection);
+
+  (async () => {
+    try {
+      const files = await window.claude.use("files");
+      const manilaToday = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
+      const manilaTomorrow = new Date(Date.parse(manilaToday + "T00:00:00Z") + 864e5).toISOString().slice(0, 10);
+      const [todayData, tomorrowData] = await Promise.all([
+        files.json("chess/publisher/days/" + manilaToday + ".json").catch(() => null),
+        files.json("chess/publisher/days/" + manilaTomorrow + ".json").catch(() => null)
+      ]);
+
+      const items = [];
+      const collect = (d, dateStr, label) => {
+        if (!d || !d.slots) return;
+        for (const k of Object.keys(d.slots).sort()) {
+          items.push({ date: dateStr, dateLabel: label, slotKey: k, slot: d.slots[k], doc: d });
+        }
+      };
+      collect(todayData, manilaToday, "Today");
+      collect(tomorrowData, manilaTomorrow, "Tomorrow");
+
+      reelReviewContainer.textContent = "";
+      if (!items.length) {
+        reelReviewContainer.textContent = "No scheduled reel slots found for today or tomorrow.";
+        return;
+      }
+
+      const grid = el("div", { style: "display:grid;grid-template-columns:repeat(auto-fill, minmax(310px, 1fr));gap:10px;" });
+      items.forEach((it) => {
+        const s = it.slot;
+        const isApproved = s.status === "approved";
+        const isVetoed = s.status === "vetoed";
+        const statusTone = isApproved ? "ok" : isVetoed ? "bad" : "warn";
+        const card = el("div", { class: "proj", style: "margin:0;padding:12px;display:flex;flex-direction:column;gap:6px;" },
+          el("div", { class: "row", style: "justify-content:space-between;align-items:center;" },
+            el("div", { class: "row", style: "gap:6px;align-items:center;" },
+              el("span", { class: "pill", style: "font-weight:700;font-size:11px;background:var(--border);color:var(--gold);", text: it.dateLabel + " " + (s.time || it.slotKey) }),
+              s.category ? el("span", { class: "note", style: "font-size:11px;", text: s.category }) : null
+            ),
+            el("span", { class: "pill " + statusTone, style: "font-size:11px;", text: isApproved ? "Approved" : isVetoed ? "Vetoed" : "Needs Review" })
+          ),
+          el("div", { style: "font-weight:600;font-size:13px;color:var(--text);line-height:1.3;", text: s.title || "Lesson" }),
+          el("div", { class: "row", style: "justify-content:space-between;align-items:center;margin-top:4px;" },
+            s.videoUrl ? el("a", { class: "note", href: s.videoUrl, target: "_blank", rel: "noopener", style: "color:var(--gold);font-size:11px;", text: "▶ Preview Video" }) : el("span", { class: "note", style: "font-size:11px;", text: "No video link" }),
+            files.saveJson ? el("div", { class: "row", style: "gap:4px;" },
+              el("button", {
+                class: "btn" + (isApproved ? "" : " primary"),
+                type: "button",
+                style: "font-size:10px;padding:3px 8px;",
+                text: isApproved ? "✓ Approved" : "Approve",
+                onclick: async () => {
+                  s.status = "approved";
+                  try {
+                    await files.saveJson("chess/publisher/days/" + it.date + ".json", it.doc, "studio: approve " + it.slotKey);
+                    say("Slot " + (s.time || it.slotKey) + " approved.");
+                    render();
+                  } catch (e) { say("Could not save: " + (e.message || e)); }
+                }
+              }),
+              el("button", {
+                class: "btn",
+                type: "button",
+                style: "font-size:10px;padding:3px 8px;color:var(--rose);",
+                text: isVetoed ? "Vetoed" : "Veto",
+                onclick: async () => {
+                  s.status = "vetoed";
+                  try {
+                    await files.saveJson("chess/publisher/days/" + it.date + ".json", it.doc, "studio: veto " + it.slotKey);
+                    say("Slot " + (s.time || it.slotKey) + " vetoed.");
+                    render();
+                  } catch (e) { say("Could not save: " + (e.message || e)); }
+                }
+              })
+            ) : null
+          )
+        );
+        grid.append(card);
+      });
+      reelReviewContainer.append(grid);
+    } catch (e) {
+      reelReviewContainer.textContent = "Sign in to review and approve upcoming reels.";
+    }
+  })();
+
+  // Section 3: Community Cards
+  box.append(el("h3", { style: "margin:20px 0 8px 0;font-size:15px;", text: "Community Cards (10:45 & 18:45)" }));
+  if (waitingCards > 0) {
+    box.append(el("div", { class: "proj" },
+      el("div", {},
+        el("div", { class: "kind", text: "Quote / Tip / Puzzle Cards" }),
+        el("div", { class: "t", text: `${waitingCards} card${waitingCards === 1 ? "" : "s"} waiting for approval` })
+      ),
+      el("button", { class: "btn primary", type: "button", text: "Review cards", onclick: () => { S.view = "posts"; render(); } })
+    ));
+  } else {
+    box.append(el("div", { class: "note", style: "font-style:italic;", text: "All community cards are up to date." }));
+  }
+
+  box.append(el("div", { class: "row", style: "margin-top:16px;gap:8px;" },
+    el("button", { class: "btn", type: "button", text: "Open Schedule", onclick: () => { S.view = "publish"; render(); } }),
+    el("button", { class: "btn", type: "button", text: "Open Posts Generator", onclick: () => { S.view = "posts"; render(); } })
+  ));
+
   return box;
 }
 function reelList() {
