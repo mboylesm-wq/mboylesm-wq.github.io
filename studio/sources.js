@@ -23,7 +23,20 @@
 
   // the block shown on a card: kind, the file (and folder) it came from, the collection, and the ways to see the PGN
   function box(slot, date, key, opts) {
-    const o = opts || {}, k = KIND[(slot && slot.sourceKind) || "none"] || KIND.none;
+    const o = opts || {};
+    // 14:30 is the documentary Short, not a chess reel: it has no game, so it has no PGN (and nothing is wrong)
+    if (slot && slot.kind === "docu-short") {
+      const film = slot.film && /^https?:\/\//.test(slot.film) ? slot.film : null;
+      return el("div", { style: "display:flex;flex-direction:column;gap:3px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);" },
+        el("div", { class: "row", style: "gap:6px;align-items:center;flex-wrap:wrap;" },
+          el("span", { class: "note", style: "font-size:10px;text-transform:uppercase;letter-spacing:.06em;", text: "Source" }),
+          el("span", { class: "pill", style: "font-size:10px;", text: "Documentary Short" })
+        ),
+        el("div", { class: "note", style: "font-size:10px;line-height:1.35;", text: "No PGN: this slot is a Short cut from the full documentary, not a chess reel" + (slot.project ? " (" + slot.project + ")" : "") + "." }),
+        film ? el("a", { class: "note", style: "font-size:10px;color:var(--gold);", href: film, target: "_blank", rel: "noopener", text: "The documentary on YouTube ↗" }) : null
+      );
+    }
+    const k = KIND[(slot && slot.sourceKind) || "none"] || KIND.none;
     const file = (slot && (slot.sourcePgnFile || slot.sourcePgnDir)) || "";
     const pgn = pgnOf(slot), mv = movesOf(pgn);
     const wrap = el("div", { style: "display:flex;flex-direction:column;gap:3px;margin-top:6px;padding-top:6px;border-top:1px dashed var(--border);" },
