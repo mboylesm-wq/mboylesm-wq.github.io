@@ -783,15 +783,14 @@
     }
     .pgn-content-body {
       padding: 10px 12px;
-      font-family: var(--font-mono);
+      font-family: var(--font-body);
       font-size: 12px;
       line-height: 1.45;
       color: var(--text-muted);
       background: #080a09;
       border-top: 1px solid var(--border);
-      max-height: 160px;
+      max-height: 240px;
       overflow-y: auto;
-      white-space: pre-wrap;
     }
     .btn-copy-chip {
       background: var(--surface-card);
@@ -808,6 +807,164 @@
     .btn-copy-chip:hover {
       border-color: var(--gold);
       color: var(--gold);
+    }
+    .btn-copy-chip.btn-copy-highlight {
+      background: var(--gold-glow);
+      border-color: var(--gold);
+      color: var(--gold-light);
+    }
+    .btn-copy-chip.btn-copy-highlight:hover {
+      background: var(--gold);
+      color: #0d1110;
+    }
+
+    /* Local PGN Banner & Meta Styling */
+    .local-pgn-banner {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--gold);
+      border-radius: var(--radius-md);
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      box-shadow: var(--shadow-sm);
+    }
+    .local-pgn-icon {
+      font-size: 24px;
+      line-height: 1;
+      padding-top: 2px;
+    }
+    .local-pgn-body {
+      flex: 1;
+      min-width: 0;
+    }
+    .local-pgn-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .local-pgn-badge {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--gold);
+      text-transform: uppercase;
+      background: rgba(212, 175, 55, 0.12);
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid rgba(212, 175, 55, 0.25);
+    }
+    .local-pgn-subtitle {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+    .local-pgn-path-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .local-pgn-code {
+      background: #080a09;
+      border: 1px solid var(--border);
+      padding: 5px 10px;
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-size: 13px;
+      color: var(--gold-light);
+      font-weight: 600;
+      user-select: all;
+    }
+    .local-pgn-details {
+      font-size: 12px;
+      color: var(--text-faint);
+      line-height: 1.4;
+    }
+    .local-pgn-details code {
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      background: rgba(255,255,255,0.04);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+
+    /* Inside Card PGN Drawer */
+    .pgn-local-meta-box {
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 8px 10px;
+      margin-bottom: 10px;
+      font-family: var(--font-body);
+    }
+    .pgn-local-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 6px;
+      flex-wrap: wrap;
+    }
+    .pgn-local-row:last-child {
+      margin-bottom: 0;
+    }
+    .pgn-local-row-left {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      flex-wrap: wrap;
+      flex: 1;
+      min-width: 0;
+    }
+    .pgn-local-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      white-space: nowrap;
+    }
+    .pgn-local-val {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      color: var(--text);
+      word-break: break-all;
+      background: #080a09;
+      padding: 2px 6px;
+      border-radius: 4px;
+      border: 1px solid var(--border-subtle);
+    }
+    .pgn-sub-info {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      margin-top: 4px;
+      line-height: 1.4;
+    }
+    .pgn-raw-text {
+      white-space: pre-wrap;
+      font-family: var(--font-mono);
+      font-size: 12px;
+      line-height: 1.45;
+      color: var(--text-muted);
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 8px;
+      margin-top: 6px;
+    }
+
+    [data-theme="light"] .local-pgn-code,
+    [data-theme="light"] .pgn-local-val {
+      background: #f0ece1;
+      color: #1d211f;
+      border-color: #dcd6c8;
+    }
+    [data-theme="light"] .pgn-content-body {
+      background: #faf8f3;
+      color: #374151;
     }
 
     /* Post Text Accordion */
@@ -982,6 +1139,26 @@
       </div>
     </section>
 
+    <!-- Local PC Source PGN Location Banner -->
+    <section class="local-pgn-banner">
+      <div class="local-pgn-icon">📂</div>
+      <div class="local-pgn-body">
+        <div class="local-pgn-header">
+          <span class="local-pgn-badge">LOCAL PC SOURCE PGN DIRECTORY</span>
+          <span class="local-pgn-subtitle">Master Chess Databases, Lessons &amp; Tactics Archive</span>
+        </div>
+        <div class="local-pgn-path-bar">
+          <code class="local-pgn-code" id="localPgnRootPath">C:\PnoyChess\study\games\</code>
+          <button type="button" class="btn-copy-chip btn-copy-highlight" data-copy-text="C:\PnoyChess\study\games\">
+            <span>📋</span> Copy Local Path
+          </button>
+        </div>
+        <div class="local-pgn-details">
+          <span><b>Local Library Collections:</b> <code>checkmate-patterns.pgn</code> (1,000 motifs), <code>fischer-tactics.pgn</code> (1,552 exercises), <code>dvoretsky-endgame.pgn</code> (228 endgames), <code>1001-checkmates.pgn</code>, <code>woodpecker.pgn</code> (1,128 puzzles), <code>polgar-5334.pgn</code>, and <code>PGNS/</code> tactical opening repertoires.</span>
+        </div>
+      </div>
+    </section>
+
     <!-- Global Action & Filter Toolbar -->
     <section class="toolbar-section">
       <div class="toolbar-left">
@@ -1076,6 +1253,10 @@
           aiModel: "Claude 3.5 Sonnet / Stockfish 17 Tactical Analyst",
           fen: "rk5r/ppp1bq1p/2n5/2N3B1/3p2Q1/8/PPP2PPP/R5K1 w - - 6 21",
           pgn: `[Event "Paris Casual"]\n[Site "Paris FRA"]\n[Date "1859.??.??"]\n[White "Paul Morphy"]\n[Black "Schrufer"]\n[Result "1-0"]\n[FEN "rk5r/ppp1bq1p/2n5/2N3B1/3p2Q1/8/PPP2PPP/R5K1 w - - 6 21"]\n\n21. Nd7+ Kc8 22. Nb6+ Kb8 23. Qc8+! Rxc8 24. Nd7# 1-0`,
+          sourcePgnDir: "C:\\PnoyChess\\study\\games\\",
+          sourcePgnFile: "C:\\PnoyChess\\study\\games\\checkmate-patterns.pgn",
+          sourceCollection: "The Checkmate Patterns Manual · Motif #14: Philidor/Morphy Smothered Mate",
+          localProjectDir: "C:\\PnoyChess\\docu\\projects\\reel-2026-11-09-0800",
           text: `Paul Morphy's Immortal Smothered Mate!\n♟ Paul Morphy vs. Schrufer · Paris 1859\nTheme: Knight check, double check & the Queen sacrifice!\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess #PaulMorphy #smotheredmate`,
           firstComment: `Answer: 21. Nd7+! Kc8 22. Nb6+! Kb8 23. Qc8+!! Rxc8 24. Nd7# (Philidor's Legacy)`,
           status: "approved",
@@ -1104,6 +1285,10 @@
           aiModel: "Claude 3.5 Sonnet / DeepSeek Opening Specialist",
           fen: "r1bqkbnr/pppp1ppp/2n5/4p3/2B1P3/5N2/PPPP1PPP/RNBQK2R b KQkq - 3 3",
           pgn: `[Event "Italian Game Opening Trap"]\n[Site "PnoyChess Studio"]\n[Date "2026.11.09"]\n[White "Italian Game"]\n[Black "Blackburne-Shilling Gambit"]\n[Result "0-1"]\n[ECO "C50"]\n\n1. e4 e5 2. Nf3 Nc6 3. Bc4 Nd4 4. Nxe5? Qg5! 5. Nxf7 Qxg2 6. Rf1 Qxe4+ 7. Be2 Nf3# 0-1`,
+          sourcePgnDir: "C:\\PnoyChess\\study\\games\\PGNS\\",
+          sourcePgnFile: "C:\\PnoyChess\\study\\games\\PGNS\\Chess Paid Courses PGN Files Compilation\\",
+          sourceCollection: "Opening Traps Compendium · Blackburne-Shilling Gambit Refutation (ECO C50)",
+          localProjectDir: "C:\\PnoyChess\\docu\\projects\\reel-2026-11-09-1130",
           text: `The #1 trap in the Italian Game! Why grabbing the e5 pawn loses on the spot.\n♟ Italian Game, Blackburne-Shilling Gambit\nResult: 0-1 (7 moves)\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess #openingtraps #italiangame`,
           firstComment: `Answer: 4. Nxe5? Qg5! 5. Nxf7 Qxg2 6. Rf1 Qxe4+ 7. Be2 Nf3#`,
           status: "approved",
@@ -1133,6 +1318,10 @@
           docuLink: "https://youtu.be/jIBFHO_5Hy4",
           fen: "r2q1rk1/ppp1bppp/2np4/4p3/4P1b1/2NP1N2/PPP1BPPP/R2Q1RK1 w - - 0 9",
           pgn: `[Event "21st Chess Olympiad"]\n[Site "Nice FRA"]\n[Date "1974.06.26"]\n[White "Torre, Eugenio"]\n[Black "Soviet Elite"]\n[Result "1-0"]\n[ECO "B08"]\n\n1. e4 d6 2. d4 Nf6 3. Nc3 g6 4. Nf3 Bg7 5. Be2 O-O 6. O-O Bg4 7. Be3 Nc6 8. Qd2 e5 9. d5 Ne7 10. Rad1 Bd7 11. Ne1 Ng4 12. Bxg4 Bxg4 13. f3 Bd7 14. f4 exf4 15. Bxf4 f5 16. Bh6 Bxh6 17. Qxh6 fxe4 18. Rxf8+ Qxf8 19. Qxf8+ Kxf8 20. Nxe4 1-0`,
+          sourcePgnDir: "C:\\PnoyChess\\study\\games\\",
+          sourcePgnFile: "C:\\PnoyChess\\study\\games\\polgar-5334.pgn",
+          sourceCollection: "21st Chess Olympiad (Nice 1974) · Eugenio Torre Historic Grandmaster Breakthrough",
+          localProjectDir: "C:\\PnoyChess\\docu\\projects\\eugenio-torre",
           text: `Eugenio Torre: How Asia Got Its First Grandmaster.\nIn 1974, a young master from Iloilo broke through the Soviet wall to become the first Grandmaster in Asia.\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #chesshistory #PnoyChess #EugenioTorre #Grandmaster`,
           firstComment: `Watch the full documentary on our channel: https://youtu.be/jIBFHO_5Hy4`,
           status: "approved",
@@ -1161,6 +1350,10 @@
           aiModel: "Claude 3.5 Sonnet / Stockfish Middlegame Analyst",
           fen: "r2q4/ppp3bk/3p2pp/3P4/2nnNQ2/8/PPB3PP/R4RK1 b - - 0 1",
           pgn: `[Event "US Junior Championship"]\n[Site "Lincoln, NE USA"]\n[Date "1955.07.18"]\n[White "Jimmy Thomason"]\n[Black "Bobby Fischer (Age 12)"]\n[Result "0-1"]\n[FEN "r2q4/ppp3bk/3p2pp/3P4/2nnNQ2/8/PPB3PP/R4RK1 b - - 0 1"]\n\n1... Ne2+ 2. Kh1 Nxf4 0-1`,
+          sourcePgnDir: "C:\\PnoyChess\\study\\games\\",
+          sourcePgnFile: "C:\\PnoyChess\\study\\games\\fischer-tactics.pgn",
+          sourceCollection: "Bobby Fischer Tactics & Reversing Method · US Junior 1955 (Thomason vs Fischer)",
+          localProjectDir: "C:\\PnoyChess\\docu\\projects\\reel-2026-11-09-1700",
           text: `12-year-old Bobby Fischer spots the lethal Royal Fork!\n♟ Jimmy Thomason vs Bobby Fischer · US Junior 1955\nResult: 0-1\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess #BobbyFischer #chesstactics`,
           firstComment: `Answer: 1... Ne2+! 2. Kh1 Nxf4 winning the Queen`,
           status: "approved",
@@ -1189,6 +1382,10 @@
           aiModel: "Claude 3.5 Sonnet / Dvoretsky Endgame Engine",
           fen: "8/8/8/P7/8/8/1k6/4K3 w - - 0 1",
           pgn: `[Event "Endgame Masterclass: Rule of the Square"]\n[Site "PnoyChess Studio"]\n[Date "2026.11.09"]\n[White "Passed Pawn Sprint"]\n[Black "King Chase Calculation"]\n[Result "1-0"]\n[FEN "8/8/8/P7/8/8/1k6/4K3 w - - 0 1"]\n\n1. a5 Kc3 2. a6 Kd4 3. a7 Ke5 4. a8=Q 1-0`,
+          sourcePgnDir: "C:\\PnoyChess\\study\\games\\",
+          sourcePgnFile: "C:\\PnoyChess\\study\\games\\dvoretsky-endgame.pgn",
+          sourceCollection: "Dvoretsky's Endgame Manual · King & Pawn: Rule of the Square",
+          localProjectDir: "C:\\PnoyChess\\docu\\projects\\lesson-endgame-square-rule",
           text: `The Rule of the Square: Can the King catch the passed pawn?\n♟ King & Pawn Endgame Masterclass\nRule: Count the diagonal to the promotion square.\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess #chessendgame #chesslesson`,
           firstComment: `Answer: Black's King is outside the box. White pushes a5, a6, a7, a8=Q and promotes freely!`,
           status: "approved",
@@ -1217,6 +1414,10 @@
           aiModel: "Claude 3.5 Sonnet / Remotion Master Plan",
           fen: "1q3rk1/2pn1ppp/8/3N4/4Q3/8/1P6/1K2R3 w - - 0 1",
           pgn: `[Event "Anastasia Checkmate Pattern"]\n[Site "Heinse 1803"]\n[Date "1803.??.??"]\n[White "Johann Heinse"]\n[Black "Immortal Mating Pattern"]\n[Result "1-0"]\n[FEN "1q3rk1/2pn1ppp/8/3N4/4Q3/8/1P6/1K2R3 w - - 0 1"]\n\n1. Ne7+ Kh8 2. Qxh7+! Kxh7 3. Rh1# 1-0`,
+          sourcePgnDir: "C:\\PnoyChess\\study\\games\\",
+          sourcePgnFile: "C:\\PnoyChess\\study\\games\\checkmate-patterns.pgn",
+          sourceCollection: "The Checkmate Patterns Manual · Motif #1: Anastasia's Checkmate (Johann Heinse 1803)",
+          localProjectDir: "C:\\PnoyChess\\docu\\projects\\reel-2026-11-09-2200",
           text: `Anastasia's Mate: Can you calculate the forced mate in 3?\n♟ Discovered by Johann Heinse in 1803\nTheme: Knight and Rook coordination with Queen sacrifice!\nFollow @PnoyChess for bite-sized chess lessons, tactics & documentaries.\n#chess #ChessPH #PnoyChess #checkmate #chesstactics`,
           firstComment: `Answer: 1. Ne7+ Kh8 2. Qxh7+! Kxh7 3. Rh1# (Anastasia's checkmate)`,
           status: "approved",
@@ -1431,15 +1632,34 @@
                   <span>Source PGN &amp; FEN Position</span>
                 </div>
                 <div style="display:flex; align-items:center; gap:6px;">
+                  <button type="button" class="btn-copy-chip btn-copy-highlight" data-copy-local="${slotKey}" title="Copy local PC PGN path to clipboard">Copy Local Path</button>
                   <button type="button" class="btn-copy-chip" data-copy-pgn="${slotKey}">Copy PGN</button>
                   <button type="button" class="btn-copy-chip" data-copy-fen="${slotKey}">Copy FEN</button>
                   <span style="font-size:10px; color:var(--text-muted);">▼</span>
                 </div>
               </div>
               <div class="pgn-content-body" id="pgnBody-${slotKey}">
-FEN: ${esc(item.fen || "Standard Opening")}
+                <div class="pgn-local-meta-box">
+                  <div class="pgn-local-row">
+                    <div class="pgn-local-row-left">
+                      <span class="pgn-local-label">📁 Local Directory:</span>
+                      <code class="pgn-local-val">${esc(item.sourcePgnDir || 'C:\\PnoyChess\\study\\games\\')}</code>
+                    </div>
+                    <button type="button" class="btn-copy-chip" data-copy-text="${esc(item.sourcePgnDir || 'C:\\PnoyChess\\study\\games\\')}">Copy Dir</button>
+                  </div>
+                  <div class="pgn-local-row">
+                    <div class="pgn-local-row-left">
+                      <span class="pgn-local-label">📄 Local PGN File:</span>
+                      <code class="pgn-local-val">${esc(item.sourcePgnFile || (item.sourcePgnDir || 'C:\\PnoyChess\\study\\games\\'))}</code>
+                    </div>
+                    <button type="button" class="btn-copy-chip" data-copy-text="${esc(item.sourcePgnFile || (item.sourcePgnDir || 'C:\\PnoyChess\\study\\games\\'))}">Copy File Path</button>
+                  </div>
+                  ${item.sourceCollection ? `<div class="pgn-sub-info">📚 <b>Collection:</b> ${esc(item.sourceCollection)}</div>` : ''}
+                  ${item.localProjectDir ? `<div class="pgn-sub-info">🎬 <b>Remotion Project:</b> <code class="pgn-local-val" style="font-size:11px;">${esc(item.localProjectDir)}</code></div>` : ''}
+                </div>
+                <div class="pgn-raw-text">FEN: ${esc(item.fen || "Standard Opening")}
 
-${esc(item.pgn || "No PGN provided")}
+${esc(item.pgn || "No PGN provided")}</div>
               </div>
             </div>
 
@@ -1500,6 +1720,25 @@ ${esc(item.pgn || "No PGN provided")}
       if (btnLink) {
         await copyToClipboard(btnLink.dataset.copyLink);
         showToast("Video link copied to clipboard!");
+        return;
+      }
+
+      // Copy Local Path for Slot
+      const btnLocal = e.target.closest("[data-copy-local]");
+      if (btnLocal) {
+        const slot = btnLocal.dataset.copyLocal;
+        const item = state.slots[slot];
+        const path = item.sourcePgnFile || item.sourcePgnDir || "C:\\PnoyChess\\study\\games\\";
+        await copyToClipboard(path);
+        showToast("Local PGN path copied to clipboard!");
+        return;
+      }
+
+      // Copy Text Attribute
+      const btnText = e.target.closest("[data-copy-text]");
+      if (btnText) {
+        await copyToClipboard(btnText.dataset.copyText);
+        showToast("Path copied to clipboard!");
         return;
       }
 
@@ -1685,7 +1924,15 @@ ${esc(item.pgn || "No PGN provided")}
         container.innerHTML = `
           <div style="background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:24px;">
             <h2 style="font-family:var(--font-brand); font-size:20px; margin-bottom:12px;">📅 90-Day High-Retention Queue</h2>
-            <p style="color:var(--text-muted); font-size:14px;">Master schedule of tactical motifs, opening traps, and documentary chapters queued for upcoming dates.</p>
+            <p style="color:var(--text-muted); font-size:14px; margin-bottom:16px;">Master schedule of tactical motifs, opening traps, and documentary chapters queued for upcoming dates.</p>
+            <div style="background:var(--surface-card); border:1px solid var(--border); border-left:4px solid var(--gold); border-radius:var(--radius-md); padding:12px 16px; margin-top:14px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap;">
+              <div>
+                <div style="color:var(--gold); font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:0.04em;">📁 Local PC Source PGN Library</div>
+                <div style="font-family:var(--font-mono); font-size:13px; color:var(--text); margin-top:3px;">C:\\PnoyChess\\study\\games\\</div>
+                <div style="font-size:11.5px; color:var(--text-muted); margin-top:2px;">Indexed in <code>catalog.json</code> across 9 master study books and 10,000+ positions.</div>
+              </div>
+              <button type="button" class="btn-copy-chip btn-copy-highlight" data-copy-text="C:\\PnoyChess\\study\\games\\">Copy Local Path</button>
+            </div>
           </div>
         `;
       }
@@ -1771,6 +2018,15 @@ ${esc(item.pgn || "No PGN provided")}
       } catch (e) {}
       renderSlots();
     }
+
+    // Document-level handler for copy buttons outside slots container (e.g. main banner)
+    document.addEventListener("click", async (e) => {
+      const btnText = e.target.closest("[data-copy-text]");
+      if (btnText && !btnText.closest("#slotsContainer")) {
+        await copyToClipboard(btnText.dataset.copyText);
+        showToast("Local PGN directory copied to clipboard!");
+      }
+    });
 
     // Initialize UI
     renderSlots();
