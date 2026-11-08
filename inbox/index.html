@@ -1100,6 +1100,7 @@
       }
     }
   
+    
     /* --- Games for Reels & Collections View --- */
     .gfr-container {
       display: flex;
@@ -1191,6 +1192,171 @@
       background: var(--gold-glow);
       border-color: var(--gold);
       color: var(--gold-light);
+    }
+
+    /* Inventory Runway & Statistics Banner */
+    .gfr-runway-banner {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 20px 22px;
+      box-shadow: var(--shadow-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .gfr-runway-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .gfr-runway-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .gfr-runway-title {
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--gold);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .gfr-runway-pulse {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--emerald);
+      box-shadow: 0 0 8px var(--emerald);
+      display: inline-block;
+    }
+    .gfr-runway-subtitle {
+      font-size: 12.5px;
+      color: var(--text-muted);
+    }
+    .gfr-total-badge {
+      background: var(--surface-card);
+      border: 1px solid var(--gold);
+      border-radius: var(--radius-md);
+      padding: 8px 16px;
+      text-align: right;
+    }
+    .gfr-total-number {
+      font-family: var(--font-brand);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--gold-light);
+      line-height: 1.1;
+    }
+    .gfr-total-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      text-transform: uppercase;
+    }
+    .gfr-runway-cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .gfr-kpi-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 14px 16px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .gfr-kpi-card.gfr-kpi-highlight {
+      border-color: var(--gold);
+      background: rgba(212, 175, 55, 0.06);
+    }
+    .gfr-kpi-label {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: var(--gold);
+    }
+    .gfr-kpi-value {
+      font-family: var(--font-brand);
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.1;
+    }
+    .gfr-kpi-detail {
+      font-size: 12.5px;
+      color: var(--emerald);
+      font-weight: 500;
+    }
+    .gfr-kpi-math {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--text-faint);
+      border-top: 1px solid var(--border-subtle);
+      padding-top: 6px;
+      margin-top: 4px;
+    }
+
+    /* Storage Locations Card */
+    .gfr-locations-card {
+      background: var(--surface-card);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-md);
+      padding: 14px 18px;
+    }
+    .gfr-locations-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--gold);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 10px;
+    }
+    .gfr-locations-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 12px;
+    }
+    .gfr-loc-item {
+      background: rgba(0,0,0,0.22);
+      border: 1px solid var(--border-subtle);
+      border-radius: var(--radius-sm);
+      padding: 10px 12px;
+    }
+    [data-theme="light"] .gfr-loc-item {
+      background: rgba(0,0,0,0.03);
+    }
+    .gfr-loc-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .gfr-loc-path {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      color: var(--gold-light);
+      word-break: break-all;
+      user-select: all;
+      margin-bottom: 4px;
+    }
+    .gfr-loc-desc {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      line-height: 1.35;
     }
 
     /* Filter & Batch Toolbar */
