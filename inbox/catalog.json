@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "collections": [
+    {
+      "id": "moves-ahead",
+      "name": "Moves Ahead 1: Vision in Calculating Mate",
+      "filename": "moves-ahead.pgn",
+      "author": "AlanB",
+      "category": "calculation",
+      "itemCount": 101,
+      "description": "Calculation and visualization trainer featuring checkmate variations from master games (2300+ FIDE) with explicit candidate moves.",
+      "tags": ["calculation", "candidate-moves", "visualization", "checkmate"]
+    },
+    {
+      "id": "checkmate-patterns",
+      "name": "The Checkmate Patterns Manual",
+      "filename": "checkmate-patterns.pgn",
+      "author": "CraftyRaf & IM John Bartholomew",
+      "category": "checkmates",
+      "itemCount": 1000,
+      "description": "Comprehensive reference of 30 classic mating motifs (Anastasia, Boden, Epaulette, Arabian, Damiano, Greco, Morphy, etc.) across 1,000 positions.",
+      "tags": ["mating-patterns", "motifs", "shorts", "tactics", "bartholomew"]
+    },
+    {
+      "id": "woodpecker",
+      "name": "The Woodpecker Method",
+      "filename": "woodpecker.pgn",
+      "author": "GM Axel Smith & GM Hans Tikkanen",
+      "category": "tactics",
+      "itemCount": 1128,
+      "description": "Celebrated tactical training system with 1,128 exercises from World Champion games arranged in Easy, Intermediate, and Advanced tiers.",
+      "tags": ["tactics", "world-champions", "woodpecker", "intermediate", "advanced"]
+    },
+    {
+      "id": "1001-checkmates",
+      "name": "1001 Brilliant Checkmates",
+      "filename": "1001-checkmates.pgn",
+      "author": "Fred Reinfeld",
+      "category": "checkmates",
+      "itemCount": 995,
+      "description": "Timeless classical collection of 995 forced checkmates and attacking combinations ideal for quick tactical puzzle Shorts.",
+      "tags": ["checkmate", "classics", "reinfeld", "tactics", "shorts"]
+    },
+    {
+      "id": "dvoretsky-endgame",
+      "name": "Dvoretsky's Endgame Manual",
+      "filename": "dvoretsky-endgame.pgn",
+      "author": "Mark Dvoretsky",
+      "category": "endgames",
+      "itemCount": 228,
+      "description": "The definitive modern manual on practical endgames and precise pawn, rook, and piece theoretical positions.",
+      "tags": ["endgames", "masterclass", "dvoretsky", "technique"]
+    },
+    {
+      "id": "endgame-studies-1234",
+      "name": "1234 Modern End-Game Studies",
+      "filename": "endgame-studies-1234.pgn",
+      "author": "Modern Endgame Composers",
+      "category": "endgames",
+      "itemCount": 1258,
+      "description": "Extensive library of 1,258 composed endgame studies demonstrating exceptional geometry, zugzwang, and fortress ideas.",
+      "tags": ["endgames", "studies", "zugzwang", "geometry"]
+    },
+    {
+      "id": "fischer-tactics",
+      "name": "Bobby Fischer: Tactics & Reversing Method",
+      "filename": "fischer-tactics.pgn",
+      "author": "AlanB / Bobby Fischer",
+      "category": "player-tactics",
+      "itemCount": 1552,
+      "description": "Extensive study of Bobby Fischer's aggressive tactical combinations, setup moves, and punishing refutations.",
+      "tags": ["fischer", "tactics", "legends", "world-champions"]
+    },
+    {
+      "id": "polgar-5334",
+      "name": "Chess: 5334 Problems, Combinations and Games",
+      "filename": "polgar-5334.pgn",
+      "author": "Laszlo Polgar",
+      "category": "tactics",
+      "itemCount": 4747,
+      "description": "The monumental puzzle compendium by Laszlo Polgar covering mates in 1, 2, 3, and tactical combinations.",
+      "tags": ["polgar", "tactics", "mate-in-1", "mate-in-2", "shorts"]
+    },
+    {
+      "id": "khenkin-mating-combinations",
+      "name": "1000 Mating Combinations",
+      "filename": "khenkin-mating-combinations.pgn",
+      "author": "Victor Khenkin",
+      "category": "checkmates",
+      "itemCount": 1245,
+      "description": "Systematic breakdown of checkmating geometry, piece coordination, and attacking breakthroughs.",
+      "tags": ["checkmates", "combinations", "geometry", "tactics"]
+    }
+  ]
+}
