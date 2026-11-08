@@ -1102,6 +1102,7 @@
   
     
     
+    
     /* --- Games for Reels & Collections View --- */
     .gfr-container {
       display: flex;
@@ -1596,7 +1597,8 @@
       <a href="#" class="brand-wrap">
         <div class="brand-icon">♞</div>
         <div class="brand-text">
-          <h1>PnoyChess Reel Inbox <span class="badge-live">LIVE 6x SLOTS</span></h1>
+          <h1>PnoyChess Reel Inbox <span class="badge-live">LIVE 6x SLOTS</span>
+            <button type="button" class="badge-db-stats" id="headerDbStatsBtn" style="cursor:pointer; background:rgba(212,175,55,0.15); border:1px solid var(--gold); color:var(--gold-light); font-size:11px; font-weight:700; border-radius:4px; padding:2px 8px; margin-left:6px; vertical-align:middle;" title="Click to view Database Runway Statistics">📊 1.04M Games (475y)</button></h1>
           <div class="brand-sub">Daily automated chess lessons · tactical explainers · multi-platform publisher</div>
         </div>
       </a>
@@ -1627,6 +1629,11 @@
           <p class="hero-desc">
             The publisher has successfully transitioned to our 6-slot daily curriculum. Every reel is engineered for subscriber retention with Stockfish-verified tactical puzzles, refutation lines, and Asian chess history.
           </p>
+          <div style="margin-top: 10px;">
+            <button type="button" id="heroJumpToStats" style="cursor:pointer; background:rgba(212,175,55,0.12); border:1px solid var(--gold); color:var(--gold-light); font-size:12px; font-weight:600; border-radius:6px; padding:6px 12px; display:inline-flex; align-items:center; gap:6px;">
+              <span>📊</span> Database Inventory: <b>1,041,263 Games</b> (475-Year Runway at 6/day) · <u>Click to View Statistics &amp; Storage Locations →</u>
+            </button>
+          </div>
         </div>
       </div>
       <!-- 6 Quick Lineup Badges -->
@@ -3124,6 +3131,21 @@ ${esc(item.pgn || "No PGN provided")}</div>
         showToast("Local PGN directory copied to clipboard!");
       }
     });
+
+    
+    // Jump to Games for Reels stats from header or hero banner
+    const jumpToGfr = () => {
+      const btn = $("navBtnGames") || document.querySelector('[data-tab="upcoming"]');
+      if (btn) btn.click();
+      setTimeout(() => {
+        const sec = $("gfrRunwaySection");
+        if (sec) sec.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 50);
+    };
+    const headerStatBtn = $("headerDbStatsBtn");
+    if (headerStatBtn) headerStatBtn.onclick = jumpToGfr;
+    const heroJumpBtn = $("heroJumpToStats");
+    if (heroJumpBtn) heroJumpBtn.onclick = jumpToGfr;
 
     // Initialize UI
     renderSlots();
