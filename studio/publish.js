@@ -118,6 +118,15 @@
         }
       }) : null;
 
+      const runReelsBtn = act ? el("button", {
+        class: "btn", type: "button", text: "Render reels now", title: "Re-render this day's flagged reels on GitHub Actions (make.yml) with the latest template and sound",
+        onclick: async (ev) => {
+          ev.target.disabled = true;
+          try { await act.dispatch("make.yml", { mode: "live", date: selectedDay }); say("Started Make reels for " + selectedDay + " on GitHub Actions (a few minutes)."); }
+          catch (e) { ev.target.disabled = false; say("Could not start Make reels: " + (e.message || e.code)); }
+        }
+      }) : null;
+
       const refreshBtn = el("button", {
         class: "btn", type: "button", text: "Refresh", title: "Refresh the publisher schedule, render status, and live social media posting links",
         onclick: () => {
@@ -136,6 +145,7 @@
         el("div", { class: "row", style: "gap:8px;align-items:center;" },
           el("span", { class: "pill " + (live ? "ok" : "warn"), text: live ? "Publisher: LIVE" : "Publisher: DRY-RUN" }),
           runPubBtn,
+          runReelsBtn,
           refreshBtn
         )
       ));
