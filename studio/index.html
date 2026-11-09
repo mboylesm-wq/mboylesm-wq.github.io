@@ -372,6 +372,18 @@ textarea.code { font: 12.5px/1.5 var(--mono); min-height: 64px; }
 .pill.ok { background: var(--ok-bg); color: var(--ok); border-color: var(--ok); }
 .pill.bad { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
 .pill.warn { background: var(--warn-bg); color: var(--warn); border-color: var(--warn); }
+/* needs attention: the few things that are stuck, failed or blocked (Review and Channel) */
+.attention { border-left: 4px solid var(--warn); gap: 10px; }
+.attention.bad { border-left-color: var(--bad); }
+.attention .attention-row { display: grid; grid-template-columns: 10px 1fr auto; gap: 12px; align-items: center; padding: 10px 0; border-top: 1px solid var(--line); }
+.attention .attention-row:first-of-type { border-top: 0; }
+.attention .dot { width: 9px; height: 9px; border-radius: 99px; background: var(--warn); }
+.attention .dot.bad { background: var(--bad); }
+.attention .t { font-weight: 600; font-size: 13.5px; color: var(--fg); }
+@media (max-width: 700px) {
+  .attention .attention-row { grid-template-columns: 10px 1fr; }
+  .attention .attention-row .btn { grid-column: 2; justify-self: start; }
+}
 .topic {
   display: grid;
   gap: 8px;
@@ -726,6 +738,12 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
       const r = (await json(`/actions/workflows/${workflow}/runs?per_page=10`)).body || {};
       return (r.workflow_runs || []).filter((x) => x.status !== "completed").map((x) => ({ id: x.id, status: x.status, at: x.created_at, url: x.html_url }));
     };
+    // the newest runs of every workflow, for the page's "needs attention" line; Actions: Read
+    const recent = async (limit = 30) => {
+      const n = Math.max(1, Math.min(50, +limit || 30));
+      const r = (await json(`/actions/runs?per_page=${n}`)).body || {};
+      return (r.workflow_runs || []).map((x) => ({ id: x.id, name: x.name, event: x.event, status: x.status, conclusion: x.conclusion, at: x.created_at, url: x.html_url }));
+    };
     // read-only repo files for the Publish tab (the publisher's day plans, states and logs): JSON or text, null if missing
     const files = {
       async json(path) { if (!/^[\w./-]+\.json$/.test(path) || path.includes("..")) throw new Error("not a file: " + path); const d = await readDoc(path); return d ? d.data : null; },
@@ -739,7 +757,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
         }));
       },
     };
-    return { db, assets, blob, dispatch, active, refresh, refreshAll, call, files };
+    return { db, assets, blob, dispatch, active, recent, refresh, refreshAll, call, files };
   }
 
   const api = { makeBackend, toB64, fromB64 };
@@ -804,7 +822,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
   new MutationObserver((ms) => ms.forEach((m) => (m.type === "attributes" ? scan(m.target) : m.addedNodes.forEach(scan)))).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
   if (document.body) scan(document.body);
   const downloads = { async save({ filename, data }) { const b = data instanceof Blob ? data : new Blob([data], { type: "text/plain" }); const a = document.createElement("a"); a.href = URL.createObjectURL(b); a.download = filename; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); } };
-  const have = { db: backend.db, assets: backend.assets, downloads, actions: { dispatch: backend.dispatch, active: backend.active }, files: backend.files };
+  const have = { db: backend.db, assets: backend.assets, downloads, actions: { dispatch: backend.dispatch, active: backend.active, recent: backend.recent }, files: backend.files };
   window.claude = { github: true, repo: REPO, use: (name) => (have[name] ? Promise.resolve(have[name]) : Promise.reject(new Error(name + " needs Claude"))) };
   let pollTimer = null;
   function schedulePoll() {
@@ -1208,14 +1226,42 @@ function matchTrendProject(t) {
   return null;
 }
 
+
+function scriptAuthor(p) {
+  if (!p) return "";
+  let a = p.writtenBy || p.scriptSource || (p.plan && p.plan.writtenBy);
+  if (a) {
+    if (a === "DeepSeek") return "DeepSeek Chat (deepseek-chat)";
+    if (a === "Claude") return "Claude 3.5 Sonnet (claude-3-5-sonnet-20241022)";
+    if (a === "Claude Sonnet") return "Claude Sonnet 4.5 (claude-sonnet-4-5)";
+    if (a === "Antigravity" || a === "Antigravity (Gemini)") return "Gemini 4 Argon (Antigravity)";
+    return a;
+  }
+  if (p.kind === "review") return "Stockfish 16 (Engine analysis)";
+  if (p.writeWith === "antigravity") return "Gemini 4 Argon (Antigravity)";
+  if (p.writeWith === "copilot") return "Claude Opus 5.5 (claude-opus-5.5)";
+  if (p.writeWith === "deepseek" || p.writeWith === "github") return "DeepSeek Chat (deepseek-chat)";
+  if (p.writeWith === "claude") return "Claude Sonnet 4.5 (claude-sonnet-4-5)";
+  if (p.note) {
+    if (/opus/i.test(p.note)) return "Claude Opus 5.5 (claude-opus-5.5)";
+    if (/deepseek/i.test(p.note)) return "DeepSeek Chat (deepseek-chat)";
+    if (/antigravity/i.test(p.note)) return "Gemini 4 Argon (Antigravity)";
+    if (/claude/i.test(p.note)) return "Claude 3.5 Sonnet (claude-3-5-sonnet-20241022)";
+    if (/stockfish|engine/i.test(p.note)) return "Stockfish 16 (Engine analysis)";
+  }
+  return "";
+}
 function stageBadges(p) {
   if (!p) return [];
   const badges = [];
   const scenes = (p.plan && p.plan.scenes) || [];
   if (scenes.length > 0) {
     badges.push(el("span", { class: "pill ok", text: "Script ready (" + scenes.length + " scenes)" }));
+    const author = scriptAuthor(p);
+    if (author) badges.push(el("span", { class: "pill", text: "By: " + author, title: "Script source: " + author }));
   } else if (p.status === "writing") {
-    badges.push(el("span", { class: "pill warn", text: "Writing script..." }));
+    const author = scriptAuthor(p);
+    badges.push(el("span", { class: "pill warn", text: "Writing script" + (author ? " (" + author + ")" : "") + "..." }));
   }
 
   if (!hasVideo(p) && scenes.length > 0) {
@@ -1318,11 +1364,11 @@ function saveDraft(data) {
     S._ensureChannel = () => {
       if (S._channelSub) return;
       S._channelSub = true;
-      db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog"), ai: g("ai"), after: g("after"), elevenlabs: g("elevenlabs"), profiles: g("profiles") }; if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
-      db.collection("ytedits").onSnapshot((snap) => { S.edits = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if (S.view === "channel" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
-      db.collection("cards").onSnapshot((snap) => { S.cards = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.id).localeCompare(String(a.id))); if (S.view === "posts" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+      db.collection("channel").onSnapshot((snap) => { const g = (id) => { const d = snap.docs.find((x) => x.id === id); return d ? d.data() : null; }; S.health = g("health"); S.chan2 = { settings: g("settings"), playlists: g("playlists"), setup: g("setup"), autolog: g("autolog"), ai: g("ai"), after: g("after"), elevenlabs: g("elevenlabs"), profiles: g("profiles") }; if ((S.view === "channel" || S.view === "review") && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+      db.collection("ytedits").onSnapshot((snap) => { S.edits = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt))); if ((S.view === "channel" || S.view === "review") && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+      db.collection("cards").onSnapshot((snap) => { S.cards = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.id).localeCompare(String(a.id))); if ((S.view === "posts" || S.view === "review") && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     };
-    if (S.view === "channel" || S.view === "posts") S._ensureChannel();
+    if (S.view === "channel" || S.view === "posts" || S.view === "review") S._ensureChannel();
   }
   render();
 })();
@@ -1506,9 +1552,11 @@ function newForm() {
     el("label", {}, "Topic", el("input", { id: "topic", required: true, value: pre.title || pre.topic || "", placeholder: "e.g. Eugenio Torre, Asia's first grandmaster", oninput: (e) => saveDraft({ title: e.target.value, topic: e.target.value }) })),
     el("label", {}, "Angle (optional)", el("input", { id: "angle", value: pre.angle || "", placeholder: "What makes this story worth 10 minutes?", oninput: (e) => saveDraft({ angle: e.target.value }) })),
     el("div", { class: "grid2" },
-      el("label", {}, "AI Brain", el("select", { id: "ai-brain", onchange: (e) => saveDraft({ brain: e.target.value }) },
-        el("option", { value: "github", selected: (pre.brain || "github") === "github", text: "GitHub Cloud AI (DeepSeek — automatic, PC can stay off)" }),
-        el("option", { value: "antigravity", selected: pre.brain === "antigravity", text: "Antigravity Gemini 4 Argon (PC — free)" }))),
+      el("label", {}, "AI Brain / Script Source", el("select", { id: "ai-brain", onchange: (e) => saveDraft({ brain: e.target.value }) },
+        el("option", { value: "github", selected: (pre.brain || "github") === "github", text: "GitHub Cloud AI (DeepSeek Chat deepseek-chat — automatic, PC can stay off)" }),
+        el("option", { value: "copilot", selected: pre.brain === "copilot", text: "GitHub Copilot (Claude Opus 5.5 claude-opus-5.5 — premium)" }),
+        el("option", { value: "claude", selected: pre.brain === "claude", text: "Anthropic API (Claude Sonnet 4.5 claude-sonnet-4-5)" }),
+        el("option", { value: "antigravity", selected: pre.brain === "antigravity", text: "Antigravity (Gemini 4 Argon — PC free)" }))),
       el("label", {}, "Length", el("select", { id: "length", onchange: (e) => saveDraft({ minutes: +e.target.value }) }, ...[5, 8, 10, 12, 15, 20, 25, 30, 45, 60, 90, 120].map((m) => el("option", { value: m, selected: m === +(pre.minutes || 10), text: m >= 60 ? (m === 60 ? "1 hour" : (m / 60) + " hours") : m + " minutes" })))),
       el("label", {}, "Music", el("select", { id: "music", onchange: (e) => saveDraft({ music: e.target.value }) }, ...MUSIC.map(([id, t]) => el("option", { value: id, selected: id === (pre.music || "km-long-note-four"), text: t })))),
       el("label", {}, "Format", el("select", { id: "format", onchange: (e) => saveDraft({ format: e.target.value }) }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, selected: k === (pre.format || "story"), title: how, text: name })))),
@@ -1531,6 +1579,9 @@ function newForm() {
         };
         const id = slugify(topic) + "-" + Date.now().toString(36).slice(-4);
         const stamp = new Date().toISOString();
+        const brain = ($("#ai-brain") && $("#ai-brain").value) || "github";
+        const authorMap = { github: "DeepSeek Chat (deepseek-chat)", deepseek: "DeepSeek Chat (deepseek-chat)", copilot: "Claude Opus 5.5 (claude-opus-5.5)", claude: "Claude Sonnet 4.5 (claude-sonnet-4-5)", antigravity: "Gemini 4 Argon (Antigravity)" };
+        const writtenBy = authorMap[brain] || brain;
         const p = {
           id,
           title: topic,
@@ -1540,13 +1591,16 @@ function newForm() {
           format: opt.format,
           visualStyle: opt.visualStyle || "documentary",
           status: "draft",
+          writeWith: brain,
+          writtenBy,
+          scriptSource: writtenBy,
           factsChecked: false,
           claimsRequired: true,
           sources: opt.sources,
           createdAt: stamp,
           updatedAt: stamp,
           titles: [topic],
-          plan: { scenes: [] }
+          plan: { scenes: [], writtenBy }
         };
         try {
           await S.db.doc("projects/" + id).set(p);
@@ -1563,8 +1617,11 @@ function newForm() {
       el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes."
         : ghWriter() ? "The AI on GitHub (DeepSeek by default) writes it with sources and fact checks; your PC can stay off." : "Antigravity (Gemini 4 Argon) writes it on your PC for free with sources and fact checks." })),
     el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
-  f.addEventListener("submit", (e) => { e.preventDefault(); const vsEl = $("#visual-style"); const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, visualStyle: (vsEl ? vsEl.value : "documentary"), sources: (S.prefill && S.prefill.sources) || (S.draftForm && S.draftForm.sources) || [] };
+  f.addEventListener("submit", (e) => { e.preventDefault(); const vsEl = $("#visual-style");
     const brain = ($("#ai-brain") && $("#ai-brain").value) || "github";
+    const authorMap = { github: "DeepSeek Chat (deepseek-chat)", deepseek: "DeepSeek Chat (deepseek-chat)", copilot: "Claude Opus 5.5 (claude-opus-5.5)", claude: "Claude Sonnet 4.5 (claude-sonnet-4-5)", antigravity: "Gemini 4 Argon (Antigravity)" };
+    const writtenBy = authorMap[brain] || (S.sample ? "Claude" : "DeepSeek");
+    const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, visualStyle: (vsEl ? vsEl.value : "documentary"), sources: (S.prefill && S.prefill.sources) || (S.draftForm && S.draftForm.sources) || [], brain, writtenBy };
     if (S.sample) write(opt);
     else if (brain === "antigravity") agyQueueWrite(opt);
     else if (ghWriter()) ghWrite(opt);
@@ -1594,12 +1651,14 @@ async function write(opt) {
     const scenes = co.length ? co.map((s, k) => ({ id: "open" + (k + 1), text: String(s.text), visual: s.visual && s.visual.type ? s.visual : { type: "title", title: outline.title } }))
       : [{ id: "title", text: "", visual: { type: "title", title: outline.title, subtitle: "A PnoyChess story" } }];
     const id = slugify(outline.title) + "-" + Date.now().toString(36).slice(-4);
+    const writtenBy = opt.writtenBy || (S.sample ? "Claude" : "Claude Opus 5.5");
     const p = { id, title: outline.title, topic: opt.topic, minutes: opt.minutes, visualStyle: opt.visualStyle || "documentary", status: "writing", factsChecked: false, claimsRequired: true, sources: outline.sources || [], createdAt: new Date().toISOString(),
+      writtenBy, scriptSource: writtenBy,
       titles: [outline.title, ...((outline.titles || []).filter((t) => t && t !== outline.title).slice(0, 3))],
       outline: { chapters: outline.chapters.map((c) => ({ title: String(c.title || ""), words: +c.words || 0, mood: c.mood || "", beats: c.beats || [], opens: String(c.opens || "") })), target,
         question: String(outline.question || ""), format: opt.format || "story", visualStyle: opt.visualStyle || "documentary" },
       writing: { next: 0 },
-      plan: { title: outline.title, format: "16:9", music: { track: opt.music }, next: outline.next || "", coldOpen: scenes.length, scenes,
+      plan: { title: outline.title, format: "16:9", music: { track: opt.music }, next: outline.next || "", coldOpen: scenes.length, scenes, writtenBy,
         thumbnail: { text: (outline.thumbnail && outline.thumbnail.text) || outline.title.split(" ").slice(0, 4).join(" "), small: outline.thumbnail && outline.thumbnail.small || "", person: outline.thumbnail && outline.thumbnail.person || "", people: [] } } };
     await S.db.doc("projects/" + id).set({ ...p, updatedAt: new Date().toISOString() });
     S.cur = p;
@@ -1647,7 +1706,7 @@ async function writeChapters(p, set = (k, m) => say(m)) {
     p.plan.thumbnail.people = peopleFor(p.plan.scenes, p.plan.thumbnail.person);
     await save(p, { plan: p.plan, writing: { next: i + 1 } });
   }
-  await save(p, { status: "draft", writing: null });
+  await save(p, { status: "draft", writing: null, writtenBy: p.writtenBy || "Claude", scriptSource: p.scriptSource || p.writtenBy || "Claude" });
   // the original score plan comes with every new script (Music section: edit it, or pick library music instead)
   if (S.sample && !(p.plan.score || []).length) {
     set(0.97, "Composing the score plan…");
@@ -1664,6 +1723,7 @@ async function agyQueueWrite(opt) {
   if (!opt.topic || !S.db) return;
   const id = slugify(opt.topic) + "-" + Math.random().toString(36).slice(2, 6);
   const stamp = new Date().toISOString();
+  const writtenBy = opt.writtenBy || "Gemini 4 Argon (Antigravity)";
   const p = {
     id,
     title: opt.topic,
@@ -1671,10 +1731,12 @@ async function agyQueueWrite(opt) {
     minutes: opt.minutes,
     status: "writing",
     writeWith: "antigravity",
+    writtenBy,
+    scriptSource: writtenBy,
     writeRequest: opt,
-    plan: { title: opt.topic, scenes: [] },
+    plan: { title: opt.topic, scenes: [], writtenBy },
     sources: opt.sources || [],
-    note: "Queued for Antigravity (Gemini 4 Argon): run 'node tools/ai-write.mjs new ...' in Antigravity",
+    note: `Queued for ${writtenBy}: run 'node tools/ai-write.mjs new ...' in Antigravity`,
     createdAt: stamp,
     updatedAt: stamp
   };
@@ -1703,9 +1765,12 @@ async function ghWrite(opt) {
   S.busy = true; $("#go").disabled = true;
   try {
     const sources = (opt.sources || []).filter((s) => s && s.url).slice(0, 12).map((s) => ({ title: String(s.title || ""), url: String(s.url) }));
-    await S.actions.dispatch("write.yml", { topic: opt.topic, angle: opt.angle || "", minutes: String(opt.minutes), music: opt.music || "", format: opt.format || "story", sources: sources.length ? JSON.stringify(sources) : "" });
+    const inputs = { topic: opt.topic, angle: opt.angle || "", minutes: String(opt.minutes), music: opt.music || "", format: opt.format || "story", sources: sources.length ? JSON.stringify(sources) : "" };
+    if (opt.brain && opt.brain !== "github") inputs.ai_provider = opt.brain;
+    await S.actions.dispatch("write.yml", inputs);
     clearDraft();
-    say(`GitHub is writing "${opt.topic}" with the AI. It shows in Projects as Writing in a few minutes; your PC can be off.`);
+    const whoName = opt.writtenBy || "the AI";
+    say(`GitHub is writing "${opt.topic}" with ${whoName}. It shows in Projects as Writing in a few minutes; your PC can be off.`);
   } catch (e) { say("Could not start the writing on GitHub: " + (e.message || e.code)); }
   finally { S.busy = false; const g = $("#go"); if (g) g.disabled = false; }
 }
@@ -1934,9 +1999,16 @@ function planIssues(p) {
 }
 function projectEditor(p) {
   const scenes = p.plan.scenes, total = scenes.reduce((n, s) => n + words(s.text), 0);
+  const author = scriptAuthor(p);
   const top = el("section", { class: "panel" },
-    el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: p.title }), statusPill(p)),
-    el("div", { class: "note", text: `${scenes.length} scenes · ${total} words · about ${mins(total)} minutes narrated` }),
+    el("div", { class: "row", style: "justify-content:space-between;align-items:center;" },
+      el("h2", { text: p.title }),
+      el("div", { class: "row", style: "gap:6px;align-items:center;" },
+        author ? el("span", { class: "pill ok", text: "Script: " + author, title: "Script source / author: " + author }) : null,
+        statusPill(p)
+      )
+    ),
+    el("div", { class: "note", text: `${scenes.length} scenes · ${total} words · about ${mins(total)} minutes narrated${author ? " · Written by: " + author : ""}` }),
     p.outline && (p.outline.question || p.outline.format || p.visualStyle || (p.outline && p.outline.visualStyle)) ? el("div", { class: "note", text: [p.outline.format && FORMATS[p.outline.format] ? "Format: " + FORMATS[p.outline.format][0] : "", ((p.visualStyle || (p.outline && p.outline.visualStyle)) && VISUAL_STYLES[(p.visualStyle || (p.outline && p.outline.visualStyle))] ? "Style: " + VISUAL_STYLES[(p.visualStyle || (p.outline && p.outline.visualStyle))][0].split(" (")[0] : "Style: Documentary"), p.outline.question ? "Central question: " + p.outline.question : ""].filter(Boolean).join(" · ") }) : null,
     el("div", { class: "note", text: `Mark's take: ${scenes.filter((s) => s.take).length} of ${scenes.filter((s) => s.chapter).length} chapters have a first-person scene` }),
     el("div", { class: "row" }, el("button", { class: "btn", type: "button", text: "← All projects", onclick: () => { S.cur = null; S.view = "projects"; render(); } }), deleteControl(p)),
@@ -2008,9 +2080,33 @@ function projectEditor(p) {
   const script = el("section", { class: "panel" },
     el("div", { class: "row", style: "justify-content:space-between;align-items:center;" },
       el("h2", { text: "Script and scenes" }),
-      planPill
+      el("div", { class: "row", style: "gap:6px;align-items:center;" },
+        author ? el("span", { class: "pill ok", text: "Source: " + author, title: "Script source / AI writer: " + author }) : null,
+        planPill
+      )
     ),
-    el("div", { class: "note", text: "Edit the narration freely. Visuals are JSON: photos use a search, which the cloud turns into a licensed photo with a credit." }));
+    el("div", { class: "row", style: "gap:8px;align-items:center;margin-top:6px;margin-bottom:8px;font-size:13px;" },
+      el("span", { class: "note", text: "Script source / AI writer:" }),
+      (() => {
+        const aiInput = el("input", {
+          value: p.writtenBy || p.scriptSource || author,
+          placeholder: "e.g. Claude Opus 5.5, DeepSeek Chat (deepseek-chat), Gemini 4 Argon",
+          style: "max-width:220px;font-size:12px;padding:3px 8px;border-radius:4px;border:1px solid var(--line, #333);background:var(--bg, #111);color:inherit;",
+          "aria-label": "Script author or AI model"
+        });
+        aiInput.addEventListener("change", () => {
+          const val = aiInput.value.trim();
+          p.writtenBy = val;
+          p.scriptSource = val;
+          if (p.plan) p.plan.writtenBy = val;
+          save(p, { writtenBy: val, scriptSource: val, plan: p.plan });
+          say("Script source saved: " + (val || "none"));
+          render();
+        });
+        return aiInput;
+      })()
+    ),
+    el("div", { class: "note", text: `Edit the narration freely.${author ? " Script written by " + author + "." : ""} Visuals are JSON: photos use a search, which the cloud turns into a licensed photo with a credit.` }));
   let ch = null, chNo = -1;
   scenes.forEach((s, i) => {
     if (s.chapter || !ch) { if (s.chapter) chNo++;
@@ -3391,9 +3487,68 @@ function viewPosts() {
   return wrap;
 }
 
+// ---------- needs attention: the few things that are stuck, failed or blocked, on Review and Channel ----------
+// Pure (no DOM, no network) so the page harness can call it: edits = db/ytedits, projects = db/projects,
+// cards = db/cards, runs = the newest GitHub Actions runs (only on the GitHub page).
+function attentionItems({ edits = [], projects = [], cards = [], runs = [], now = Date.now() } = {}) {
+  const H = 3600e3, lit = (iso) => { const t = Date.parse(iso); return isNaN(t) ? 0 : t; };
+  const old = (iso, h) => lit(iso) > 0 && now - lit(iso) > h * H;
+  const days = (iso) => Math.max(1, Math.round((now - lit(iso)) / 864e5));
+  const when = (iso) => { const m = Math.max(1, Math.round((now - lit(iso)) / 60000)); return m < 90 ? m + " min" : m < 2880 ? Math.round(m / 60) + " h" : Math.round(m / 1440) + " d"; };
+  const items = [], waiting = (edits || []).filter((e) => e.status === "waiting");
+  // a failed workflow is the only one the page cannot see in git: it needs the Actions API
+  const fresh = (iso) => lit(iso) > 0 && now - lit(iso) <= 48 * H;
+  const fails = (runs || []).filter((r) => r.conclusion === "failure" && fresh(r.at)), seen = new Set();
+  for (const r of fails) {
+    if (seen.has(r.name)) continue;
+    seen.add(r.name);
+    items.push({ level: "bad", kind: "run", href: r.url, text: `${r.name} failed ${when(r.at)} ago`, detail: "Open the run: the log says which step and why." });
+    if (seen.size >= 2) break;
+  }
+  const blocked = waiting.filter((e) => /quota|limit/i.test(String(e.note || "")));
+  if (blocked.length) items.push({ level: "bad", kind: "quota", go: "channel", text: `YouTube stopped sending ${blocked.length} approved change${blocked.length === 1 ? "" : "s"}`, detail: "The daily quota ran out. They go again after the 16:00 Manila reset; nothing is lost." });
+  else {
+    const stuck = waiting.filter((e) => old(e.updatedAt, 24)).sort((a, b) => lit(a.updatedAt) - lit(b.updatedAt));
+    if (stuck.length) items.push({ level: "warn", kind: "queue", go: "channel", text: `${stuck.length} approved channel change${stuck.length === 1 ? "" : "s"} waiting more than a day`, detail: `The oldest has waited ${days(stuck[0].updatedAt)} days. Apply them to YouTube, or send them back to draft.` });
+  }
+  const review = (projects || []).filter((p) => p.status === "review" && old((p.result && p.result.renderedAt) || p.updatedAt, 24));
+  if (review.length) items.push({ level: "warn", kind: "review", go: "review", text: `${review.length} video${review.length === 1 ? "" : "s"} rendered and waiting for your yes`, detail: `The oldest has waited ${days((review[0].result && review[0].result.renderedAt) || review[0].updatedAt)} days.` });
+  const toPc = (projects || []).filter((p) => p.status === "pc" && old(p.updatedAt, 24));
+  if (toPc.length) items.push({ level: "warn", kind: "pc", go: "projects", text: `${toPc.length} video${toPc.length === 1 ? "" : "s"} ready for render-pc`, detail: "Your PC has not been run for a day: double-click render-pc.cmd." });
+  const cardDays = (cards || []).filter((d) => (d.items || []).some((c) => c.status === "waiting") && old(d.day + "T00:00:00+08:00", 36));
+  if (cardDays.length) items.push({ level: "warn", kind: "cards", go: "posts", text: `${cardDays.length} day${cardDays.length === 1 ? "" : "s"} of cards still waiting for approval`, detail: "Cards never post without your yes, so those slots go out empty." });
+  return items.slice(0, 5);
+}
+function attentionStrip(items) {
+  if (!items || !items.length) return null;
+  const bad = items.some((i) => i.level === "bad");
+  const sec = el("section", { class: "panel attention" + (bad ? " bad" : ""), id: "attention", "aria-label": "Needs attention" });
+  sec.append(el("div", { class: "row", style: "justify-content:space-between" },
+    el("h2", { text: "Needs attention" }),
+    el("span", { class: "pill " + (bad ? "bad" : "warn"), text: items.length + " to do" })));
+  items.forEach((it) => sec.append(el("div", { class: "attention-row" },
+    el("span", { class: "dot " + it.level, "aria-hidden": "true" }),
+    el("div", { class: "attention-text" }, el("div", { class: "t", text: it.text }), it.detail ? el("div", { class: "note", text: it.detail }) : null),
+    it.go ? el("button", { class: "btn", type: "button", text: "Open", onclick: () => { S.view = it.go; S.cur = null; render(); } }) : null,
+    it.href ? el("a", { class: "btn", href: it.href, target: "_blank", rel: "noopener", text: "Open the run" }) : null)));
+  return sec;
+}
+// the failed runs come from GitHub's Actions API (one call at most every 5 minutes; the page's key has Actions: Read)
+function ensureAttentionRuns() {
+  if (!S.actions || typeof S.actions.recent !== "function" || S._runsLoading) return;
+  if (S._runsAt && Date.now() - S._runsAt < 5 * 60e3) return;
+  S._runsLoading = true;
+  Promise.resolve().then(() => S.actions.recent(20)).then((r) => { S._runs = r; })
+    .catch(() => { S._runs = S._runs || []; })
+    .then(() => { S._runsAt = Date.now(); S._runsLoading = false; if (S.view === "channel" || S.view === "review") render(); });
+}
+function attentionSection() { return attentionStrip(attentionItems({ edits: S.edits || [], projects: S.projects || [], cards: S.cards || [], runs: S._runs || [], now: Date.now() })); }
+
 function viewChannel() {
   if (S._ensureChannel) S._ensureChannel();
+  ensureAttentionRuns();
   const h = S.health, st = chState(), wrap = el("div", { style: "display:grid;gap:18px" });
+  const att = attentionSection(); if (att) wrap.append(att);
   wrap.append(chanSocialCard());
   wrap.append(chanElevenCard());
 
@@ -3886,7 +4041,10 @@ function viewPgn() {
 }
 
 function viewReview() {
+  if (S._ensureChannel) S._ensureChannel();
+  ensureAttentionRuns();
   const box = el("section", { class: "panel" }, el("h2", { text: "Review" }));
+  const att = attentionSection();
   const wait = S.projects.filter((p) => p.status === "review" || p.status === "pc");
   const waitingCards = (S.cards || []).reduce((n, d) => n + ((d.items || d.cards) || []).filter((c) => c.status === "waiting").length, 0);
 
@@ -4042,7 +4200,7 @@ function viewReview() {
     el("button", { class: "btn", type: "button", text: "Open Posts Generator", onclick: () => { S.view = "posts"; render(); } })
   ));
 
-  return box;
+  return att ? el("div", { style: "display:grid;gap:18px" }, att, box) : box;
 }
 function reelList() {
   if (!S.reels.length) return null;
