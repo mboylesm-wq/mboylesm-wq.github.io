@@ -63,7 +63,7 @@
     const pf = slot && slot.pgnFile;
     if (pf) wrap.append(el("div", { class: "mono", style: "font-size:10px;line-height:1.35;color:var(--text);word-break:break-all;", title: pf, text: "PGN " + localPath(pf) }));
     const actions = el("div", { class: "row", style: "gap:6px;align-items:center;flex-wrap:wrap;margin-top:2px;" });
-    if (pgn) actions.append(el("a", { class: "btn primary", style: "font-size:10px;padding:2px 8px;", href: hashFor(date, key), text: "Open PGN ↗" }));
+    if (pgn) actions.append(el("a", { class: "btn primary", style: "font-size:10px;padding:2px 8px;", href: hashFor(date, key), text: "Open PGN ↗", title: "Open the interactive chessboard to view and replay this game's moves" }));
     if (pgn) actions.append(el("button", {
       class: "btn", type: "button", style: "font-size:10px;padding:2px 8px;", text: "Download .pgn", title: "Save this PGN as a file",
       onclick: () => {
@@ -73,7 +73,7 @@
       },
     }));
     if (pf) actions.append(el("a", {
-      class: "note", style: "font-size:10px;", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(slot.pgnGitFile || pf), target: "_blank", rel: "noopener", text: "the .pgn in git ↗",
+      class: "note", style: "font-size:10px;", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(slot.pgnGitFile || pf), target: "_blank", rel: "noopener", text: "the .pgn in git ↗", title: "View this verified PGN file in the GitHub repository",
     }));
     else if (file && /^chess\//.test(file)) actions.append(el("a", {
       class: "note", style: "font-size:10px;", href: "https://github.com/mboylesm-wq/pnoychess-docu/blob/main/" + encodeURI(file), target: "_blank", rel: "noopener", text: "Open the file in GitHub ↗",
