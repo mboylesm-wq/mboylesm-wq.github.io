@@ -110,7 +110,7 @@
       let act = null;
       try { act = await window.claude.use("actions"); } catch (e) {}
       const runPubBtn = act ? el("button", {
-        class: "btn", type: "button", text: "Run Publisher now", title: "Dispatch publish.yml on GitHub Actions for any due slot",
+        class: "btn", type: "button", text: "Run Publisher now", title: "Immediately run the Publisher on GitHub Actions (publish.yml) to post any due slots now across Facebook, Instagram, YouTube, and TikTok",
         onclick: async (ev) => {
           ev.target.disabled = true;
           try { await act.dispatch("publish.yml", {}); say("Started Publish (publish.yml) on GitHub Actions."); }
@@ -119,7 +119,7 @@
       }) : null;
 
       const refreshBtn = el("button", {
-        class: "btn", type: "button", text: "Refresh",
+        class: "btn", type: "button", text: "Refresh", title: "Refresh the publisher schedule, render status, and live social media posting links",
         onclick: () => {
           box.textContent = "";
           box.append(el("h2", { text: "Schedule" }), el("div", { class: "note", text: "Refreshing…" }));
@@ -157,6 +157,7 @@
               type: "button",
               style: "font-size:12px;padding:4px 10px;",
               text: "Today (" + today.slice(5) + ")",
+              title: "View today's 6-slot lineup and live publishing status",
               onclick: () => { selectedDay = today; load(); }
             }),
             el("button", {
@@ -164,6 +165,7 @@
               type: "button",
               style: "font-size:12px;padding:4px 10px;",
               text: "Tomorrow (" + tomorrow.slice(5) + ")",
+              title: "View tomorrow's 6-slot lineup to preview, edit, or approve ahead of time",
               onclick: () => { selectedDay = tomorrow; load(); }
             }),
             files.saveJson ? el("button", {
@@ -196,6 +198,60 @@
           const statusTone = isApproved ? "ok" : isVetoed ? "bad" : "warn";
           const statusLabel = isApproved ? "Approved" : isVetoed ? "Vetoed" : "Waiting Review";
 
+          // Social media posting state for this slot
+          const s = (curDayData.st && curDayData.st[sk]) || {};
+          const y = (curDayData.yt && curDayData.yt[sk]) || {};
+          const t = (curDayData.tt && curDayData.tt[sk]) || {};
+          const fb = s.fb || {};
+          const ig = s.ig || {};
+
+          const fbUrl = fb.link || (fb.videoId ? "https://www.facebook.com/reel/" + fb.videoId : null);
+          const fbOk = !!(fb.posted || fb.link);
+          const fbSched = !!fb.scheduledFor;
+
+          const igUrl = ig.link || null;
+          const igOk = !!(ig.posted || ig.mediaId || ig.link);
+
+          const ytUrl = y.link || (y.videoId ? "https://youtube.com/shorts/" + y.videoId : null);
+          const ytOk = !!(y.videoId || y.posted);
+
+          const ttUrl = t.link || null;
+          const ttOk = !!(t.link || t.publishId || t.status === "scheduled" || t.bufferPostId);
+
+          const isLiveAny = fbOk || igOk || ytOk || ttOk;
+          const isPastSlot = selectedDay === today && sk <= nowHM();
+
+          const socialPills = el("div", {
+            style: "display:flex;flex-direction:column;gap:5px;padding:8px 10px;background:var(--panel-elevated);border-radius:6px;border:1px solid var(--line);margin:4px 0;"
+          },
+            el("div", { class: "row", style: "justify-content:space-between;align-items:center;" },
+              el("span", { class: "kind", style: "font-size:10px;font-weight:600;", text: "Social Media Distribution" }),
+              isLiveAny && fbOk && igOk && ytOk
+                ? el("span", { class: "pill ok", style: "font-size:10px;font-weight:700;", text: "LIVE ACROSS PLATFORMS ✓" })
+                : isPastSlot && !isLiveAny
+                  ? el("span", { class: "pill warn", style: "font-size:10px;", title: "Scheduled time has passed. Click 'Run Publisher now' to publish." }, "Due now (needs publish)")
+                  : el("span", { class: "note", style: "font-size:10px;", text: "Posts at " + timeFormatted })
+            ),
+            el("div", { class: "row", style: "gap:5px;flex-wrap:wrap;align-items:center;" },
+              fbOk
+                ? el("a", { class: "pill ok", href: fbUrl || "#", target: "_blank", rel: "noopener", title: "Live on Facebook Reels! Click to open reel", style: "text-decoration:none;font-size:10px;", text: "Facebook ✓" })
+                : fbSched
+                  ? el("span", { class: "pill warn", style: "font-size:10px;", title: "Scheduled to be published by Facebook at " + (fb.scheduledFor || timeFormatted), text: "Facebook ⏰" })
+                  : el("span", { class: "pill", style: "font-size:10px;opacity:0.6;", title: "Waiting to be published to Facebook at " + timeFormatted, text: "Facebook · waiting" }),
+              igOk
+                ? el("a", { class: "pill ok", href: igUrl || "#", target: "_blank", rel: "noopener", title: "Live on Instagram Reels! Click to open reel", style: "text-decoration:none;font-size:10px;", text: "Instagram ✓" })
+                : ig.containerId
+                  ? el("span", { class: "pill warn", style: "font-size:10px;", title: "Instagram container processing", text: "Instagram ⏳" })
+                  : el("span", { class: "pill", style: "font-size:10px;opacity:0.6;", title: "Waiting to be published to Instagram at " + timeFormatted, text: "Instagram · waiting" }),
+              ytOk
+                ? el("a", { class: "pill ok", href: ytUrl || "#", target: "_blank", rel: "noopener", title: "Live on YouTube Shorts! Click to watch", style: "text-decoration:none;font-size:10px;", text: "YouTube Shorts ✓" })
+                : el("span", { class: "pill", style: "font-size:10px;opacity:0.6;", title: "Waiting to be published to YouTube Shorts at " + timeFormatted, text: "YouTube · waiting" }),
+              ttOk
+                ? el("a", { class: "pill ok", href: ttUrl || "#", target: "_blank", rel: "noopener", title: "Live or Queued on TikTok via Buffer! Click to view", style: "text-decoration:none;font-size:10px;", text: "TikTok ✓" })
+                : el("span", { class: "pill", style: "font-size:10px;opacity:0.6;", title: "Waiting to be published to TikTok at " + timeFormatted, text: "TikTok · waiting" })
+            )
+          );
+
           const slotBox = el("div", { class: "proj", style: "margin:0;padding:12px;display:flex;flex-direction:column;gap:8px;" },
             el("div", { class: "row", style: "justify-content:space-between;align-items:center;" },
               el("div", { class: "row", style: "gap:6px;align-items:center;" },
@@ -203,20 +259,22 @@
                 el("span", { class: "note", style: "font-size:12px;", text: SLOT_NAME[sk] || "Reel" })
               ),
               el("div", { class: "row", style: "gap:4px;" },
-                item.reRender ? el("span", { class: "pill warn", style: "font-size:11px;", text: "⟳ Re-render" }) : null,
-                el("span", { class: "pill " + statusTone, text: statusLabel })
+                item.reRender ? el("span", { class: "pill warn", style: "font-size:11px;", title: "Marked for PC re-render", text: "⟳ Re-render" }) : null,
+                el("span", { class: "pill " + statusTone, title: isApproved ? "Approved to be posted automatically at " + timeFormatted : isVetoed ? "Vetoed: will not be posted" : "Waiting for your review", text: statusLabel })
               )
             ),
             el("div", { style: "font-weight:600;font-size:14px;color:var(--text);line-height:1.3;", text: item.title || "Untitled Lesson" }),
             item.category ? el("div", { class: "note", style: "font-size:12px;", text: item.category }) : null,
+            socialPills,
             el("div", { class: "row", style: "justify-content:space-between;align-items:center;margin-top:4px;" },
-              item.videoUrl ? el("a", { class: "note", href: item.videoUrl, target: "_blank", rel: "noopener", style: "color:var(--gold);font-size:12px;", text: "▶ Watch Video" }) : el("span", { class: "note", text: "Pending render" }),
+              item.videoUrl ? el("a", { class: "note", href: item.videoUrl, target: "_blank", rel: "noopener", style: "color:var(--gold);font-size:12px;", title: "Watch the rendered video file on GitHub", text: "▶ Watch Video" }) : el("span", { class: "note", text: "Pending render" }),
               files.saveJson ? el("div", { class: "row", style: "gap:4px;" },
                 el("button", {
                   class: "btn" + (isApproved ? "" : " primary"),
                   type: "button",
                   style: "font-size:11px;padding:3px 8px;",
                   text: isApproved ? "✓ Approved" : "Approve",
+                  title: isApproved ? "This slot is approved and will post at " + timeFormatted : "Approve this reel so the publisher will post it automatically at " + timeFormatted,
                   onclick: async () => {
                     item.status = "approved";
                     try {
@@ -231,6 +289,7 @@
                   type: "button",
                   style: "font-size:11px;padding:3px 8px;color:var(--rose);",
                   text: isVetoed ? "Vetoed" : "Veto",
+                  title: isVetoed ? "This slot is vetoed and will NOT post" : "Veto/block this reel so it will NOT be posted to social media",
                   onclick: async () => {
                     item.status = "vetoed";
                     try {
@@ -245,7 +304,7 @@
                   type: "button",
                   style: "font-size:11px;padding:3px 8px;" + (item.reRender ? "border-color:var(--amber);color:var(--amber);" : ""),
                   text: item.reRender ? "⟳ Queued" : "⟳ Re-render",
-                  title: "Queue this reel to be re-rendered on PC with the latest visual & audio fixes",
+                  title: item.reRender ? "Queued for local PC render (render-pc). Click to cancel." : "Queue this reel to be re-rendered on PC with latest visual & audio fixes",
                   onclick: async () => {
                     item.reRender = !item.reRender;
                     try {
