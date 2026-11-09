@@ -3496,15 +3496,13 @@ function attentionItems({ edits = [], projects = [], cards = [], runs = [], now 
   const days = (iso) => Math.max(1, Math.round((now - lit(iso)) / 864e5));
   const when = (iso) => { const m = Math.max(1, Math.round((now - lit(iso)) / 60000)); return m < 90 ? m + " min" : m < 2880 ? Math.round(m / 60) + " h" : Math.round(m / 1440) + " d"; };
   const items = [], waiting = (edits || []).filter((e) => e.status === "waiting");
-  // a failed workflow is the only one the page cannot see in git: it needs the Actions API
+  // a failed workflow is the only one the page cannot see in git: it needs the Actions API. Only a workflow whose
+  // NEWEST run failed is news: a failure that has succeeded since is not something to act on.
   const fresh = (iso) => lit(iso) > 0 && now - lit(iso) <= 48 * H;
-  const fails = (runs || []).filter((r) => r.conclusion === "failure" && fresh(r.at)), seen = new Set();
-  for (const r of fails) {
-    if (seen.has(r.name)) continue;
-    seen.add(r.name);
-    items.push({ level: "bad", kind: "run", href: r.url, text: `${r.name} failed ${when(r.at)} ago`, detail: "Open the run: the log says which step and why." });
-    if (seen.size >= 2) break;
-  }
+  const newest = new Map();
+  for (const r of [...(runs || [])].sort((a, b) => lit(b.at) - lit(a.at))) if (r && r.name && !newest.has(r.name)) newest.set(r.name, r);
+  const fails = [...newest.values()].filter((r) => r.conclusion === "failure" && fresh(r.at)).slice(0, 2);
+  for (const r of fails) items.push({ level: "bad", kind: "run", href: r.url, text: `${r.name} failed ${when(r.at)} ago`, detail: "Open the run: the log says which step and why." });
   const blocked = waiting.filter((e) => /quota|limit/i.test(String(e.note || "")));
   if (blocked.length) items.push({ level: "bad", kind: "quota", go: "channel", text: `YouTube stopped sending ${blocked.length} approved change${blocked.length === 1 ? "" : "s"}`, detail: "The daily quota ran out. They go again after the 16:00 Manila reset; nothing is lost." });
   else {
@@ -3538,7 +3536,7 @@ function ensureAttentionRuns() {
   if (!S.actions || typeof S.actions.recent !== "function" || S._runsLoading) return;
   if (S._runsAt && Date.now() - S._runsAt < 5 * 60e3) return;
   S._runsLoading = true;
-  Promise.resolve().then(() => S.actions.recent(20)).then((r) => { S._runs = r; })
+  Promise.resolve().then(() => S.actions.recent(50)).then((r) => { S._runs = r; })
     .catch(() => { S._runs = S._runs || []; })
     .then(() => { S._runsAt = Date.now(); S._runsLoading = false; if (S.view === "channel" || S.view === "review") render(); });
 }
