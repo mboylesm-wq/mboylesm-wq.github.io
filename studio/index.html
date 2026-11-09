@@ -2397,16 +2397,19 @@ async function uploadVoice(p, file) {
 function reviewControls(p) {
   const r = p.result || {}, titles = (p.titles || []).length ? p.titles : [p.title], approved = p.status === "approved";
   const stale = !!r.scriptKey && r.scriptKey !== scriptKey(p); // the script changed after this render: the video still has the old one
+  const qaCount = (r.qa && r.qa.issues || []).length, qaFailed = !!(r.qa && r.qa.ok === false); // a failed check is never uploaded by accident
+  const qaBad = qaFailed && !p.qaOverride;
   const tsel = el("select", { "aria-label": "YouTube title", disabled: approved, onchange: (e) => save(p, { ytTitle: e.target.value }) }, ...titles.map((t) => el("option", { value: t, selected: (p.ytTitle || titles[0]) === t, text: t })));
   const thsel = (r.thumbs || []).length ? el("select", { "aria-label": "YouTube thumbnail", disabled: approved, onchange: (e) => save(p, { ytThumb: +e.target.value }) }, ...r.thumbs.map((_, i) => el("option", { value: i, selected: (p.ytThumb || 0) === i, text: "Thumbnail " + (i + 1) }))) : null;
   return el("div", { class: "panel", style: "background:var(--bg);border-color:var(--gold)" },
     el("h3", { text: approved ? "Approved" : "Your decision" }),
-    el("div", { class: "note", text: approved ? (GH() ? "GitHub is uploading it to YouTube as Private. Cancel only stops it if the upload has not started yet." : "The next cloud worker run uploads it to YouTube as Private. Cancel if you changed your mind.") : stale ? "You changed the script after this render, so this video still has the old version. Press Re-render to approve the new one." : "Watch the preview below. Nothing goes to YouTube until you approve. To try other music, change it in the Music section, then press Re-render." }),
+    el("div", { class: "note", text: approved ? (GH() ? "GitHub is uploading it to YouTube as Private. Cancel only stops it if the upload has not started yet." : "The next cloud worker run uploads it to YouTube as Private. Cancel if you changed your mind.") : stale ? "You changed the script after this render, so this video still has the old version. Press Re-render to approve the new one." : qaBad ? `The quality check found ${qaCount} thing(s) (listed below). Watch the preview; if it is right, tick "Upload anyway".` : "Watch the preview below. Nothing goes to YouTube until you approve. To try other music, change it in the Music section, then press Re-render." }),
     el("div", { class: "grid2" }, el("label", {}, "YouTube title", tsel), thsel ? el("label", {}, "YouTube thumbnail", thsel) : null),
     approved ? null : thumbControls(p),
+    !approved && qaFailed ? el("label", { class: "note", style: "display:flex;align-items:center;gap:8px" }, el("input", { type: "checkbox", checked: !!p.qaOverride, onchange: (e) => save(p, { qaOverride: e.target.checked }).then(render) }), ` Upload it anyway (quality check found ${qaCount} thing(s))`) : null,
     el("div", { class: "row" },
       approved ? el("button", { class: "btn", type: "button", text: "Cancel approval", onclick: () => save(p, { status: "review", note: "" }).then(render) })
-        : el("button", { class: "btn primary", type: "button", disabled: !(GH() ? r.release : (r.parts || []).length) || r.freed || p.thumbsRequest === "waiting" || !factsReady(p) || stale, title: stale ? "The script changed after this render: Re-render first" : !factsReady(p) ? "Finish Check the facts first" : p.thumbsRequest === "waiting" ? "Wait for the new thumbnails" : "", text: "Approve for YouTube (Private)",
+        : el("button", { class: "btn primary", type: "button", disabled: !(GH() ? r.release : (r.parts || []).length) || r.freed || p.thumbsRequest === "waiting" || !factsReady(p) || stale || qaBad, title: stale ? "The script changed after this render: Re-render first" : !factsReady(p) ? "Finish Check the facts first" : p.thumbsRequest === "waiting" ? "Wait for the new thumbnails" : qaBad ? `The quality check found ${qaCount} thing(s): tick "Upload anyway" first` : "", text: "Approve for YouTube (Private)",
           onclick: () => approve(p, titles) }),
       approved ? null : el("button", { class: "btn", type: "button", disabled: !factsReady(p), text: GH() ? "Re-render on my PC" : "Re-render with my changes",
         onclick: () => save(p, { status: "waiting", stopRequested: null, rush: true, renderOn: GH() ? "pc" : null, requestedAt: new Date().toISOString(), note: GH() ? PC_WAIT : "Re-render requested" }).then(() => { say(GH() ? "Ready for your PC: double-click render-pc.cmd. The voice is reused, so it costs no voice credits." : "Re-render queued, first in line. The voice is reused, so it costs no voice credits."); render(); }) })));
@@ -2882,7 +2885,7 @@ function bulkSet(v, f) {
 // ---- channel management (yt-channel auto, every morning): settings, playlists, the channel's own description
 // the same defaults as tools/yt-channel.mjs DEFAULTS (tests/run.mjs checks they match)
 const CHAN_DEFAULTS = { autopilot: true, footer: "Subscribe for more Filipino chess stories: https://www.youtube.com/@pnoychessofficialyt?sub_confirmation=1",
-  hashtags: ["#chess", "#PnoyChess"], tags: ["chess", "PnoyChess", "Filipino chess"], lang: "en", filipino: false, protectTop: 10, budget: 9000, skip: [], autoApprove: true };
+  hashtags: ["#chess", "#PnoyChess"], tags: ["chess", "PnoyChess", "Filipino chess"], lang: "en", filipino: false, protectTop: 10, budget: 3000, skip: [], autoApprove: true };
 const chanSettings = () => ({ ...CHAN_DEFAULTS, ...((S.chan2 || {}).settings || {}) });
 const AI_HINT = "Your PC's AI writes it by itself every morning at 5:00 (when the PC is on), or now: double-click channel-ai.cmd in C:\\PnoyChess\\docu.";
 async function saveChan(id, patch, replace) {
