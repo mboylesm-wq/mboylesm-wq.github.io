@@ -76,7 +76,7 @@
   }
 
   function view() {
-    const box = el("section", { class: "panel" }, el("h2", { text: "Schedule" }), el("div", { class: "note", text: "Loading publisher schedule & 6-slot reel lineup…" }));
+    const box = el("section", { class: "panel" }, el("h2", { text: "Schedule" }), el("div", { class: "note", text: "Loading the schedule & 6-slot reel lineup…" }));
     let selectedDay = null;
 
     const load = async () => {
@@ -110,7 +110,7 @@
       let act = null;
       try { act = await window.claude.use("actions"); } catch (e) {}
       const runPubBtn = act ? el("button", {
-        class: "btn", type: "button", text: "Run Publisher now", title: "Immediately run the Publisher on GitHub Actions (publish.yml) to post any due slots now across Facebook, Instagram, YouTube, and TikTok",
+        class: "btn", type: "button", text: "Post due now", title: "Post every slot that is due and approved right now (Facebook, Instagram, YouTube Shorts, TikTok) on GitHub Actions (publish.yml), without waiting for the timetable",
         onclick: async (ev) => {
           ev.target.disabled = true;
           try { await act.dispatch("publish.yml", {}); say("Started Publish (publish.yml) on GitHub Actions."); }
@@ -139,11 +139,11 @@
       // Header row
       box.append(el("div", { class: "row", style: "justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;margin-bottom:8px;" },
         el("div", {},
-          el("h2", { style: "margin:0 0 4px 0;", text: "Schedule & Multi-Platform Publisher" }),
+          el("h2", { style: "margin:0 0 4px 0;", text: "Schedule & Posting" }),
           el("p", { class: "note", style: "margin:0;", text: "Daily 6-slot lesson lineup, community cards, and documentary shorts across FB, IG, YouTube, TikTok." })
         ),
         el("div", { class: "row", style: "gap:8px;align-items:center;" },
-          el("span", { class: "pill " + (live ? "ok" : "warn"), text: live ? "Publisher: LIVE" : "Publisher: DRY-RUN" }),
+          el("span", { class: "pill " + (live ? "ok" : "warn"), text: live ? "Posting: LIVE" : "Posting: DRY-RUN" }),
           runPubBtn,
           runReelsBtn,
           refreshBtn
@@ -239,7 +239,7 @@
               isLiveAny && fbOk && igOk && ytOk
                 ? el("span", { class: "pill ok", style: "font-size:10px;font-weight:700;", text: "LIVE ACROSS PLATFORMS ✓" })
                 : isPastSlot && !isLiveAny
-                  ? el("span", { class: "pill warn", style: "font-size:10px;", title: "Scheduled time has passed. Click 'Run Publisher now' to publish." }, "Due now (needs publish)")
+                  ? el("span", { class: "pill warn", style: "font-size:10px;", title: "The slot's time has passed. Click 'Post due now' to post it." }, "Due now (needs posting)")
                   : el("span", { class: "note", style: "font-size:10px;", text: "Posts at " + timeFormatted })
             ),
             el("div", { class: "row", style: "gap:5px;flex-wrap:wrap;align-items:center;" },
@@ -284,7 +284,7 @@
                   type: "button",
                   style: "font-size:11px;padding:3px 8px;",
                   text: isApproved ? "✓ Approved" : "Approve",
-                  title: isApproved ? "This slot is approved and will post at " + timeFormatted : "Approve this reel so the publisher will post it automatically at " + timeFormatted,
+                  title: isApproved ? "This slot is approved and will post at " + timeFormatted : "Approve this reel so it posts automatically at " + timeFormatted,
                   onclick: async () => {
                     item.status = "approved";
                     try {
@@ -352,7 +352,7 @@
         : el("div", { class: "empty", text: "Nothing planned in these days." }));
 
       const log = await files.text(PUB + "dryrun/" + today + ".md").catch(() => null);
-      if (!live && log) box.append(el("details", { style: "margin-top:14px;" }, el("summary", { text: "Today's dry-run log (what the publisher would have done)" }), el("pre", { class: "desc", text: log })));
+      if (!live && log) box.append(el("details", { style: "margin-top:14px;" }, el("summary", { text: "Today's dry-run log (what posting would have done)" }), el("pre", { class: "desc", text: log })));
 
       box.append(el("p", { class: "note", style: "margin-top:14px;" }, "History and every run: ",
         el("a", { href: "https://github.com/mboylesm-wq/pnoychess-docu/actions/workflows/publish.yml", target: "_blank", rel: "noopener", text: "Publish runs on GitHub Actions" }), "."));
