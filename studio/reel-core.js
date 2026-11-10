@@ -1953,7 +1953,7 @@ function drawBoard(cx, M, assets, ply, p, alpha, t, sg) {
   var moving = sg.type === "move" || sg.type === "var";
   var fromSnap = M.game.snaps[Math.max(0, ply - 1)], toSnap = M.game.snaps[ply];
   if (!moving) { fromSnap = toSnap; p = 1; }
-  var pl = ply > 0 ? game.plies[ply - 1] : null, badge = st.badges && ply > 0 ? (reel.badges || {})[ply] : null, zoom = 1, zx = B.x + B.s / 2, zy = B.y + B.s / 2;
+  var pl = ply > 0 ? game.plies[ply - 1] : null, badge = st.badges && ply > 0 ? (reel.badges || {})[ply] : null;
   var lab = st.badges && pl ? labelFor(reel, ply) : null, since = moving ? (t - sg.start) - sg.anim : 99, dx = 0;
   // a short shake when a blunder or a missed chance lands
   var fx = st.fx !== false;
@@ -1962,23 +1962,9 @@ function drawBoard(cx, M, assets, ply, p, alpha, t, sg) {
   var BL = boardLayers(M);
   if (BL) cx.drawImage(BL.frame, B.x - BL.pad, B.y - BL.pad);
   else { cx.shadowColor = "rgba(0,0,0,.6)"; cx.shadowBlur = 40; cx.shadowOffsetY = 16; cx.fillStyle = th.frame; cx.fillRect(B.x - 10, B.y - 10, B.s + 20, B.s + 20); cx.shadowColor = "transparent"; }
-  // Camera (PnoyChess Docu's snap-zoom, src/info/Board.tsx): after the piece lands the board springs in towards the
-  // landing square and eases back out before the caption ends. Mate and !!/?? moves get the biggest push (Docu's
-  // 1.18 / 1.16), other key moves 1.13. It stays inside the board's own square (clipped), so the title, names and
-  // captions never move out of the Reels safe area, and it only runs where the viewer is reading a caption (or in a
-  // variation or puzzle), so plain move runs don't jitter.
-  var strong = lab === "brilliant" || lab === "great" || lab === "checkmate" || lab === "blunder" || lab === "miss";
-  var keyMove = strong || (pl && (pl.mate || /[x+#]/.test(pl.san || "")));
-  if (fx && moving && pl && keyMove && (sg.type === "var" || (reel.captions && reel.captions[ply]) || M.tl.cut === "puzzle")) {
-    var inK = easeOutBack(clamp(since / 0.38, 0, 1)), outK = 1 - ease(clamp((since - 1.45) / 0.5, 0, 1));
-    var push = pl.mate || lab === "checkmate" ? 0.18 : lab === "brilliant" || lab === "blunder" ? 0.16 : 0.13;
-    zoom = 1 + push * Math.max(0, Math.min(inK, outK)); var d = sqXY(pl.to, L, flip), kq = pl.kingSq ? sqXY(pl.kingSq, L, flip) : d;
-    // anchored on the landing square (and the checked king), so on an edge or corner the key squares stay on screen
-    // and the far side of the board is what slides out; a scale about a point never moves that point
-    zx = clamp((d.x + kq.x) / 2 + q / 2, B.x + q / 2, B.x + B.s - q / 2); zy = clamp((d.y + kq.y) / 2 + q / 2, B.y + q / 2, B.y + B.s - q / 2);
-  }
+  // A locked board (Mark, 10 Nov 2026): the camera never pans or pushes, so a piece landing never rescales or
+  // slides the position. Chess players read the squares; the square highlight, the arrow and the badge point.
   cx.save(); cx.beginPath(); cx.rect(B.x, B.y, B.s, B.s); cx.clip();
-  if (zoom !== 1) { cx.translate(zx, zy); cx.scale(zoom, zoom); cx.translate(-zx, -zy); }
   if (BL) cx.drawImage(BL.squares, B.x, B.y);
   else for (var r = 0; r < 8; r++) for (var f = 0; f < 8; f++) { cx.fillStyle = (r + f) % 2 === 0 ? th.l : th.d; cx.fillRect(B.x + f * q, B.y + r * q, q + .5, q + .5); }
   if (st.coords && !BL) {
