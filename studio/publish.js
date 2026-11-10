@@ -6,6 +6,12 @@
 (function () {
   "use strict";
   const PUB = "chess/publisher/";
+  // every rendered reel is also on its day's Release; the card links there even when the day file has no videoUrl
+  const REL = "https://github.com/mboylesm-wq/pnoychess-docu/releases/download/";
+  const videoHref = (D, it) => it.videoUrl || (it.video ? REL + "reels-" + D + "/" + it.video : null);
+  // the days the board reads: 6 back and 3 ahead, PLUS every day file that exists up to 31 days ahead, so a plan
+  // made weeks in advance (10-18 Nov) is shown and can be picked instead of being cut off at today+3
+  const dayWindow = (today, listed) => [...new Set([...Array.from({ length: 10 }, (_, i) => addDays(today, 3 - i)), ...listed])].sort();
   const manila = (d = new Date()) => new Date(d.getTime() + 8 * 3600e3).toISOString().slice(0, 10);
   const nowHM = () => new Date(Date.now() + 8 * 3600e3).toISOString().slice(11, 16).replace(":", "");
   const addDays = (D, n) => new Date(Date.parse(D + "T00:00:00Z") + n * 864e5).toISOString().slice(0, 10);
@@ -77,31 +83,47 @@
 
   function view() {
     const box = el("section", { class: "panel" }, el("h2", { text: "Schedule" }), el("div", { class: "note", text: "Loading the schedule & 6-slot reel lineup…" }));
-    let selectedDay = null;
+    let selectedDay = null, cache = null;
 
-    const load = async () => {
+    // refresh = true re-reads every file (the Refresh button, a save); false re-renders the copy already read, so
+    // picking another day costs no GitHub requests
+    const load = async (refresh = true) => {
       let files;
       try { files = await window.claude.use("files"); }
       catch (e) { box.lastChild.textContent = "Sign in with your GitHub key to see the publishing board."; return; }
       await loadOnce("sources.js").catch(() => null); // draws each slot's source PGN
 
-      const cfg = (await files.json(PUB + "config.json")) || {}, today = manila(), tomorrow = addDays(today, 1);
+      const today = manila(), tomorrow = addDays(today, 1);
       if (!selectedDay) selectedDay = tomorrow;
 
-      const dates = Array.from({ length: 10 }, (_, i) => addDays(today, 3 - i)); // 3 days ahead, 6 back
-      const read = (f) => files.json(PUB + f).catch(() => null);
-      const days = await Promise.all(dates.map(async (D) => ({
-        D,
-        m: await read(`days/${D}.json`),
-        st: ((await read(`state/${D}.json`)) || {}).slots || {},
-        yt: ((await read(`state/youtube-${D}.json`)) || {}).slots || {},
-        tt: ((await read(`state/tiktok-${D}.json`)) || {}).slots || {},
-        cards: await files.json(`db/cards/${D}.json`).catch(() => null)
-      })));
+      if (!cache || refresh) {
+        const cfg = (await files.json(PUB + "config.json")) || {};
+        // 6 days back and 3 ahead, PLUS every day file that exists up to 31 days ahead: a plan made weeks in
+        // advance (10-18 Nov) is in git and must be visible and pickable, not cut off at today+3
+        const listed = (await files.list(PUB + "days").catch(() => []))
+          .map((f) => (/^(\d{4}-\d\d-\d\d)\.json$/.exec(f) || [])[1])
+          .filter((D) => D && D >= addDays(today, -6) && D <= addDays(today, 31));
+        const dates = dayWindow(today, listed);
+        const read = (f) => files.json(PUB + f).catch(() => null);
+        const days = await Promise.all(dates.map(async (D) => ({
+          D,
+          m: await read(`days/${D}.json`),
+          st: ((await read(`state/${D}.json`)) || {}).slots || {},
+          yt: ((await read(`state/youtube-${D}.json`)) || {}).slots || {},
+          tt: ((await read(`state/tiktok-${D}.json`)) || {}).slots || {},
+          cards: await files.json(`db/cards/${D}.json`).catch(() => null)
+        })));
+        cache = {
+          cfg, days, dates,
+          shorts: await files.json("post/state.json").catch(() => null),
+          log: await files.text(PUB + "dryrun/" + today + ".md").catch(() => null)
+        };
+      }
+      const { cfg, days, dates, shorts, log } = cache;
 
       let all = days.flatMap((d) => [...rows(d.D, d.m, d.st, d.yt, d.tt, cfg), ...cardRows(d.D, d.cards)]);
       const seen = new Set(all.filter((r) => r.it.kind === "docu-short").map((r) => r.it.key));
-      all = all.concat(shortRows(await files.json("post/state.json").catch(() => null)).filter((r) => !seen.has(r.it.key) && dates.includes(r.D)));
+      all = all.concat(shortRows(shorts).filter((r) => !seen.has(r.it.key) && dates.includes(r.D)));
       all.sort((a, b) => (b.D + b.slot).localeCompare(a.D + a.slot));
       const live = cfg.mode === "live";
 
@@ -168,7 +190,7 @@
               style: "font-size:12px;padding:4px 10px;",
               text: "Today (" + today.slice(5) + ")",
               title: "View today's 6-slot lineup and live publishing status",
-              onclick: () => { selectedDay = today; load(); }
+              onclick: () => { selectedDay = today; load(false); }
             }),
             el("button", {
               class: "btn" + (selectedDay === tomorrow ? " primary" : ""),
@@ -176,8 +198,18 @@
               style: "font-size:12px;padding:4px 10px;",
               text: "Tomorrow (" + tomorrow.slice(5) + ")",
               title: "View tomorrow's 6-slot lineup to preview, edit, or approve ahead of time",
-              onclick: () => { selectedDay = tomorrow; load(); }
+              onclick: () => { selectedDay = tomorrow; load(false); }
             }),
+            // any day that has a plan in chess/publisher/days, including weeks ahead (the replan of 10-18 Nov)
+            (() => {
+              const sel = el("select", {
+                title: "Pick any day that has a plan (approve, veto or re-render it ahead of time)",
+                style: "font-size:12px;padding:4px 8px;max-width:200px;",
+                onchange: (ev) => { selectedDay = ev.target.value; load(false); }
+              }, ...days.filter((d) => d.m || d.D === selectedDay).map((d) => el("option", { value: d.D, selected: d.D === selectedDay, text: d.D + (d.D === today ? " · today" : d.D === tomorrow ? " · tomorrow" : d.D < today ? " · past" : "") })));
+              sel.value = selectedDay;
+              return sel;
+            })(),
             files.saveJson ? el("button", {
               class: "btn",
               type: "button",
@@ -277,7 +309,7 @@
             item.category ? el("div", { class: "note", style: "font-size:12px;", text: item.category }) : null,
             socialPills,
             el("div", { class: "row", style: "justify-content:space-between;align-items:center;margin-top:4px;" },
-              item.videoUrl ? el("a", { class: "note", href: item.videoUrl, target: "_blank", rel: "noopener", style: "color:var(--gold);font-size:12px;", title: "Watch the rendered video file on GitHub", text: "▶ Watch Video" }) : el("span", { class: "note", text: "Pending render" }),
+              videoHref(selectedDay, item) ? el("a", { class: "note", href: videoHref(selectedDay, item), target: "_blank", rel: "noopener", style: "color:var(--gold);font-size:12px;", title: "Watch the rendered video file on GitHub", text: "▶ Watch Video" }) : el("span", { class: "note", text: "Pending render" }),
               files.saveJson ? el("div", { class: "row", style: "gap:4px;" },
                 el("button", {
                   class: "btn" + (isApproved ? "" : " primary"),
@@ -351,7 +383,6 @@
       box.append(all.length ? el("div", { class: "tablewrap" }, el("table", { class: "pubtable" }, el("thead", {}, el("tr", {}, ...["When", "Content", "Facebook", "Instagram", "YouTube", "TikTok"].map((h) => el("th", { text: h })))), tb))
         : el("div", { class: "empty", text: "Nothing planned in these days." }));
 
-      const log = await files.text(PUB + "dryrun/" + today + ".md").catch(() => null);
       if (!live && log) box.append(el("details", { style: "margin-top:14px;" }, el("summary", { text: "Today's dry-run log (what posting would have done)" }), el("pre", { class: "desc", text: log })));
 
       box.append(el("p", { class: "note", style: "margin-top:14px;" }, "History and every run: ",
@@ -362,5 +393,5 @@
     return box;
   }
 
-  window.PublishBoard = { view, rows, cardRows, shortRows };
+  window.PublishBoard = { view, rows, cardRows, shortRows, dayWindow, videoHref };
 })();
