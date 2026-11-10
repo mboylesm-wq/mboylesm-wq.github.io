@@ -844,6 +844,8 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
 
 </script>
 <script>
+// the last ~n characters of a text, starting at a sentence (a cut mid-word, "00 FIDE**. Long before…", confused the writer)
+function tailSentences(t, n) { t = String(t || ""); if (t.length <= n) return t; const s = t.slice(-n), i = s.search(/[.!?]["\u201d*]*\s+\S/); return i >= 0 ? s.slice(i + 1).replace(/^["\u201d*]+/, "").trim() : s; }
 "use strict";
 // ---------- every prompt sent to Claude: change the wording here, nowhere else ----------
 // version: add 1 whenever the wording changes and say why in CHANGELOG.md. They are functions because they use
@@ -955,7 +957,7 @@ ${vis}
 
 Film: ${p.title}${p.outline && p.outline.format && FORMATS[p.outline.format] ? " (" + FORMATS[p.outline.format][0] + ": " + FORMATS[p.outline.format][1] + ")" : ""}. Chapters: ${chs.map((c, k) => (k + 1) + ". " + c.title).join(" | ")}.
 ${p.outline && p.outline.question ? `Central question of the film: "${p.outline.question}".` : ""}
-${prevText ? (i === 0 ? "The cold open before this chapter: " : "The previous chapter ended with: ") + "\"" + prevText.slice(-400) + "\"" : ""}
+${prevText ? (i === 0 ? "The cold open before this chapter: " : "The previous chapter ended with: ") + "\"" + tailSentences(prevText, 400) + "\"" : ""}
 ${i > 0 && chs[i - 1].opens ? `Answer early in this chapter the question the previous one left open: "${chs[i - 1].opens}".` : ""}
 Write chapter ${i + 1}, "${ch.title}", about ${words} words of narration${(ch.beats || []).length ? ", covering: " + ch.beats.join("; ") : ""}.
 ${opt.current ? "Current version (rewrite it: keep the facts, make it better" + (opt.note ? "; " + opt.note : "") + "):\n\"" + opt.current.slice(0, 4000) + "\"" : ""}
