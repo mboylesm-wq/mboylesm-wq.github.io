@@ -158,8 +158,23 @@
     }, () => { seoBox.textContent = "The SEO check could not load."; });
     post.addEventListener("change", () => R.reel && paint(box));
 
+    // the new board: the daily reels' Remotion look, Mark's voice and music, rendered on his PC (tools/custom-reels.mjs
+    // turns this recipe into a plan by rules). The result is its own record, db/reelrenders/<id>, written only by the PC.
+    const rmBox = el("div", { class: "note" });
+    const rmBtn = el("button", { class: "btn primary", type: "button", text: "Make with the new board", disabled: !S.db });
+    const showRm = R.showRm = () => {
+      const a = R.doc && R.doc.renderAsk, x = R.render || {}; rmBox.textContent = "";
+      if (!a) return rmBox.append("The same board, voice and music as the daily reels (9:16, your voice). Made on your PC: render-pc.cmd, or the watch task within 10 minutes.");
+      if (x.forAsk !== a) return rmBox.append("Waiting for your PC: run render-pc.cmd (the watch task starts it within 10 minutes).");
+      if (x.status === "rendering") return rmBox.append("Rendering on your PC…");
+      if (x.status === "failed") return rmBox.append(el("span", { class: "pill bad", text: "Not made" }), " " + (x.why || "unknown reason"));
+      if (x.status === "done") rmBox.append(el("span", { class: "pill ok", text: "Ready" }), " ", el("a", { href: x.videoUrl, target: "_blank", rel: "noopener", text: `Watch / download the video (${x.seconds} s)` }), " · ", el("a", { href: x.coverUrl, target: "_blank", rel: "noopener", text: "Cover" }));
+    };
+    rmBtn.onclick = async () => { stop(); R.doc.renderAsk = new Date().toISOString(); R.render = null; await saveNow(); showRm(); say("Sent to your PC: it renders at the next run."); };
+    const rmCheck = el("button", { class: "btn", type: "button", text: "Check again", onclick: async () => { await loadRender(); showRm(); } });
+
     const prog = el("span", { class: "note" });
-    const mp4 = el("button", { class: "btn primary", type: "button", text: "Make MP4" });
+    const mp4 = el("button", { class: "btn", type: "button", text: "Quick MP4 (old board, in the browser)" });
     mp4.onclick = async () => { stop(); mp4.disabled = true; try { const b = await makeMp4((f) => { prog.textContent = "Making the video… " + Math.round(f * 100) + "%"; }); prog.textContent = "Done: " + (b.size / 1048576).toFixed(1) + " MB"; download(b, fileName("mp4")); } catch (e) { prog.textContent = ""; say(e.message || String(e)); } finally { mp4.disabled = false; } };
     const cover = el("button", { class: "btn", type: "button", text: "Cover image", onclick: () => { const M2 = C.prepare(r), c = el("canvas"); c.width = M2.L.W; c.height = M2.L.H; C.drawCover(c.getContext("2d"), M2, R.eng.assets); c.toBlob((b) => download(b, fileName("png")), "image/png"); } });
 
@@ -171,7 +186,8 @@
         el("div", { class: "reel-stage" }, cv, el("div", { class: "row" }, play, scrub, time)),
         el("div", { class: "reel-side" },
           el("div", { class: "reel-sets" }, sel("Cut", "cut", C.CUTS.map((c) => [c, CUT_NAMES[c] || c])), sel("Format", "fmt", Object.entries(FMT_NAMES)), sel("Board", "theme", THEME_NAMES), sel("Music", "mood", [["auto", "Auto"], ...Object.keys(C.MOODS).map((x) => [x, x[0].toUpperCase() + x.slice(1)]), ["none", "None"]])),
-          el("div", { class: "row" }, mp4, cover, prog),
+          el("h3", { text: "New board (Remotion)" }), el("div", { class: "row" }, rmBtn, rmCheck), rmBox,
+          el("h3", { text: "Quick preview file" }), el("div", { class: "row" }, mp4, cover, prog),
           el("h3", { text: "Captions" }), caps, ai,
           el("h3", { text: "Post text" }), post, el("h3", { text: "YouTube" }), seoBox)));
     show();
@@ -199,9 +215,11 @@
   }
 
   async function open(rec, box) {
-    try { R.reel = build(R.eng, rec); R.doc = { ...rec }; R.M = null; R.t = 0; paint(box); saveRec(); }
+    try { R.reel = build(R.eng, rec); R.doc = { ...rec }; R.M = null; R.t = 0; R.render = null; paint(box); saveRec(); loadRender().then(() => R.showRm && R.showRm()); }
     catch (e) { say(e.message || String(e)); }
   }
+  // the PC's answer to "Make with the new board" (db/reelrenders/<id>: status, video link, seconds)
+  async function loadRender() { const id = R.doc && R.doc.id; if (!id || !S.db) return; try { const x = await S.db.doc("reelrenders/" + id).get(); if (R.doc && R.doc.id === id) R.render = x || null; } catch (e) { /* not there yet */ } }
 
   function paint(box) { box.textContent = ""; if (R.reel) editor(box); else picker(box); }
 

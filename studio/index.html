@@ -1982,7 +1982,7 @@ function miniBoardEl(vis) {
 function planIssues(p) {
   const issues = [];
   const scenes = (p && p.plan && p.plan.scenes) || [];
-  const VALID_TYPES = new Set(["board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph"]);
+  const VALID_TYPES = new Set(["board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
   scenes.forEach((s, idx) => {
     const v = s.visual;
     if (!v || !v.type || !VALID_TYPES.has(v.type)) {
@@ -2028,11 +2028,11 @@ function projectEditor(p) {
       el("ul", {}, ...(p.sources || []).map((s) => el("li", {}, el("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener", text: s.title || s.url })))),
       factsBox(p))),
     el("div", { class: "step" + (voiceDone ? " done" : "") }, el("div", {}, el("h3", { text: "Choose your narration voice" }),
-      el("div", { class: "note", text: "Select how the video is voiced: cloud broadcast with ElevenLabs, or 100% free offline on this PC with F5-TTS." }),
+      el("div", { class: "note", text: "ElevenLabs is the default for a documentary. F5-TTS is 100% free and runs on this PC: press it and you approve the free voice for this one video, because it is not the paid voice." }),
       el("div", { class: "row" }, el("button", { class: "btn" + (elVoice ? " primary" : ""), type: "button", text: elVoice ? "Using my ElevenLabs voice ✓" : "Use my ElevenLabs voice (cloud)", title: "The cloud reads the script with your ElevenLabs clone, with exact caption timing.",
         onclick: () => save(p, { narration: elVoice ? null : { kind: "elevenlabs", model: "eleven_v4", style: "documentary", name: "My ElevenLabs voice", size: 0 } }).then(render) }),
         el("button", { class: "btn" + (clVoice ? " primary" : ""), type: "button", id: "clone-voice", text: clVoice ? "Using F5-TTS voice (free, on this PC) ✓" : "Use F5-TTS voice (free, on this PC)", title: "Your cloned voice with F5-TTS made locally on your PC GPU: 0 credits, about 3x realtime, calm or dramatic delivery per scene.",
-        onclick: () => save(p, { narration: clVoice ? null : { kind: "clone", style: "auto", name: "My cloned voice: F5-TTS (local, free)", size: 0 } }).then(render) })),
+        onclick: () => save(p, { narration: clVoice ? null : { kind: "clone", style: "auto", approved: true, name: "My cloned voice: F5-TTS (local, free)", size: 0 } }).then(render) })),
       clVoice ? el("label", { style: "max-width:420px" }, "Delivery (your voice)",
         el("select", { "aria-label": "Cloned voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. Your PC makes the narration again at the next render (free)."); render(); }) },
           ...[["auto", "Auto: dramatic on exclamations and your takes, calm elsewhere"], ["calm", "Calm: the Baguio opening (default documentary)"], ["dramatic", "Dramatic: the Morphy mate line, more lift"]].map(([v, t]) => el("option", { value: v, selected: (p.narration.style || "auto") === v, text: t })))) : null,
