@@ -890,6 +890,9 @@ words {"type":"words"} the scene's own narration as huge kinetic text: punchline
 geo {"type":"geo","title":"...","highlight":["<Natural Earth country name>"],"points":[{"name":"Baguio","lon":120.60,"lat":16.41,"note":"..."}]} every new place, real coordinates
 title {"type":"title","title":"...","subtitle":"..."}
 counter {"type":"counter","value":27,"label":"...","prefix":"","suffix":""}
+terrain {"type":"terrain","fen":"<legal FEN from a cited game or a textbook position>","focus":["d4","e4","d5","e5"],"title":"<question it answers>"} control of the board as a 3D landscape: who owns which squares
+beams {"type":"beams","fen":"<legal FEN>","from":["<square of the piece>"],"punch":"<4-8 word punchline>","title":"..."} a piece's reach as light: forks, pins, skewers, outposts, why a piece is strong
+tree {"type":"tree","depth":4,"title":"..."} the game tree from the start position as a galaxy (20, 400, 8,902, 197,281): complexity, why chess is unsolved, how engines search
 space {"type":"space","mode":"stars|galaxy|pieces|warp","number":"<optional sourced figure, e.g. 10^120>","label":"...","title":"<or a short title>","kicker":"..."} 3D space made in code: cosmic or abstract ideas (the universe, infinity, AI, the mind), a hero opening, a mind-blowing number; at most 1-2 per chapter`,
   visMore: `timeline {"type":"timeline","title":"...","items":[{"year":"1974","text":"..."}],"highlight":0}
 bars {"type":"bars","title":"...","unit":"","items":[{"label":"...","value":4}],"highlight":0}
@@ -907,10 +910,13 @@ end {"type":"end"} the last narrated scene: the closing line of the story (a clo
 Optional per scene: "ambience":"hall|crowd|wind|city|night|rain|none" (quiet background from that scene on).`,
   visExplainer: `Visual JSON per scene (pick one):
 (EXPLAINER / CODE-ONLY MODE: Strictly vector Remotion procedural graphics. NEVER use photo or video searches. Zero external stock photos.)
-board {"type":"board","title":"...","moves":["e4","e5"],"arrows":[{"from":"e2","to":"e4","afterMove":0}],"players":{"white":"...","black":"..."},"eval":true} dynamic move by move, legal SAN, tactical arrows (#F59E0B gold threat, #06B6D4 cyan idea, #EF4444 blunder refutation)
+board {"type":"board","view":"3d","title":"...","moves":["e4","e5"],"arrows":[{"from":"e2","to":"e4","afterMove":0}],"players":{"white":"...","black":"..."},"eval":true} dynamic move by move, legal SAN, tactical arrows (#F59E0B gold threat, #06B6D4 cyan idea, #EF4444 blunder refutation)
 timeline {"type":"timeline","title":"...","items":[{"year":"1974","text":"..."}],"highlight":0} chronological milestones
 bars {"type":"bars","title":"...","unit":"","items":[{"label":"...","value":4}],"highlight":0} data & stat comparisons
 counter {"type":"counter","value":27,"label":"...","prefix":"","suffix":""} numeric reveals
+terrain {"type":"terrain","fen":"<legal FEN from a cited game or a textbook position>","focus":["d4","e4","d5","e5"],"title":"<question it answers>"} control of the board as a 3D landscape: who owns which squares
+beams {"type":"beams","fen":"<legal FEN>","from":["<square of the piece>"],"punch":"<4-8 word punchline>","title":"..."} a piece's reach as light: forks, pins, skewers, outposts, why a piece is strong
+tree {"type":"tree","depth":4,"title":"..."} the game tree from the start position as a galaxy (20, 400, 8,902, 197,281): complexity, why chess is unsolved, how engines search
 space {"type":"space","mode":"stars|galaxy|pieces|warp","number":"<optional sourced figure, e.g. 10^120>","label":"...","title":"<or a short title>","kicker":"..."} 3D space made in code: cosmic or abstract ideas (the universe, infinity, AI, the mind), a hero opening, a mind-blowing number; at most 1-2 per chapter
 quote {"type":"quote","text":"<real quote only>","author":"...","source":"<where/when>"} verified quote card
 compare {"type":"compare","title":"...","left":{"name":"...","lines":["..."]},"right":{"name":"...","lines":["..."]}} side-by-side contrast (vector cards)
@@ -923,8 +929,10 @@ Optional per scene: "ambience":"hall|crowd|wind|city|night|rain|none".
 EXPLAINER RULE: Strictly vector Remotion procedural graphics only. NEVER use photo or video visuals. Zero external stock media.`,
   visTactical: `Visual JSON per scene (pick one):
 (TACTICAL MASTERCLASS MODE: The chessboard is the hero element for ~70% of scenes. Zero external stock photos.)
-board {"type":"board","title":"...","moves":["e4","e5"],"arrows":[{"from":"e2","to":"e4","afterMove":0}],"players":{"white":"...","black":"..."},"eval":true} dynamic move by move, legal SAN moves only, tactical threat arrows (#F59E0B gold threat, #06B6D4 cyan idea, #EF4444 blunder refutation), eval bar
+board {"type":"board","view":"3d","title":"...","moves":["e4","e5"],"arrows":[{"from":"e2","to":"e4","afterMove":0}],"players":{"white":"...","black":"..."},"eval":true} dynamic move by move, legal SAN moves only, tactical threat arrows (#F59E0B gold threat, #06B6D4 cyan idea, #EF4444 blunder refutation), eval bar
 compare {"type":"compare","title":"Head to Head","left":{"name":"Player A","lines":["GM, 2750","White"]},"right":{"name":"Player B","lines":["GM, 2780","Black"]}} player card matchup
+terrain {"type":"terrain","fen":"<legal FEN>","focus":["d4","e4","d5","e5"],"title":"..."} who controls which squares, as a 3D landscape
+beams {"type":"beams","fen":"<legal FEN>","from":["<square>"],"punch":"<4-8 words>","title":"..."} a piece's reach as light: forks, pins, skewers
 versus {"type":"versus","event":"...","year":"...","white":{"name":"...","elo":2750,"title":"GM"},"black":{"name":"...","elo":2780}} fight card before a game (faces only from the player vault with a credit, otherwise their king and initials)
 counter {"type":"counter","value":5,"label":"Seconds to find the winning move","prefix":"","suffix":"s"} puzzle countdown
 words {"type":"words"} decisive move exclamation or punchline (4-14 words only)
@@ -1016,7 +1024,7 @@ Reply with only a JSON array: [{"scene":"<scene id>","text":"<the fact>","risk":
 
 // tools/facts.mjs explains the gate; this block is word for word the same there (`npm test` compares them)
 // facts-gate start
-const FACT_VISUALS = ["space", "counter", "bars", "timeline", "quote", "race", "compare", "board", "stat", "map"];
+const FACT_VISUALS = ["terrain", "beams", "tree", "space", "counter", "bars", "timeline", "quote", "race", "compare", "board", "stat", "map"];
 // the same text in the same order however it was saved (a database may give an object's keys back in another order)
 const canon = (v) => Array.isArray(v) ? "[" + v.map(canon).join(",") + "]" : v && typeof v === "object" ? "{" + Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => JSON.stringify(k) + ":" + canon(v[k])).join(",") + "}" : JSON.stringify(v === undefined ? null : v);
 const fnv = (t) => { let h = 2166136261; for (const c of t) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
@@ -2046,7 +2054,7 @@ function miniBoardEl(vis) {
 function planIssues(p) {
   const issues = [];
   const scenes = (p && p.plan && p.plan.scenes) || [];
-  const VALID_TYPES = new Set(["space", "board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
+  const VALID_TYPES = new Set(["terrain", "beams", "tree", "space", "board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
   scenes.forEach((s, idx) => {
     const v = s.visual;
     if (!v || !v.type || !VALID_TYPES.has(v.type)) {
