@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PnoyChess FX Lab</title>
+<style>
+:root { --bg:#0e1014; --panel:#161a21; --line:#2a303b; --text:#eef0f4; --mute:#97a0ae; --gold:#e5b842; --acc:#4cc9f0; }
+* { box-sizing: border-box; }
+body { margin:0; background:var(--bg); color:var(--text); font:14px/1.4 system-ui,-apple-system,"Segoe UI",sans-serif; }
+header { display:flex; align-items:center; gap:12px; padding:10px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+header h1 { font-size:18px; margin:0; } header h1 b { color:var(--gold); }
+header .sp { flex:1; }
+button, select, input[type=text], textarea { background:#1e232c; color:var(--text); border:1px solid var(--line); border-radius:8px; padding:6px 10px; font:inherit; }
+button { cursor:pointer; } button:hover { border-color:var(--gold); }
+button.on { background:var(--gold); color:#111; border-color:var(--gold); font-weight:700; }
+button.primary { background:#2a6b3a; border-color:#3f9c55; }
+.seg { display:inline-flex; border:1px solid var(--line); border-radius:9px; overflow:hidden; }
+.seg button { border:0; border-radius:0; }
+main { display:grid; grid-template-columns: 330px 1fr 360px; gap:12px; padding:12px; height:calc(100vh - 58px); }
+@media (max-width: 1200px) { main { grid-template-columns: 1fr; height:auto; } }
+.col { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px; overflow:auto; }
+.col h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--mute); margin:14px 0 6px; }
+.col h2:first-child { margin-top:0; }
+.row { display:flex; align-items:center; gap:8px; margin:6px 0; flex-wrap:wrap; }
+.row label { min-width:84px; color:var(--mute); font-size:13px; }
+.row input[type=range] { flex:1; }
+input[type=color] { width:34px; height:28px; border:1px solid var(--line); border-radius:6px; background:none; padding:0; }
+#stage { display:flex; flex-direction:column; align-items:center; gap:10px; min-width:0; }
+#wrap { flex:1; width:100%; display:flex; align-items:center; justify-content:center; min-height:0; }
+canvas#cv { max-width:100%; max-height:100%; border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,.6); background:#000; }
+.transport { display:flex; gap:6px; align-items:center; flex-wrap:wrap; justify-content:center; width:100%; }
+.transport input[type=range] { flex:1; min-width:160px; }
+.ev { border:1px solid var(--line); border-radius:9px; padding:6px 8px; margin:5px 0; cursor:pointer; }
+.ev.sel { border-color:var(--gold); background:#1f1c12; }
+.ev .t { font-weight:700; font-size:13px; display:flex; justify-content:space-between; }
+.chips { display:flex; flex-wrap:wrap; gap:4px; margin-top:4px; }
+.chip { font-size:12px; background:#252b36; border-radius:20px; padding:2px 4px 2px 8px; display:inline-flex; align-items:center; gap:4px; }
+.chip button { padding:0 6px; border-radius:20px; font-size:11px; line-height:16px; }
+.lib { display:grid; grid-template-columns:1fr; gap:6px; }
+.card { border:1px solid var(--line); border-radius:9px; padding:7px 9px; display:flex; align-items:center; gap:8px; }
+.card .n { flex:1; } .card .n small { display:block; color:var(--mute); font-size:11px; }
+.card button { padding:3px 8px; font-size:12px; }
+.tag { font-size:10px; text-transform:uppercase; letter-spacing:.06em; padding:2px 6px; border-radius:5px; background:#2b3341; color:#cfd6e2; }
+.cats { display:flex; flex-wrap:wrap; gap:4px; margin:6px 0; } .cats button { font-size:12px; padding:3px 8px; }
+textarea { width:100%; min-height:90px; font:12px/1.4 ui-monospace,monospace; }
+.note { color:var(--mute); font-size:12px; }
+#toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#222; border:1px solid var(--gold); padding:8px 14px; border-radius:10px; display:none; z-index:9; }
+#count { color:var(--mute); font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1><b>PnoyChess</b> FX Lab</h1>
+  <div class="seg" title="Which preset you are editing (and the preview shape)">
+    <button id="t-long" class="on">Long-form 16:9</button><button id="t-reel">Reel 9:16</button>
+  </div>
+  <label class="note"><input type="checkbox" id="enabled"> Use this preset in renders</label>
+  <span id="count"></span>
+  <span class="sp"></span>
+  <button id="wild" title="Random wild combo for every event">🎲 Wild mode</button>
+  <button id="reset">Reset</button>
+  <button id="export">Export</button>
+  <button id="import">Import</button>
+  <button id="save" class="primary" title="Saves db/fx/preset.json in pnoychess-docu (needs the Studio GitHub key in this browser)">Save to Studio</button>
+  <a href="./" style="color:var(--gold)">← Studio</a>
+</header>
+<main>
+  <section class="col" id="left">
+    <h2>Background</h2>
+    <div class="row"><select id="bg" style="flex:1"></select></div>
+    <div class="row"><label>Colours</label><input type="color" id="b1"><input type="color" id="b2"></div>
+    <div class="row"><label>Motion</label><input type="range" id="bgsp" min="0" max="3" step="0.1"></div>
+    <h2>Board</h2>
+    <div class="row"><select id="theme" style="flex:1"></select></div>
+    <div class="row"><label>Light / dark</label><input type="color" id="sqL"><input type="color" id="sqD"><label style="min-width:0">frame</label><input type="color" id="frm"></div>
+    <div class="row"><label>Coordinates</label><input type="checkbox" id="coords"> <label style="min-width:0">Flip</label><input type="checkbox" id="flip"></div>
+    <h2>Effect colours &amp; strength</h2>
+    <div class="row"><label>Accent</label><input type="color" id="c1"><input type="color" id="c2"></div>
+    <div class="row"><label>Intensity</label><input type="range" id="intensity" min="0.2" max="2" step="0.05"><span id="iv" class="note"></span></div>
+    <div class="row"><label>FX speed</label><input type="range" id="fxsp" min="0.4" max="2" step="0.05"><span id="sv" class="note"></span></div>
+    <h2>Move style</h2>
+    <div class="row"><select id="mstyle" style="flex:1"></select></div>
+    <h2>Events → effects <span class="note">(click an event, then + an effect)</span></h2>
+    <div id="events"></div>
+  </section>
+
+  <section id="stage">
+    <div id="wrap"><canvas id="cv"></canvas></div>
+    <div class="transport">
+      <button id="restart" title="Restart">⏮</button>
+      <button id="back" title="Previous move">◀</button>
+      <button id="play" class="on" title="Play / pause (space)">⏸ Pause</button>
+      <button id="fwd" title="Next move">▶</button>
+      <input type="range" id="scrub" min="0" max="1000" value="0">
+      <span id="tm" class="note" style="min-width:90px"></span>
+      <label class="note">Move every <select id="gap"><option>0.6</option><option>0.9</option><option selected>1.3</option><option>1.8</option><option>2.5</option><option>3.5</option></select> s</label>
+      <label class="note"><input type="checkbox" id="loop" checked> loop</label>
+    </div>
+    <div style="width:100%;max-width:900px">
+      <div class="row"><select id="sample"></select><button id="loadpgn">Load PGN ↓</button><span id="pgnmsg" class="note"></span></div>
+      <textarea id="pgn" placeholder="Paste a PGN (headers, {comments} and !! ! ? ?? marks are fine; [FEN] start positions work)"></textarea>
+      <p class="note">!! / ! / ?? / ? marks in the PGN fire the Brilliant / Great / Blunder / Mistake effects. A {comment} in CAPITALS (e.g. {FORK!}) becomes the tactic word. The preview and the render use the same engine (src/fx/lab/), so what you see here is what renders.</p>
+    </div>
+  </section>
+
+  <section class="col" id="right">
+    <h2>Effect library</h2>
+    <div class="row"><input type="text" id="q" placeholder="Search effects…" style="flex:1"></div>
+    <div class="cats" id="cats"></div>
+    <div class="lib" id="lib"></div>
+  </section>
+</main>
+<div id="toast"></div>
+<input type="file" id="file" accept=".json,application/json" hidden>
+<script>
+// ---------- load the shared engine, chess.js and the piece set (published copy first, then the repo layout) ----------
+function loadScript(paths) { return paths.reduce((p, src) => p.catch(() => new Promise((ok, no) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = () => { s.remove(); no(new Error(src)); }; document.head.appendChild(s); })), Promise.reject()); }
+const PIECE_DIRS = ["./pieces/", "../assets/pieces/cburnett/"];
+const IMGS = {};
+function loadPieces() {
+  const types = ["wp","wn","wb","wr","wq","wk","bp","bn","bb","br","bq","bk"];
+  return Promise.all(types.map((t) => new Promise((ok) => {
+    let i = 0; const im = new Image(); im.onload = () => { IMGS[t] = im; ok(); }; im.onerror = () => { i++; if (i < PIECE_DIRS.length) im.src = PIECE_DIRS[i] + t + ".svg"; else ok(); }; im.src = PIECE_DIRS[0] + t + ".svg";
+  })));
+}
+// the engine's four files, in order (the same files Remotion draws with: src/fx/lab/)
+const ENGINE = ["core.js", "fx-moves.js", "fx-moments.js", "backgrounds.js"].reduce((p, f) => p.then(() => loadScript(["./fx/" + f, "../src/fx/lab/" + f])), Promise.resolve());
+Promise.all([ENGINE, loadScript(["./chess.js", "../chess/vendor/chess.js"]), loadPieces()]).then(start, (e) => { document.body.insertAdjacentHTML("afterbegin", `<p style="padding:20px;color:#f88">Could not load ${e && e.message}</p>`); });
+
+function start() {
+const F = window.PnoyFX, $ = (id) => document.getElementById(id);
+const LS = "pnoychess.fxlab.preset", KEY = "docu.github.key", REPO = "mboylesm-wq/pnoychess-docu", PATH = "db/fx/preset.json";
+const clone = (x) => JSON.parse(JSON.stringify(x));
+const C = F.count(); $("count").textContent = `${C.effects} effects · ${C.backgrounds} backgrounds · ${C.moveStyles} move styles`;
+
+// ---------- preset state ----------
+let P; try { P = JSON.parse(localStorage.getItem(LS)); } catch (e) {}
+if (!P || !P.long || !P.reel) P = { version: 1, long: clone(F.DEFAULTS.long), reel: clone(F.DEFAULTS.reel) };
+let target = "long", selEvent = "capture";
+const prof = () => P[target];
+const persist = () => { try { localStorage.setItem(LS, JSON.stringify(P)); } catch (e) {} };
+const toast = (m) => { const t = $("toast"); t.textContent = m; t.style.display = "block"; clearTimeout(toast.h); toast.h = setTimeout(() => (t.style.display = "none"), 2600); };
+
+// ---------- PGN: own tokenizer keeps !! ? marks and CAPITAL comments, chess.js checks every move ----------
+const SAMPLES = [
+  { name: "Morphy – Duke & Count, Opera Game (1858)", pgn: `[Event "Paris Opera"]\n[White "Paul Morphy"]\n[Black "Duke Karl / Count Isouard"]\n\n1. e4 e5 2. Nf3 d6 3. d4 Bg4 4. dxe5 Bxf3 5. Qxf3 dxe5 6. Bc4 Nf6 7. Qb3 Qe7 8. Nc3 c6 9. Bg5 b5 10. Nxb5! cxb5 11. Bxb5+ Nbd7 12. O-O-O Rd8 13. Rxd7! Rxd7 14. Rd1 Qe6 15. Bxd7+ Nxd7 16. Qb8+!! {QUEEN SAC!} Nxb8 17. Rd8# 1-0` },
+  { name: "Légal's Mate trap", pgn: `1. e4 e5 2. Nf3 d6 3. Bc4 Bg4 4. Nc3 g6? 5. Nxe5! {TRAP!} Bxd1?? 6. Bxf7+ Ke7 7. Nd5# 1-0` },
+  { name: "Scholar's Mate", pgn: `1. e4 e5 2. Bc4 Nc6 3. Qh5 Nf6?? 4. Qxf7# 1-0` },
+  { name: "Fool's Mate", pgn: `1. f3 e5 2. g4?? Qh4# 0-1` },
+  { name: "Promotion + castling demo", pgn: `[SetUp "1"]\n[FEN "r3k3/P7/8/8/8/8/6PP/R3K2R w KQq - 0 1"]\n\n1. O-O Kd7 2. axb8=Q?? Rxb8 3. Rxf7+ Kc6 *` },
+];
+function parsePgn(text) {
+  const fenM = text.match(/\[FEN\s+"([^"]+)"\]/), fen = fenM ? fenM[1] : null;
+  let body = text.replace(/\[[^\]]*\]/g, " ").replace(/;[^\n]*/g, " ");
+  // strip variations (nested)
+  let prev; do { prev = body; body = body.replace(/\([^()]*\)/g, " "); } while (body !== prev);
+  const toks = body.match(/\{[^}]*\}|\$\d+|[^\s{}]+/g) || [];
+  const ch = fen ? new Chess(fen) : new Chess(); if (fen && ch.fen().split(" ")[0] !== fen.split(" ")[0]) throw new Error("Bad [FEN]");
+  const moves = [], annotations = {}, words = {};
+  const nag = { $1: "!", $2: "?", $3: "!!", $4: "??", $5: "!?", $6: "?!" };
+  for (let tk of toks) {
+    if (tk[0] === "{") { const c = tk.slice(1, -1).trim(); if (moves.length && /^[A-Z0-9 !?'#+-]{3,24}$/.test(c) && /[A-Z]{3}/.test(c)) words[moves.length - 1] = c; continue; }
+    if (nag[tk]) { if (moves.length) annotations[moves.length - 1] = nag[tk]; continue; }
+    if (/^(1-0|0-1|1\/2-1\/2|\*)$/.test(tk)) continue;
+    tk = tk.replace(/^\d+\.(\.\.)?/, ""); if (!tk || /^\.+$/.test(tk)) continue;
+    const mark = (tk.match(/[!?]+$/) || [""])[0], san = tk.replace(/[!?]+$/, "").replace(/0-0-0/, "O-O-O").replace(/0-0/, "O-O");
+    const m = ch.move(san, { sloppy: true }); if (!m) throw new Error(`Illegal move "${tk}" after ${moves.map((x) => x.san).join(" ") || "the start"}`);
+    // the king of the side now to move (checked / mated king)
+    const brd = ch.board(), turn = ch.turn(); let kingSq = null;
+    brd.forEach((row, r) => row.forEach((p, f) => { if (p && p.type === "k" && p.color === turn) kingSq = "abcdefgh"[f] + (8 - r); }));
+    m.kingSq = kingSq; m.fenAfter = ch.fen(); if (mark) annotations[moves.length] = mark; moves.push(m);
+  }
+  return { start: fen || new Chess().fen(), moves, annotations, words };
+}
+function boardOf(fen) { const out = []; const rows = fen.split(" ")[0].split("/"); rows.forEach((row, r) => { let f = 0; for (const c of row) { if (/\d/.test(c)) f += +c; else { out.push({ sq: "abcdefgh"[f] + (8 - r), t: (c === c.toUpperCase() ? "w" : "b") + c.toLowerCase() }); f++; } } }); return out; }
+
+let G = null, EVENTS = [], moveAt = [], T = 0, playing = true, extra = [];
+function loadGame(text) {
+  try { G = parsePgn(text); } catch (e) { $("pgnmsg").textContent = "⚠ " + e.message; return false; }
+  G.boards = [boardOf(G.start)].concat(G.moves.map((m) => boardOf(m.fenAfter)));
+  $("pgnmsg").textContent = `${G.moves.length} moves loaded`; retime(); T = 0; return true;
+}
+function retime() {
+  if (!G) return; const gap = +$("gap").value, st = F.byId[prof().moveStyle] || F.byId["mv-slide"], fl = st.dur / (prof().speed || 1);
+  moveAt = G.moves.map((_, i) => 1.2 + i * gap);
+  EVENTS = [{ type: "start", t: 0.15, i: -1, from: "e4", to: "e4", san: "", piece: null }].concat(F.eventsFor(G.moves, moveAt, G, moveAt.map((t) => t + fl)));
+}
+const total = () => (G && G.moves.length ? moveAt[moveAt.length - 1] + 4.5 : 5);
+
+// ---------- canvas ----------
+const cv = $("cv"), ctx = cv.getContext("2d");
+function size() { const long = target === "long"; cv.width = long ? 1280 : 720; cv.height = long ? 720 : 1280; const w = $("wrap"); const k = Math.min(w.clientWidth / cv.width, (w.clientHeight || 600) / cv.height); cv.style.width = cv.width * k + "px"; cv.style.height = cv.height * k + "px"; }
+function geom() { const W = cv.width, H = cv.height, long = W > H; const bs = Math.round(long ? H * 0.84 : W * 0.92); return { W, H, bs, bx: Math.round((W - bs) / 2), by: Math.round(long ? (H - bs) / 2 : H * 0.24), S: bs / 8 }; }
+function sqXY(sq, g) { const f = sq.charCodeAt(0) - 97, r = +sq[1] - 1, flip = $("flip").checked; const col = flip ? 7 - f : f, row = flip ? r : 7 - r; return [g.bx + col * g.S + g.S / 2, g.by + row * g.S + g.S / 2]; }
+const themeOf = (p) => { const th = F.THEMES[p.theme] || F.THEMES.wood, cc = p.colors || {}; return { light: cc.light || th.light, dark: cc.dark || th.dark, frame: cc.frame || th.frame, line: th.line }; };
+const imgOf = (t) => IMGS[t] || null;
+
+function act(fxd, ev, age, seed, g, p) {
+  const to = ev.to ? sqXY(ev.to, g) : [g.bx + g.bs / 2, g.by + g.bs / 2], fr = ev.from ? sqXY(ev.from, g) : to, ks = ev.king ? sqXY(ev.king, g) : to;
+  const mover = ev.piece ? ev.piece[0] : "w";
+  return { t: age, k: Math.min(1, age / fxd.dur), dur: fxd.dur, x: to[0], y: to[1], fx: fr[0], fy: fr[1], kx: ks[0], ky: ks[1], S: g.S, W: g.W, H: g.H, bx: g.bx, by: g.by, bs: g.bs,
+    c1: p.c1, c2: p.c2, I: p.intensity, seed, piece: ev.piece, cap: ev.cap, san: ev.san, word: ev.word, king: (mover === "w" ? "b" : "w") + "k", img: imgOf };
+}
+
+function draw() {
+  const p = prof(), g = geom(), { W, H, S } = g, th = themeOf(p);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; ctx.filter = "none";
+  // background
+  const bgd = F.bgById[p.background.id] || F.bgById.solid; ctx.save(); bgd.draw(ctx, T, W, H, { b1: p.background.b1, b2: p.background.b2, sp: p.background.speed == null ? 1 : p.background.speed }); ctx.restore();
+  if (!G) return;
+  const evs = EVENTS.concat(extra), acts = F.active(evs, p, T);
+  // camera: shake + transforms (the same helper the render uses)
+  const cam = F.camera(acts, (x) => act(x.fx, x.ev, x.age, x.seed, g, p), p.intensity);
+  if (cam.cx == null) { cam.cx = W / 2; cam.cy = H / 2; }
+  const { blur, chroma, kingShake } = cam, hideKing = cam.hideKing, sh = F.shakeAt(cam.shake, T), sx = sh.x, sy = sh.y;
+  ctx.save();
+  ctx.translate(cam.cx + cam.dx + sx, cam.cy + cam.dy + sy); ctx.scale(cam.zoom, cam.zoom * Math.cos(cam.tilt * Math.PI / 180)); ctx.rotate(cam.rot + cam.spin * Math.PI / 180); ctx.translate(-cam.cx, -cam.cy);
+  if (blur) ctx.filter = `blur(${blur.toFixed(1)}px)`;
+  // frame + squares
+  const fp = S * 0.22; ctx.fillStyle = th.frame; ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = S * 0.6; ctx.fillRect(g.bx - fp, g.by - fp, g.bs + fp * 2, g.bs + fp * 2); ctx.shadowBlur = 0;
+  for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) { ctx.fillStyle = (r + f) % 2 ? th.dark : th.light; ctx.fillRect(g.bx + f * S, g.by + r * S, S + 0.5, S + 0.5); if (th.line) { ctx.strokeStyle = F.rgba(th.line, 0.25); ctx.strokeRect(g.bx + f * S, g.by + r * S, S, S); } }
+  if ($("coords").checked) { ctx.font = `700 ${S * 0.17}px system-ui`; const flip = $("flip").checked; for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? th.light : th.dark; ctx.fillText("abcdefgh"[flip ? 7 - i : i], g.bx + i * S + S * 0.82, g.by + g.bs - S * 0.06); ctx.fillStyle = i % 2 ? th.dark : th.light; ctx.fillText(String(flip ? i + 1 : 8 - i), g.bx + S * 0.05, g.by + i * S + S * 0.2); } }
+  // under effects
+  const layer = (name) => acts.forEach(({ fx, ev, age, seed }) => { if ((fx.layer || "over") === name && fx.draw) { ctx.save(); try { fx.draw(ctx, act(fx, ev, age, seed, g, p)); } catch (e) { console.warn(fx.id, e); } ctx.restore(); } });
+  layer("under");
+  // pieces: which ply is on the board, and the one in flight
+  const pose = F.movePose(EVENTS, p, T);
+  let ply = 0; for (let i = 0; i < moveAt.length; i++) if (T >= moveAt[i]) ply = i + 1;
+  const flying = pose && pose.ev.i >= 0 ? pose : null, base = flying ? G.boards[flying.ev.i] : G.boards[ply];
+  const m = flying ? G.moves[flying.ev.i] : null, castleRook = m && /[kq]/.test(m.flags) ? (() => { const rank = m.from[1], k = m.flags.includes("k"); return { from: (k ? "h" : "a") + rank, to: (k ? "f" : "d") + rank }; })() : null;
+  const capSq = m && m.captured ? (m.flags.includes("e") ? m.to[0] + m.from[1] : m.to) : null;
+  base.forEach((pc) => {
+    if (flying && pc.sq === m.from) return;
+    if (castleRook && pc.sq === castleRook.from) return;
+    if (capSq && pc.sq === capSq && flying.k > 0.55) return;
+    if (hideKing && pc.sq === hideKing && pc.t[1] === "k") return;
+    let [x, y] = sqXY(pc.sq, g);
+    if (kingShake && pc.t[1] === "k" && pc.sq === cam.shakeKing) x += Math.sin(T * 70) * S * kingShake;
+    if (pc.t && IMGS[pc.t]) ctx.drawImage(IMGS[pc.t], x - S * 0.475, y - S * 0.475, S * 0.95, S * 0.95);
+  });
+  if (flying) {
+    const st = flying.fx, a = act(st, flying.ev, flying.k * st.dur, 7, g, p); a.k = flying.k;
+    if (st.trail) { ctx.save(); st.trail(ctx, a); ctx.restore(); }
+    if (castleRook) { const [x1, y1] = sqXY(castleRook.from, g), [x2, y2] = sqXY(castleRook.to, g), q = F.E.inOut(flying.k), rt = m.color + "r"; ctx.drawImage(IMGS[rt], x1 + (x2 - x1) * q - S * 0.475, y1 + (y2 - y1) * q - S * 0.475, S * 0.95, S * 0.95); }
+    const ps = st.pose(flying.k, a), pp = ps.p == null ? flying.k : ps.p, x = a.fx + (a.x - a.fx) * pp + (ps.dx || 0) * S, y = a.fy + (a.y - a.fy) * pp + (ps.dy || 0) * S;
+    const sc = ps.s == null ? 1 : ps.s, type = flying.k > 0.85 && m.promotion ? m.color + m.promotion : m.color + m.piece;
+    ctx.save(); ctx.globalAlpha = ps.o == null ? 1 : Math.max(0, Math.min(1, ps.o)); ctx.translate(x, y); ctx.rotate(ps.r || 0); ctx.scale(sc * (ps.sx == null ? 1 : ps.sx), sc * (ps.sy == null ? 1 : ps.sy));
+    ctx.shadowColor = "rgba(0,0,0,.45)"; ctx.shadowBlur = S * 0.2 * Math.max(0, sc - 0.9) * 5; ctx.shadowOffsetY = S * 0.1 * Math.max(0, sc - 1) * 4;
+    if (IMGS[type]) ctx.drawImage(IMGS[type], -S * 0.475, -S * 0.475, S * 0.95, S * 0.95); ctx.restore();
+  }
+  layer("over");
+  ctx.restore(); ctx.filter = "none";
+  layer("post"); layer("text");
+  if (chroma > 0.5) { ctx.save(); ctx.globalAlpha = 0.35; ctx.globalCompositeOperation = "screen"; ctx.drawImage(cv, chroma, 0); ctx.drawImage(cv, -chroma, 0); ctx.restore(); }
+  // HUD
+  const mv = ply ? G.moves[ply - 1] : null; ctx.font = `700 ${Math.round(S * 0.32)}px system-ui`; ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.textAlign = "left";
+  ctx.fillText(mv ? `${Math.ceil(ply / 2)}${mv.color === "w" ? "." : "…"} ${mv.san}${G.annotations[ply - 1] || ""}` : "Start", g.bx, g.by - S * (W > H ? 0.35 : 0.6));
+}
+
+// ---------- loop ----------
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(0.1, (now - last) / 1000); last = now;
+  if (playing && G) { T += dt; if (T > total()) { if ($("loop").checked) T = 0; else { T = total(); setPlay(false); } } }
+  extra = extra.filter((e) => T - e.t < 6 && T >= e.t - 0.01);
+  draw(); $("scrub").value = Math.round((T / total()) * 1000); $("tm").textContent = `${T.toFixed(1)} / ${total().toFixed(1)} s`;
+  requestAnimationFrame(tick);
+}
+function setPlay(v) { playing = v; $("play").textContent = v ? "⏸ Pause" : "▶ Play"; $("play").classList.toggle("on", v); }
+
+// ---------- fire one effect now on the last move (library preview) ----------
+function fire(id) {
+  const fx = F.byId[id]; if (!G || !G.moves.length) return;
+  if (fx.cat === "move") { prof().moveStyle = id; retime(); syncUI(); let i = moveAt.findIndex((t) => t > T); if (i < 0) i = 0; T = moveAt[i] - 0.05; setPlay(true); return; }
+  let ply = 0; for (let i = 0; i < moveAt.length; i++) if (T >= moveAt[i]) ply = i + 1;
+  const i = Math.max(0, ply - 1), m = G.moves[i];
+  // pick a move that suits the effect when the current one does not (a capture for capture effects, a check for check effects)
+  const want = fx.on || [], pick = (pred) => { for (let j = i; j >= 0; j--) if (pred(G.moves[j])) return j; for (let j = i; j < G.moves.length; j++) if (pred(G.moves[j])) return j; return i; };
+  let j = i; if (want.includes("capture") && !want.includes("move") && !m.captured) j = pick((x) => x.captured); else if ((want.includes("check") || want.includes("mate")) && !/[+#]/.test(m.san)) j = pick((x) => /[+#]/.test(x.san));
+  const mm = G.moves[j]; if (j !== i) T = moveAt[j] + 0.5;
+  extra.push({ type: "fire", only: [id], t: T, i: j, from: mm.from, to: mm.to, san: mm.san, piece: mm.color + mm.piece, cap: mm.captured ? (mm.color === "w" ? "b" : "w") + mm.captured : (mm.color === "w" ? "bp" : "wp"), king: mm.kingSq || (mm.color === "w" ? "e8" : "e1"), word: G.words[j] || "FORK!" });
+}
+
+// ---------- UI ----------
+function opt(sel, items, val) { sel.innerHTML = items.map(([v, n]) => `<option value="${v}"${v === val ? " selected" : ""}>${n}</option>`).join(""); }
+function syncUI() {
+  const p = prof(); retime();
+  $("t-long").classList.toggle("on", target === "long"); $("t-reel").classList.toggle("on", target === "reel"); $("enabled").checked = !!p.enabled;
+  opt($("bg"), F.BG.map((b) => [b.id, b.name]), p.background.id); $("b1").value = p.background.b1; $("b2").value = p.background.b2; $("bgsp").value = p.background.speed == null ? 1 : p.background.speed;
+  opt($("theme"), Object.keys(F.THEMES).map((k) => [k, k[0].toUpperCase() + k.slice(1)]), p.theme); const th = themeOf(p);
+  const hex = (c, d) => (/^#[0-9a-f]{6}$/i.test(c) ? c : d); $("sqL").value = hex(th.light, "#eeeeee"); $("sqD").value = hex(th.dark, "#777777"); $("frm").value = hex(th.frame, "#222222");
+  $("c1").value = p.c1; $("c2").value = p.c2; $("intensity").value = p.intensity; $("iv").textContent = (+p.intensity).toFixed(2); $("fxsp").value = p.speed; $("sv").textContent = (+p.speed).toFixed(2) + "×";
+  opt($("mstyle"), F.FX.filter((f) => f.cat === "move").map((f) => [f.id, f.name]), p.moveStyle);
+  $("events").innerHTML = F.EVENTS.map((e) => `<div class="ev${e === selEvent ? " sel" : ""}" data-e="${e}"><div class="t"><span>${F.EVENT_NAMES[e]}</span><span class="note">${(p.map[e] || []).length}</span></div><div class="chips">${(p.map[e] || []).map((id) => `<span class="chip">${(F.byId[id] || { name: id }).name}<button data-rm="${e}|${id}" title="Remove">✕</button></span>`).join("") || '<span class="note">nothing</span>'}</div></div>`).join("");
+  persist(); renderLib();
+}
+let cat = "all";
+const CATS = [["all", "All"], ["move", "Move styles"], ["capture", "Captures"], ["check", "Check"], ["mate", "Checkmate"], ["special", "Castle/Promo"], ["annotation", "!! ?? marks"], ["camera", "Camera"], ["screen", "Screen"], ["square", "Squares"], ["text", "Text pops"]];
+function renderLib() {
+  $("cats").innerHTML = CATS.map(([c, n]) => `<button data-cat="${c}" class="${c === cat ? "on" : ""}">${n}</button>`).join("");
+  const q = $("q").value.trim().toLowerCase(), p = prof();
+  const list = F.FX.filter((f) => (cat === "all" || f.cat === cat) && (!q || (f.name + " " + f.id + " " + f.cat).toLowerCase().includes(q)));
+  $("lib").innerHTML = list.map((f) => { const inSel = f.cat === "move" ? p.moveStyle === f.id : (p.map[selEvent] || []).includes(f.id);
+    return `<div class="card"><span class="tag">${f.cat}</span><div class="n">${f.name}<small>${(f.on || []).join(", ")}</small></div><button data-fire="${f.id}" title="Preview now">▶</button>${f.cat === "move" ? `<button data-add="${f.id}" class="${inSel ? "on" : ""}">${inSel ? "✓ used" : "Use"}</button>` : `<button data-add="${f.id}" class="${inSel ? "on" : ""}" title="Add to ${F.EVENT_NAMES[selEvent]}">${inSel ? "✓ " : "+ "}${F.EVENT_NAMES[selEvent].split(" ")[0]}</button>`}</div>`; }).join("") || '<p class="note">No effect matches.</p>';
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest("[data-fire],[data-add],[data-rm],[data-cat],.ev"); if (!b) return; const p = prof();
+  if (b.dataset.fire) fire(b.dataset.fire);
+  else if (b.dataset.add) { const id = b.dataset.add, fx = F.byId[id]; if (fx.cat === "move") { p.moveStyle = id; retime(); } else { const l = p.map[selEvent] = p.map[selEvent] || []; const k = l.indexOf(id); k >= 0 ? l.splice(k, 1) : l.push(id); fire(id); } syncUI(); }
+  else if (b.dataset.rm) { const [ev, id] = b.dataset.rm.split("|"); p.map[ev] = (p.map[ev] || []).filter((x) => x !== id); syncUI(); e.stopPropagation(); }
+  else if (b.dataset.cat) { cat = b.dataset.cat; renderLib(); }
+  else if (b.classList.contains("ev")) { selEvent = b.dataset.e; syncUI(); }
+});
+const bind = (id, fn, ev) => $(id).addEventListener(ev || "input", () => { fn($(id)); syncUI(); });
+bind("bg", (el) => (prof().background.id = el.value), "change"); bind("b1", (el) => (prof().background.b1 = el.value)); bind("b2", (el) => (prof().background.b2 = el.value)); bind("bgsp", (el) => (prof().background.speed = +el.value));
+bind("theme", (el) => { prof().theme = el.value; prof().colors = {}; }, "change");
+bind("sqL", (el) => ((prof().colors = prof().colors || {}).light = el.value)); bind("sqD", (el) => ((prof().colors = prof().colors || {}).dark = el.value)); bind("frm", (el) => ((prof().colors = prof().colors || {}).frame = el.value));
+bind("c1", (el) => (prof().c1 = el.value)); bind("c2", (el) => (prof().c2 = el.value)); bind("intensity", (el) => (prof().intensity = +el.value)); bind("fxsp", (el) => { prof().speed = +el.value; retime(); });
+bind("mstyle", (el) => { prof().moveStyle = el.value; retime(); }, "change"); bind("enabled", (el) => (prof().enabled = el.checked), "change");
+$("q").addEventListener("input", renderLib);
+$("t-long").onclick = () => { target = "long"; size(); retime(); syncUI(); }; $("t-reel").onclick = () => { target = "reel"; size(); retime(); syncUI(); };
+$("play").onclick = () => setPlay(!playing); $("restart").onclick = () => { T = 0; setPlay(true); };
+$("fwd").onclick = () => { const i = moveAt.findIndex((t) => t > T + 0.01); if (i >= 0) T = moveAt[i] - 0.02; setPlay(true); };
+$("back").onclick = () => { let i = -1; moveAt.forEach((t, k) => { if (t < T - 0.6) i = k; }); T = i >= 0 ? moveAt[i] - 0.02 : 0; setPlay(true); };
+$("scrub").addEventListener("input", () => { T = ($("scrub").value / 1000) * total(); setPlay(false); });
+$("gap").onchange = retime;
+document.addEventListener("keydown", (e) => { if (e.target.matches("input,textarea,select")) return; if (e.code === "Space") { e.preventDefault(); setPlay(!playing); } if (e.code === "ArrowRight") $("fwd").click(); if (e.code === "ArrowLeft") $("back").click(); });
+opt($("sample"), SAMPLES.map((s, i) => [String(i), s.name]), "0");
+$("sample").onchange = () => { $("pgn").value = SAMPLES[+$("sample").value].pgn; loadGame($("pgn").value); setPlay(true); };
+$("loadpgn").onclick = () => { if (loadGame($("pgn").value)) setPlay(true); };
+$("reset").onclick = () => { if (!confirm(`Reset the ${target === "long" ? "long-form" : "reel"} preset to the defaults?`)) return; P[target] = clone(F.DEFAULTS[target]); syncUI(); };
+$("wild").onclick = () => {
+  const p = prof(), R = F.rng((Date.now() & 0xffffff) + 1), pick = (arr, n) => { const a = arr.slice(), out = []; while (a.length && out.length < n) out.push(a.splice(Math.floor(R() * a.length), 1)[0]); return out; };
+  F.EVENTS.forEach((e) => { const own = F.FX.filter((f) => f.cat !== "move" && (f.on || []).includes(e) && !["camera", "screen", "text"].includes(f.cat)).map((f) => f.id), extraFx = F.FX.filter((f) => ["camera", "screen"].includes(f.cat) && (f.on || []).includes(e)).map((f) => f.id);
+    p.map[e] = e === "move" ? pick(own, 2) : pick(own, 2 + Math.floor(R() * 2)).concat(pick(extraFx, e === "start" ? 1 : Math.floor(R() * 2) + (e === "mate" ? 1 : 0))); });
+  p.moveStyle = pick(F.FX.filter((f) => f.cat === "move").map((f) => f.id), 1)[0]; const bgs = F.BG.filter((b) => !["solid", "gradient"].includes(b.id)); p.background.id = bgs[Math.floor(R() * bgs.length)].id;
+  const hues = [["#ffd166", "#ff2d55"], ["#4cc9f0", "#f72585"], ["#06d6a0", "#ffd166"], ["#c77dff", "#4cc9f0"], ["#ff9f1c", "#2ec4b6"]][Math.floor(R() * 5)]; p.c1 = hues[0]; p.c2 = hues[1];
+  syncUI(); T = 0; setPlay(true); toast("Wild combo! Keep what you like, ✕ what you don't.");
+};
+$("export").onclick = () => { const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([JSON.stringify(P, null, 1)], { type: "application/json" })); a.download = "fx-preset.json"; a.click(); };
+$("import").onclick = () => $("file").click();
+$("file").onchange = async () => { try { const j = JSON.parse(await $("file").files[0].text()); if (!j.long || !j.reel) throw new Error("not an FX preset"); P = j; syncUI(); toast("Preset imported"); } catch (e) { toast("⚠ " + e.message); } };
+$("save").onclick = async () => {
+  let key = null; try { key = localStorage.getItem(KEY); } catch (e) {}
+  // opened from the PC folder (or before Studio signed in here) the Studio key is not in this browser yet: ask once
+  if (!key) { key = (prompt("Paste your PnoyChess Studio GitHub key (github_pat_…) to save this preset for renders. It stays only in this browser.") || "").trim(); if (!key) { toast("Saved in this browser only (no GitHub key)."); return; } try { localStorage.setItem(KEY, key); } catch (e) {} }
+  const H = { Authorization: "Bearer " + key, Accept: "application/vnd.github+json" }, url = `https://api.github.com/repos/${REPO}/contents/${PATH}`;
+  try {
+    let sha; const cur = await fetch(url + "?ref=main", { headers: H }); if (cur.ok) sha = (await cur.json()).sha; else if (cur.status !== 404) throw new Error("GitHub " + cur.status);
+    const body = { message: "studio: FX Lab preset", branch: "main", content: btoa(unescape(encodeURIComponent(JSON.stringify(P, null, 1) + "\n"))), ...(sha ? { sha } : {}) };
+    const r = await fetch(url, { method: "PUT", headers: H, body: JSON.stringify(body) }); if (!r.ok) throw new Error("GitHub " + r.status);
+    toast(`Saved. Long-form: ${P.long.enabled ? "ON" : "off"} · Reels: ${P.reel.enabled ? "ON" : "off"} in renders.`);
+  } catch (e) { toast("⚠ Could not save: " + e.message); }
+};
+window.addEventListener("resize", size);
+window.FXLAB = { get T() { return T; }, set T(v) { T = v; }, fire, P: () => P, setPlay, loadGame, draw };
+size(); $("pgn").value = SAMPLES[0].pgn; loadGame(SAMPLES[0].pgn); syncUI(); requestAnimationFrame(tick);
+}
+</script>
+</body>
+</html>
