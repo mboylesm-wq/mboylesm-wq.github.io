@@ -889,7 +889,8 @@ video {"type":"video","query":"<2-4 words for stock b-roll: place or mood, e.g. 
 words {"type":"words"} the scene's own narration as huge kinetic text: punchlines of 4-14 words only
 geo {"type":"geo","title":"...","highlight":["<Natural Earth country name>"],"points":[{"name":"Baguio","lon":120.60,"lat":16.41,"note":"..."}]} every new place, real coordinates
 title {"type":"title","title":"...","subtitle":"..."}
-counter {"type":"counter","value":27,"label":"...","prefix":"","suffix":""}`,
+counter {"type":"counter","value":27,"label":"...","prefix":"","suffix":""}
+space {"type":"space","mode":"stars|galaxy|pieces|warp","number":"<optional sourced figure, e.g. 10^120>","label":"...","title":"<or a short title>","kicker":"..."} 3D space made in code: cosmic or abstract ideas (the universe, infinity, AI, the mind), a hero opening, a mind-blowing number; at most 1-2 per chapter`,
   visMore: `timeline {"type":"timeline","title":"...","items":[{"year":"1974","text":"..."}],"highlight":0}
 bars {"type":"bars","title":"...","unit":"","items":[{"label":"...","value":4}],"highlight":0}
 quote {"type":"quote","text":"<real quote only>","author":"...","source":"<where/when>"}
@@ -910,6 +911,7 @@ board {"type":"board","title":"...","moves":["e4","e5"],"arrows":[{"from":"e2","
 timeline {"type":"timeline","title":"...","items":[{"year":"1974","text":"..."}],"highlight":0} chronological milestones
 bars {"type":"bars","title":"...","unit":"","items":[{"label":"...","value":4}],"highlight":0} data & stat comparisons
 counter {"type":"counter","value":27,"label":"...","prefix":"","suffix":""} numeric reveals
+space {"type":"space","mode":"stars|galaxy|pieces|warp","number":"<optional sourced figure, e.g. 10^120>","label":"...","title":"<or a short title>","kicker":"..."} 3D space made in code: cosmic or abstract ideas (the universe, infinity, AI, the mind), a hero opening, a mind-blowing number; at most 1-2 per chapter
 quote {"type":"quote","text":"<real quote only>","author":"...","source":"<where/when>"} verified quote card
 compare {"type":"compare","title":"...","left":{"name":"...","lines":["..."]},"right":{"name":"...","lines":["..."]}} side-by-side contrast (vector cards)
 geo {"type":"geo","title":"...","highlight":["<Natural Earth country name>"],"points":[{"name":"...","lon":0,"lat":0,"note":"..."}]} procedural map
@@ -1014,7 +1016,7 @@ Reply with only a JSON array: [{"scene":"<scene id>","text":"<the fact>","risk":
 
 // tools/facts.mjs explains the gate; this block is word for word the same there (`npm test` compares them)
 // facts-gate start
-const FACT_VISUALS = ["counter", "bars", "timeline", "quote", "race", "compare", "board", "stat", "map"];
+const FACT_VISUALS = ["space", "counter", "bars", "timeline", "quote", "race", "compare", "board", "stat", "map"];
 // the same text in the same order however it was saved (a database may give an object's keys back in another order)
 const canon = (v) => Array.isArray(v) ? "[" + v.map(canon).join(",") + "]" : v && typeof v === "object" ? "{" + Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => JSON.stringify(k) + ":" + canon(v[k])).join(",") + "}" : JSON.stringify(v === undefined ? null : v);
 const fnv = (t) => { let h = 2166136261; for (const c of t) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
@@ -2044,7 +2046,7 @@ function miniBoardEl(vis) {
 function planIssues(p) {
   const issues = [];
   const scenes = (p && p.plan && p.plan.scenes) || [];
-  const VALID_TYPES = new Set(["board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
+  const VALID_TYPES = new Set(["space", "board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
   scenes.forEach((s, idx) => {
     const v = s.visual;
     if (!v || !v.type || !VALID_TYPES.has(v.type)) {
