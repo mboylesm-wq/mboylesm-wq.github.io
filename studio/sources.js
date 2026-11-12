@@ -13,6 +13,9 @@
     puzzle: ["ok", "Puzzle pack", "Puzzle of the Day pack, from the Lichess puzzle database (CC0)"],
     study: ["ok", "Study PGN", "a PGN collection in C:\\PnoyChess\\study\\games (outside git)"],
     "study-guess": ["warn", "Study PGN (inferred)", "the collection is named in the reel id; the exact game inside it was not matched"],
+    "pd-library": ["ok", "Public-domain library", "a game from the public-domain library in assets/chess (before 1931)"],
+    "master-archive": ["ok", "Master archive", "a position from a master collection in C:\\PnoyChess\\study\\games (outside git; the position and its moves only)"],
+    textbook: ["ok", "Textbook position", "a position built from the textbook rule, every move of the line checked by Stockfish"],
     reel: ["warn", "Old reel record", "the old Chess Reel Studio's own file for this reel; check its moves against the link"],
     plan: ["warn", "Plan only (FEN + moves)", "a Remotion plan: the position and its moves, no PGN file"],
     none: ["bad", "No PGN", "no source on record: this reel's moves cannot be checked"],
@@ -21,8 +24,8 @@
   const pgnOf = (slot) => String((slot && slot.pgn) || "").trim();
   const movesOf = (pgn) => (pgn ? (pgn.replace(/\{[^}]*\}/g, "").match(/\b\d+\.(?!\.)/g) || []).length : 0);
   const hashFor = (date, key) => "#pgn/" + date + "/" + key;
-  // the paths in the day files are repo-relative; on Mark's PC they are all under C:\PnoyChess\docu
-  const localPath = (p) => (!p ? "" : /^[A-Za-z]:[\\/]/.test(p) ? p : "C:\\PnoyChess\\docu\\" + String(p).replace(/\//g, "\\"));
+  // the paths in the day files are repo-relative, except the study collections, which live in C:\PnoyChess (outside git)
+  const localPath = (p) => (!p ? "" : /^[A-Za-z]:[\\/]/.test(p) ? p : (/^study[\\/]/i.test(p) ? "C:\\PnoyChess\\" : "C:\\PnoyChess\\docu\\") + String(p).replace(/\//g, "\\"));
 
   // the block shown on a card: kind, the file (and folder) it came from, the collection, and the ways to see the PGN
   function box(slot, date, key, opts) {

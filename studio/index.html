@@ -618,6 +618,26 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
     const stale = (e) => e && (e.status === 409 || e.status === 422);
     const queues = new Map(), serial = (k, fn) => { const p = (queues.get(k) || Promise.resolve()).then(fn, fn); queues.set(k, p.catch(() => {})); return p; };
     async function retry(fn) { for (let i = 0; ; i++) { try { return await fn(); } catch (e) { if (!stale(e) || i >= 4) throw e; } } }
+    // a day file the page read and then saved while a job (or another tab) wrote it: a whole-document save must not
+    // revert the other side. Same rule as tools/json-merge.mjs (field by field; both changed a field → the other side).
+    const isPlain = (x) => x && typeof x === "object" && !Array.isArray(x), sameVal = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    function mergeDoc(base, ours, theirs) {
+      if (sameVal(ours, theirs)) return ours;
+      if (sameVal(base, ours)) return theirs;
+      if (sameVal(base, theirs)) return ours;
+      if (isPlain(ours) && isPlain(theirs)) {
+        const b = isPlain(base) ? base : {}, out = {};
+        for (const k of new Set([...Object.keys(ours), ...Object.keys(theirs)])) {
+          const io = k in ours, it = k in theirs, ib = k in b;
+          if (io && it) out[k] = mergeDoc(b[k], ours[k], theirs[k]);
+          else if (io) { if (!ib || !sameVal(b[k], ours[k])) out[k] = ours[k]; }
+          else if (it) { if (!ib || !sameVal(b[k], theirs[k])) out[k] = theirs[k]; }
+        }
+        return out;
+      }
+      return theirs;
+    }
+    const readAt = new Map(); // path -> the copy this page last read (sha + data), for that merge
 
     // ---- collections: the folder listing, polled, and each changed file read once by its sha
     const colls = new Map();
@@ -746,14 +766,18 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
     };
     // read-only repo files for the Publish tab (the publisher's day plans, states and logs): JSON or text, null if missing
     const files = {
-      async json(path) { if (!/^[\w./-]+\.json$/.test(path) || path.includes("..")) throw new Error("not a file: " + path); const d = await readDoc(path); return d ? d.data : null; },
+      async json(path) { if (!/^[\w./-]+\.json$/.test(path) || path.includes("..")) throw new Error("not a file: " + path); const d = await readDoc(path); if (d) readAt.set(path, { sha: d.sha, data: JSON.parse(JSON.stringify(d.data)) }); return d ? d.data : null; },
       async text(path) { if (!/^[\w./-]+$/.test(path) || path.includes("..")) throw new Error("not a file: " + path); const r = await call(`/contents/${path}${ref}`, { accept: "application/vnd.github.raw" }); return r.ok ? r.text() : null; },
       async list(dir) { try { return ((await json(`/contents/${dir}${ref}`)).body || []).map((f) => f.name); } catch (e) { if (e.status === 404) return []; throw e; } },
       async saveJson(path, data, message = "studio: save " + path) {
         if (!/^[\w./-]+\.json$/.test(path) || path.includes("..")) throw new Error("not a file: " + path);
         return serial(path, () => retry(async () => {
-          const cur = await readDoc(path);
-          return await writeDoc(path, data, cur && cur.sha, message);
+          const cur = await readDoc(path), base = readAt.get(path);
+          // the file changed after this page read it: merge so the save cannot put a stale copy back
+          const out = cur && base && base.sha && cur.sha && base.sha !== cur.sha ? mergeDoc(base.data, data, cur.data) : data;
+          const sha = await writeDoc(path, out, cur && cur.sha, message);
+          readAt.set(path, { sha, data: JSON.parse(JSON.stringify(out)) });
+          return sha;
         }));
       },
     };
@@ -794,7 +818,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
   let told = "";
   const showStale = () => {
     let d = document.getElementById("gh-stale"), bad = [...stale.values()][0] || "";
-    if (!bad) { if (d) d.remove(); return; }
+    if (!bad) { told = ""; if (d) d.remove(); return; }
     if (!d) {
       d = document.createElement("div"); d.id = "gh-stale";
       d.style.cssText = "position:sticky;top:0;z-index:9999;display:flex;gap:10px;align-items:center;padding:8px 12px;background:#7f1d1d;color:#fff;font:13px system-ui,sans-serif";
@@ -853,7 +877,7 @@ function tailSentences(t, n) { t = String(t || ""); if (t.length <= n) return t;
 const PROMPTS = {
   version: 7,
   // the house style, sent with the outline and every chapter
-  rules: `You write narration for "PnoyChess", a Filipino chess YouTube channel making documentaries in English.
+  rules: `You write narration for "PnoyChess", a Filipino chess YouTube channel making long-form videos in English: documentaries, explainers and essays about any chess topic.
 Style: stakes in the first 15 seconds, no channel intro; short spoken sentences; a new visual every 1-2 sentences; never three photos in a row; explain chess so beginners follow.
 Story: one central question is opened in the cold open and answered clearly at the end; every chapter answers a small question from before and opens a new one, ending with a reason to keep watching. Never tease what the video does not deliver.
 Voice: the narrator is Mark, a Filipino chess player and the voice of PnoyChess. In every chapter, one scene is his own take in the first person ("I think…", "Look at this move…", "For us in the Philippines…"): his view, a quick analysis, or why it matters to players; clearly an opinion, any facts in it still sourced. Mark those scenes "take": true. This personal commentary is what makes the channel original, not a template. A take scene gets a real picture like any other scene (a photo of the person or place, a board or a map); never a title card or any on-screen label saying "My take".
@@ -941,9 +965,11 @@ Optional per scene: "ambience":"hall|crowd|wind|city|night|rain|none".`,
 ${vis}
 
 Plan a ${opt.minutes}-minute ${s === "documentary" ? "documentary" : s + " film"} (about ${target} narrated words) on: ${opt.topic}${opt.angle ? "\nAngle: " + opt.angle : ""}
-Format: ${(FORMATS[opt.format] || FORMATS.story)[0]}: ${(FORMATS[opt.format] || FORMATS.story)[1]}. Shape the chapters to this format.
+${opt.format === "auto" ? `Format: pick the one that tells this topic best and name its key in "format": ${Object.entries(FORMATS).filter(([k]) => k !== "auto").map(([k, [n, how]]) => `${k} (${n}: ${how})`).join("; ")}. Shape the chapters to it.` : `Format: ${(FORMATS[opt.format] || FORMATS.story)[0]}: ${(FORMATS[opt.format] || FORMATS.story)[1]}. Shape the chapters to this format.`}
+Topics: the channel covers anything about chess (people, games, history, psychology, science, AI, culture). For an idea topic, do not force it into a biography or invent a turning point, a person or a scene: build it from sourced claims, studies, numbers and real games, and for science or psychology cite the study or an expert source (journal, university, FIDE, a book by the researcher) as well as chess sites.
 ${!isDoc ? "Visual Style: " + s + " (follow the style instructions in the visual list above).\n" : ""}${(opt.sources || []).length ? "Starting sources: " + opt.sources.map((s) => s.title + " " + s.url).join("; ") : ""}
-Reply with only JSON: {"title":"<YouTube title, max 60 chars>","titles":["<3 strong alternative titles, max 60 chars, curiosity without lies>"],"question":"<the one central question the cold open opens and the ending answers>","thumbnail":{"text":"<2-3 huge words, under 14 letters, that add tension the title does not say: stakes, emotion or a number (e.g. TOO YOUNG?, 18 = KING, NOBODY SAW IT); never words from the title; put *stars* around the one key word>","small":"<place + year tag, e.g. BAGUIO 1978>","person":"<full name of the one person the story is about, or empty>"},"coldOpen":[{"text":"<8-25 words>","visual":{...}}],"next":"<end card line 'Next: ...' teasing a related story>","chapters":[{"title":"<short>","words":<target words>,"mood":"<${Object.keys(MOODS).join("|")}>","beats":["<what this chapter covers, fact by fact>"],"opens":"<the small question this chapter leaves open>"}],"sources":[{"title":"<source name>","url":"<real URL, prefer Wikipedia/FIDE/official>"}]}
+Cite verifiable chess sources, best first. Official: fide.com, ratings.fide.com, handbook.fide.com, olimpbase.org, chess-results.com, uschess.org, europechess.net. Press: chessbase.com, chessbase.in, chess.com, lichess.org, theweekinchess.com, newinchess.com, chessdom.com, chess24.com, worldchess.com. Game databases: chessgames.com, 365chess.com. Reference (biography and background only, never the sole source for a result, rating, date, prize or rule): wikipedia.org, chessprogramming.org.
+Reply with only JSON: {${opt.format === "auto" ? '"format":"<the format key you picked>",' : ""}"title":"<YouTube title, max 60 chars>","titles":["<3 strong alternative titles, max 60 chars, curiosity without lies>"],"question":"<the one central question the cold open opens and the ending answers>","thumbnail":{"text":"<2-3 huge words, under 14 letters, that add tension the title does not say: stakes, emotion or a number (e.g. TOO YOUNG?, 18 = KING, NOBODY SAW IT); never words from the title; put *stars* around the one key word>","small":"<place + year tag, e.g. BAGUIO 1978>","person":"<full name of the one person the story is about, or empty>"},"coldOpen":[{"text":"<8-25 words>","visual":{...}}],"next":"<end card line 'Next: ...' teasing a related story>","chapters":[{"title":"<short>","words":<target words>,"mood":"<${Object.keys(MOODS).join("|")}>","beats":["<what this chapter covers, fact by fact>"],"opens":"<the small question this chapter leaves open>"}],"sources":[{"title":"<source name>","url":"<real URL, prefer Wikipedia/FIDE/official>"}]}
 coldOpen: 2-6 quick scenes (40-70 words in all) opening the video before the PnoyChess sting: the most dramatic moment, no greeting, the last scene asks the central question. ${s === "explainer" || s === "tactical" ? "The FIRST scene is a dynamic board position, data chart, counter or kinetic words; never a photo." : "The FIRST scene is the strongest real picture: a photo of the person or the decisive moment, a board with the key move, or a map; never kinetic words or a title card first, and a photo or clip there gets a \"fallback\" (a geo or board visual) in case no licensed picture exists."}
 Use 4-6 chapters; chapter words must add up to about ${target}.`;
   },
@@ -988,7 +1014,7 @@ Reply with only a JSON array: [{"scene":"<scene id>","text":"<the fact>","risk":
 
 // tools/facts.mjs explains the gate; this block is word for word the same there (`npm test` compares them)
 // facts-gate start
-const FACT_VISUALS = ["counter", "bars", "timeline", "quote", "race", "compare", "board"];
+const FACT_VISUALS = ["counter", "bars", "timeline", "quote", "race", "compare", "board", "stat", "map"];
 // the same text in the same order however it was saved (a database may give an object's keys back in another order)
 const canon = (v) => Array.isArray(v) ? "[" + v.map(canon).join(",") + "]" : v && typeof v === "object" ? "{" + Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => JSON.stringify(k) + ":" + canon(v[k])).join(",") + "}" : JSON.stringify(v === undefined ? null : v);
 const fnv = (t) => { let h = 2166136261; for (const c of t) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
@@ -1005,7 +1031,7 @@ const factScenes = (p) => { const pl = (p && p.plan) || {}, t = pl.thumbnail || 
 const sourceBad = (c) => !!(c.check && c.check.source === c.source && (c.check.verdict === "dead-link" || c.check.verdict === "contradicts"));
 // well-known chess sources (and Wikipedia, any language): a claim citing one is confirmed automatically (Mark's choice,
 // 2026-11-01) unless the source check found it dead or saying otherwise; Undo sets "doubted" so Mark decides himself
-const TRUSTED_SOURCES = ["chess.com", "lichess.org", "lichess.com", "chessbase.com", "chessbase.in", "theweekinchess.com", "wikipedia.org", "fide.com", "chessgames.com", "365chess.com", "chess24.com", "chess-results.com", "uschess.org", "newinchess.com", "worldchess.com", "chessprogramming.org"];
+const TRUSTED_SOURCES = ["chess.com", "lichess.org", "lichess.com", "chessbase.com", "chessbase.in", "theweekinchess.com", "wikipedia.org", "fide.com", "chessgames.com", "365chess.com", "chess24.com", "chess-results.com", "uschess.org", "newinchess.com", "worldchess.com", "chessprogramming.org", "olimpbase.org", "chessdom.com", "europechess.net"];
 const trustedSource = (u) => { const m = /^https?:\/\/([^/?#:]+)/i.exec(String(u || "").trim()), h = m ? m[1].toLowerCase() : ""; return !!h && TRUSTED_SOURCES.some((d) => h === d || h.endsWith("." + d)); };
 const autoConfirmed = (c) => (!c.status || c.status === "pending") && trustedSource(c.source);
 const claimDone = (c) => ((c.status === "supported" || autoConfirmed(c)) && /^https?:\/\/\S+$/.test(String(c.source || "").trim()) && (!sourceBad(c) || c.userConfirmed)) || (c.status === "waived" && !!String(c.note || "").trim());
@@ -1241,9 +1267,10 @@ function scriptAuthor(p) {
   }
   if (p.kind === "review") return "Stockfish 16 (Engine analysis)";
   if (p.writeWith === "antigravity") return "Gemini 4 Argon (Antigravity)";
+  if (p.writeModel) return aiChoice("custom", p.writeWith, p.writeModel).name;
   if (p.writeWith === "copilot") return "Claude Opus 5.5 (claude-opus-5.5)";
   if (p.writeWith === "deepseek" || p.writeWith === "github") return "DeepSeek Chat (deepseek-chat)";
-  if (p.writeWith === "claude") return "Claude Sonnet 4.5 (claude-sonnet-4-5)";
+  if (p.writeWith === "claude") return "Claude Opus 5.5 (claude-opus-5-5)";
   if (p.note) {
     if (/opus/i.test(p.note)) return "Claude Opus 5.5 (claude-opus-5.5)";
     if (/deepseek/i.test(p.note)) return "DeepSeek Chat (deepseek-chat)";
@@ -1307,7 +1334,41 @@ const FORMATS = {
   whatif: ["What if", "a real turning point, then what could have happened instead (clearly marked as speculation, with board lines where it helps), then what really happened"],
   countdown: ["Countdown", "a ranked list counting down to number one (e.g. the 5 greatest comebacks), one chapter per entry, each a mini-story"],
   rivalry: ["Rivalry", "two players side by side: who they are, their clashes in order, the decisive meeting, and the legacy"],
+  // idea films (Mark, 12 Nov 2026): the channel covers any chess topic, not only people and events
+  idea: ["Big idea (explainer essay)", "an idea, not a biography: a hook question, then 3-5 chapters that each make one clear claim, back it with sourced evidence (studies, data, expert words) and show it on a real game or position, then a takeaway the viewer can use at the board"],
+  history: ["History of an idea", "how one idea, tool or way of playing changed over time, in order: where it started, the turning points (each a real, dated, sourced event), where it stands today and what comes next"],
+  science: ["Science & numbers", "the science or math behind the topic: each chapter one question answered with a sourced number, study or calculation (shown as counters, bars or charts), from the simple fact to the mind-blowing one; speculation clearly labelled"],
+  myths: ["Myth vs fact", "4-6 things many players believe about the topic, one chapter each: the belief, why people believe it, what the evidence or a real game shows, and the verdict (true, false, or partly)"],
+  auto: ["Let the AI pick", "choose the format above that tells this topic best"],
 };
+// the visual style that suits each format; picking a format sets it on the form (Mark can still change it)
+const FORMAT_STYLE = { story: "documentary", rivalry: "documentary", whatif: "documentary", countdown: "documentary", breakdown: "tactical", lecture: "tactical", idea: "explainer", history: "documentary", science: "explainer", myths: "explainer" };
+// the writing AIs the page offers ("provider:model"); "custom" shows a provider list and a model box (any model name)
+const AI_WRITERS = [
+  ["deepseek:deepseek-chat", "DeepSeek Chat (cheapest, default)"],
+  ["deepseek:deepseek-reasoner", "DeepSeek Reasoner (thinks longer)"],
+  ["claude:claude-opus-5-5", "Claude Opus 5.5 (Anthropic API key)"],
+  ["claude:claude-sonnet-5-5", "Claude Sonnet 5.5 (Anthropic API key)"],
+  ["copilot:claude-opus-5.5", "Claude Opus 5.5 via GitHub Copilot (premium requests)"],
+  ["openai:gpt-5", "OpenAI GPT-5 (OpenAI key)"],
+  ["gemini:gemini-2.5-pro", "Google Gemini 2.5 Pro (Gemini key)"],
+  ["antigravity", "Antigravity on my PC (Gemini, free)"],
+  ["custom", "Other AI / model (type it)…"],
+];
+const AI_PROVIDERS_LIST = [["deepseek", "DeepSeek"], ["claude", "Anthropic (Claude)"], ["copilot", "GitHub Copilot"], ["openai", "OpenAI"], ["gemini", "Google Gemini"], ["openrouter", "OpenRouter (Grok, Llama, Mistral, Qwen, ...)"]];
+// older drafts saved "github" / "copilot" / "claude" / "deepseek": the same AI in the new list
+const brainValue = (b) => ({ github: "deepseek:deepseek-chat", deepseek: "deepseek:deepseek-chat", copilot: "copilot:claude-opus-5.5", claude: "claude:claude-opus-5-5" })[b] || b || "deepseek:deepseek-chat";
+// "provider:model" → { provider, model, name } for the workflow and the page's "written by"
+function aiChoice(brain, customProvider, customModel) {
+  const v = brainValue(brain);
+  if (v === "antigravity") return { provider: "antigravity", model: "", name: "Gemini 4 Argon (Antigravity)" };
+  const [provider, model] = v === "custom" ? [customProvider || "openrouter", String(customModel || "").trim()] : v.split(":");
+  const label = (AI_WRITERS.find(([k]) => k === v) || [])[1], pName = String((AI_PROVIDERS_LIST.find(([k]) => k === provider) || [, provider])[1]).replace(/\s*\(.*$/, "");
+  return { provider, model, name: v !== "custom" && label ? label.replace(/\s*\(.*$/, "") + (model ? ` (${model})` : "") : `${pName}${model ? " " + model : ""}` };
+}
+const TOPIC_HINTS = ["e.g. Eugenio Torre, Asia's first grandmaster", "e.g. The psychology of blunders", "e.g. How AI changed chess forever", "e.g. More chess games than atoms in the universe?", "e.g. Myths every club player believes", "e.g. Why the Sicilian took over the world"];
+const ANGLE_HINTS = ["What makes this worth watching to the end?", "The one question this video answers", "What will the viewer understand after it?"];
+const TOPIC_HINT = TOPIC_HINTS[Math.floor(Math.random() * TOPIC_HINTS.length)], ANGLE_HINT = ANGLE_HINTS[Math.floor(Math.random() * ANGLE_HINTS.length)];
 const VISUAL_STYLES = {
   documentary: ["Documentary (Archival + Boards)", "Authentic historical photos, newsreels, and Remotion procedural graphics"],
   explainer: ["Explainer (Vox / Code-Only)", "100% vector Remotion graphics (boards, charts, maps, quotes) with zero external photos"],
@@ -1547,21 +1608,23 @@ function viewWrite() {
   return projectEditor(p);
 }
 
+// the AI picked on the form: { provider, model, name }
+const formAi = () => aiChoice(($("#ai-brain") && $("#ai-brain").value) || "deepseek:deepseek-chat", $("#ai-provider") && $("#ai-provider").value, $("#ai-model") && $("#ai-model").value);
 function newForm() {
   const pre = S.prefill || S.draftForm || {};
   const f = el("form", { class: "panel", id: "newform" },
-    el("h2", { text: "New documentary" }),
-    el("label", {}, "Topic", el("input", { id: "topic", required: true, value: pre.title || pre.topic || "", placeholder: "e.g. Eugenio Torre, Asia's first grandmaster", oninput: (e) => saveDraft({ title: e.target.value, topic: e.target.value }) })),
-    el("label", {}, "Angle (optional)", el("input", { id: "angle", value: pre.angle || "", placeholder: "What makes this story worth 10 minutes?", oninput: (e) => saveDraft({ angle: e.target.value }) })),
+    el("h2", { text: "New video" }),
+    el("label", {}, "Topic (any chess topic: a person, a game, an idea, psychology, science, AI…)", el("input", { id: "topic", required: true, value: pre.title || pre.topic || "", placeholder: TOPIC_HINT, oninput: (e) => saveDraft({ title: e.target.value, topic: e.target.value }) })),
+    el("label", {}, "Angle (optional)", el("input", { id: "angle", value: pre.angle || "", placeholder: ANGLE_HINT, oninput: (e) => saveDraft({ angle: e.target.value }) })),
     el("div", { class: "grid2" },
-      el("label", {}, "AI Brain / Script Source", el("select", { id: "ai-brain", onchange: (e) => saveDraft({ brain: e.target.value }) },
-        el("option", { value: "github", selected: (pre.brain || "github") === "github", text: "GitHub Cloud AI (DeepSeek Chat deepseek-chat — automatic, PC can stay off)" }),
-        el("option", { value: "copilot", selected: pre.brain === "copilot", text: "GitHub Copilot (Claude Opus 5.5 claude-opus-5.5 — premium)" }),
-        el("option", { value: "claude", selected: pre.brain === "claude", text: "Anthropic API (Claude Sonnet 4.5 claude-sonnet-4-5)" }),
-        el("option", { value: "antigravity", selected: pre.brain === "antigravity", text: "Antigravity (Gemini 4 Argon — PC free)" }))),
+      el("label", {}, "AI writer", el("select", { id: "ai-brain", onchange: (e) => { saveDraft({ brain: e.target.value }); const c = $("#ai-custom"); if (c) c.hidden = e.target.value !== "custom"; } },
+        ...AI_WRITERS.map(([k, t]) => el("option", { value: k, selected: k === brainValue(pre.brain), text: t })))),
+      el("span", { id: "ai-custom", class: "row", style: "gap:8px;", hidden: brainValue(pre.brain) !== "custom" },
+        el("label", {}, "AI", el("select", { id: "ai-provider", onchange: (e) => saveDraft({ aiProvider: e.target.value }) }, ...AI_PROVIDERS_LIST.map(([k, t]) => el("option", { value: k, selected: k === (pre.aiProvider || "openrouter"), text: t })))),
+        el("label", {}, "Model", el("input", { id: "ai-model", value: pre.aiModel || "", placeholder: "e.g. x-ai/grok-4", oninput: (e) => saveDraft({ aiModel: e.target.value }) }))),
       el("label", {}, "Length", el("select", { id: "length", onchange: (e) => saveDraft({ minutes: +e.target.value }) }, ...[5, 8, 10, 12, 15, 20, 25, 30, 45, 60, 90, 120].map((m) => el("option", { value: m, selected: m === +(pre.minutes || 10), text: m >= 60 ? (m === 60 ? "1 hour" : (m / 60) + " hours") : m + " minutes" })))),
       el("label", {}, "Music", el("select", { id: "music", onchange: (e) => saveDraft({ music: e.target.value }) }, ...MUSIC.map(([id, t]) => el("option", { value: id, selected: id === (pre.music || "km-long-note-four"), text: t })))),
-      el("label", {}, "Format", el("select", { id: "format", onchange: (e) => saveDraft({ format: e.target.value }) }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, selected: k === (pre.format || "story"), title: how, text: name })))),
+      el("label", {}, "Format", el("select", { id: "format", onchange: (e) => { const st = FORMAT_STYLE[e.target.value], vs = $("#visual-style"); if (st && vs) vs.value = st; saveDraft({ format: e.target.value, ...(st ? { visualStyle: st } : {}) }); } }, ...Object.entries(FORMATS).map(([k, [name, how]]) => el("option", { value: k, selected: k === (pre.format || "story"), title: how, text: name })))),
       el("label", {}, "Visual Style", el("select", { id: "visual-style", onchange: (e) => saveDraft({ visualStyle: e.target.value }) },
         ...Object.entries(VISUAL_STYLES).map(([k, [name, how]]) => el("option", { value: k, selected: k === (pre.visualStyle || "documentary"), title: how, text: name }))))),
     el("div", { class: "row", style: "gap:8px; align-items:center;" },
@@ -1581,9 +1644,7 @@ function newForm() {
         };
         const id = slugify(topic) + "-" + Date.now().toString(36).slice(-4);
         const stamp = new Date().toISOString();
-        const brain = ($("#ai-brain") && $("#ai-brain").value) || "github";
-        const authorMap = { github: "DeepSeek Chat (deepseek-chat)", deepseek: "DeepSeek Chat (deepseek-chat)", copilot: "Claude Opus 5.5 (claude-opus-5.5)", claude: "Claude Sonnet 4.5 (claude-sonnet-4-5)", antigravity: "Gemini 4 Argon (Antigravity)" };
-        const writtenBy = authorMap[brain] || brain;
+        const ai = formAi(), brain = ai.provider, writtenBy = ai.name;
         const p = {
           id,
           title: topic,
@@ -1594,6 +1655,7 @@ function newForm() {
           visualStyle: opt.visualStyle || "documentary",
           status: "draft",
           writeWith: brain,
+          ...(ai.model ? { writeModel: ai.model } : {}),
           writtenBy,
           scriptSource: writtenBy,
           factsChecked: false,
@@ -1617,13 +1679,12 @@ function newForm() {
       } }),
       el("button", { class: "btn", type: "button", text: "Clear", onclick: () => { clearDraft(); render(); } }),
       el("span", { class: "note", text: S.sample ? "Claude writes it chapter by chapter, with sources. About 1–3 minutes."
-        : ghWriter() ? "The AI on GitHub (DeepSeek by default) writes it with sources and fact checks; your PC can stay off." : "Antigravity (Gemini 4 Argon) writes it on your PC for free with sources and fact checks." })),
+        : ghWriter() ? "The AI you pick writes it with sources and fact checks on GitHub; your PC can stay off. It needs that AI's key as a GitHub secret." : "Antigravity (Gemini 4 Argon) writes it on your PC for free with sources and fact checks." })),
     el("div", { class: "bar", hidden: true, id: "prog" }, el("i")));
   f.addEventListener("submit", (e) => { e.preventDefault(); const vsEl = $("#visual-style");
-    const brain = ($("#ai-brain") && $("#ai-brain").value) || "github";
-    const authorMap = { github: "DeepSeek Chat (deepseek-chat)", deepseek: "DeepSeek Chat (deepseek-chat)", copilot: "Claude Opus 5.5 (claude-opus-5.5)", claude: "Claude Sonnet 4.5 (claude-sonnet-4-5)", antigravity: "Gemini 4 Argon (Antigravity)" };
-    const writtenBy = authorMap[brain] || (S.sample ? "Claude" : "DeepSeek");
-    const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, visualStyle: (vsEl ? vsEl.value : "documentary"), sources: (S.prefill && S.prefill.sources) || (S.draftForm && S.draftForm.sources) || [], brain, writtenBy };
+    const ai = formAi(), brain = ai.provider, writtenBy = S.sample && !ai.model ? "Claude" : ai.name;
+    if (brain === "openrouter" && !ai.model && !S.sample) return say("Type a model name for OpenRouter first (e.g. x-ai/grok-4).");
+    const opt = { topic: $("#topic").value.trim(), angle: $("#angle").value.trim(), minutes: +$("#length").value, music: $("#music").value, format: $("#format").value, visualStyle: (vsEl ? vsEl.value : "documentary"), sources: (S.prefill && S.prefill.sources) || (S.draftForm && S.draftForm.sources) || [], brain, model: ai.model, writtenBy };
     if (S.sample) write(opt);
     else if (brain === "antigravity") agyQueueWrite(opt);
     else if (ghWriter()) ghWrite(opt);
@@ -1658,7 +1719,7 @@ async function write(opt) {
       writtenBy, scriptSource: writtenBy,
       titles: [outline.title, ...((outline.titles || []).filter((t) => t && t !== outline.title).slice(0, 3))],
       outline: { chapters: outline.chapters.map((c) => ({ title: String(c.title || ""), words: +c.words || 0, mood: c.mood || "", beats: c.beats || [], opens: String(c.opens || "") })), target,
-        question: String(outline.question || ""), format: opt.format || "story", visualStyle: opt.visualStyle || "documentary" },
+        question: String(outline.question || ""), format: opt.format === "auto" ? (FORMATS[outline.format] && outline.format !== "auto" ? outline.format : "story") : opt.format || "story", visualStyle: opt.visualStyle || "documentary" },
       writing: { next: 0 },
       plan: { title: outline.title, format: "16:9", music: { track: opt.music }, next: outline.next || "", coldOpen: scenes.length, scenes, writtenBy,
         thumbnail: { text: (outline.thumbnail && outline.thumbnail.text) || outline.title.split(" ").slice(0, 4).join(" "), small: outline.thumbnail && outline.thumbnail.small || "", person: outline.thumbnail && outline.thumbnail.person || "", people: [] } } };
@@ -1720,7 +1781,7 @@ async function writeChapters(p, set = (k, m) => say(m)) {
   set(1, "Script ready, with an original score plan. Read it through, check the facts, then record your narration.");
   S.view = "write"; render();
 }
-// Docu Studio on GitHub: GitHub's write.yml writes it (tools/write-auto.mjs; DeepSeek by default, AI_PROVIDER picks Claude or Copilot)
+// Docu Studio on GitHub: GitHub's write.yml writes it (tools/write-auto.mjs) with the AI picked on the form
 async function agyQueueWrite(opt) {
   if (!opt.topic || !S.db) return;
   const id = slugify(opt.topic) + "-" + Math.random().toString(36).slice(2, 6);
@@ -1762,13 +1823,14 @@ const ghWriting = (p) => {
   if (diff > 30 * 86400e3) return p.status === "writing";
   return diff < GH_WRITING_MIN * 60000;
 };
+// the workflow inputs that pick the writing AI (a project keeps writeWith / writeModel, so Continue uses the same one)
+const aiInputs = (provider, model) => provider && provider !== "github" && provider !== "antigravity" ? { ai_provider: provider, ...(model ? { ai_model: model } : {}) } : {};
 async function ghWrite(opt) {
   if (!opt.topic || S.busy || !ghWriter()) return;
   S.busy = true; $("#go").disabled = true;
   try {
     const sources = (opt.sources || []).filter((s) => s && s.url).slice(0, 12).map((s) => ({ title: String(s.title || ""), url: String(s.url) }));
-    const inputs = { topic: opt.topic, angle: opt.angle || "", minutes: String(opt.minutes), music: opt.music || "", format: opt.format || "story", sources: sources.length ? JSON.stringify(sources) : "" };
-    if (opt.brain && opt.brain !== "github") inputs.ai_provider = opt.brain;
+    const inputs = { topic: opt.topic, angle: opt.angle || "", minutes: String(opt.minutes), music: opt.music || "", format: opt.format || "story", visual_style: opt.visualStyle || "", sources: sources.length ? JSON.stringify(sources) : "", ...aiInputs(opt.brain, opt.model) };
     await S.actions.dispatch("write.yml", inputs);
     clearDraft();
     const whoName = opt.writtenBy || "the AI";
@@ -1779,7 +1841,7 @@ async function ghWrite(opt) {
 async function ghContinue(p) {
   if (S.busy || ghWriting(p)) return;
   S.busy = true; render();
-  try { await S.actions.dispatch("write.yml", { id: p.id }); await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is continuing with the AI." }); say("GitHub is continuing the script with the AI. Your PC can be off."); }
+  try { await S.actions.dispatch("write.yml", { id: p.id, ...aiInputs(p.writeWith, p.writeModel) }); await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is continuing with the AI." }); say("GitHub is continuing the script with the AI. Your PC can be off."); }
   catch (e) { say("Could not start the writing on GitHub: " + (e.message || e.code)); }
   finally { S.busy = false; render(); }
 }
@@ -1814,7 +1876,7 @@ function rewriteControl(p, i) {
       const note = how.value.trim();
       if (!S.sample) {
         try {
-          await S.actions.dispatch("write.yml", { id: p.id, rewrite_chapter: String(i + 1), rewrite_note: note });
+          await S.actions.dispatch("write.yml", { id: p.id, rewrite_chapter: String(i + 1), rewrite_note: note, ...aiInputs(p.writeWith, p.writeModel) });
           await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is rewriting chapter " + (i + 1) + " with the AI." });
           say("GitHub is rewriting chapter " + (i + 1) + " with the AI.");
         } catch (e) { say("Could not start the rewrite on GitHub: " + (e.message || e.code)); }
@@ -1851,7 +1913,7 @@ async function ghListClaims(p) {
   if (S.busy || !ghWriter() || ghWriting(p)) return;
   S.busy = true; render();
   try {
-    await S.actions.dispatch("write.yml", { id: p.id, claims: "true" });
+    await S.actions.dispatch("write.yml", { id: p.id, claims: "true", ...aiInputs(p.writeWith, p.writeModel) });
     await save(p, { ghWriteAt: new Date().toISOString(), note: "GitHub is listing the facts to check with the AI." });
     say("GitHub is listing the claims of the changed scenes with the AI (one request per batch). They appear here in a few minutes.");
   } catch (e) { say("Could not start the claims listing on GitHub: " + (e.message || e.code)); }
@@ -4307,7 +4369,7 @@ function viewProjects() {
   const box = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Create" }),
     el("div", { class: "row" },
       el("button", { class: "btn primary", type: "button", text: "New reel", title: "A chess reel, puzzle or highlight from a verified game or your PGN (made in the browser)", onclick: () => { S.reelOpen = null; S.view = "reel"; render(); } }),
-      el("button", { class: "btn primary", type: "button", text: "New documentary", title: "A long-form documentary (voice and render on your PC)", onclick: () => { S.view = "write"; S.cur = null; render(); } }),
+      el("button", { class: "btn primary", type: "button", text: "New video", title: "A long-form video on any chess topic: documentary, explainer or essay (voice and render on your PC)", onclick: () => { S.view = "write"; S.cur = null; render(); } }),
       el("button", { class: "btn primary", type: "button", id: "new-review", text: "New game review", title: "A long-form review of one game from its PGN: Stockfish on your PC, the same voice, music, render and upload as the documentaries", onclick: () => { S.view = "gamereview"; S.cur = null; render(); } }))));
   const reels = reelList();
   if (!S.projects.length && !reels) { box.append(el("div", { class: "empty", text: S.db ? "Nothing yet. Start a reel or a documentary, or pick a topic in Ideas." : "Your reels and documentaries appear here once you are signed in." })); return box; }
