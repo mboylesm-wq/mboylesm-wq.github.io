@@ -94,7 +94,9 @@
       await loadOnce("sources.js").catch(() => null); // draws each slot's source PGN
 
       const today = manila(), tomorrow = addDays(today, 1);
-      if (!selectedDay) selectedDay = tomorrow;
+      // today, not tomorrow (Mark, 12 Nov 2026): the board must open on the lineup that is posting today,
+      // with tomorrow one click away; the Tomorrow button and the day picker still show any planned day
+      if (!selectedDay) selectedDay = today;
 
       if (!cache || refresh) {
         const cfg = (await files.json(PUB + "config.json")) || {};
