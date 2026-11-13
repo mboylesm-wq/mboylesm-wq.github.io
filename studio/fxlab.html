@@ -229,7 +229,7 @@ function act(fxd, ev, age, seed, g, p) {
   const to = ev.to ? sqXY(ev.to, g) : [g.bx + g.bs / 2, g.by + g.bs / 2], fr = ev.from ? sqXY(ev.from, g) : to, ks = ev.king ? sqXY(ev.king, g) : to;
   const mover = ev.piece ? ev.piece[0] : "w";
   return { t: age, k: Math.min(1, age / fxd.dur), dur: fxd.dur, x: to[0], y: to[1], fx: fr[0], fy: fr[1], kx: ks[0], ky: ks[1], S: g.S, W: g.W, H: g.H, bx: g.bx, by: g.by, bs: g.bs,
-    c1: p.c1, c2: p.c2, I: p.intensity, seed, piece: ev.piece, cap: ev.cap, san: ev.san, word: ev.word, king: (mover === "w" ? "b" : "w") + "k", img: imgOf };
+    c1: p.c1, c2: p.c2, I: p.intensity, seed, piece: ev.piece, cap: ev.cap, san: ev.san, word: ev.word, line: ev.line || null, king: (mover === "w" ? "b" : "w") + "k", img: imgOf };
 }
 
 function draw() {
