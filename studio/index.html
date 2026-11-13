@@ -2833,6 +2833,51 @@ function postedShortsTable() {
       cell(r.facebook, "facebook"), cell(r.instagram, "instagram"), cell(r.youtube, "youtube"), cell(r.tiktok, "tiktok"))))));
 }
 
+// db/covers/status.json: tools/cover-audit.mjs writes it after every posting run — which post really got a cover
+// where (Facebook preferred thumbnail, Instagram cover, YouTube thumbnail, TikTok cover frame), and why not.
+async function loadCovers(force = false) {
+  if ((S.coversLoaded && !force) || S._coversLoading || !window.claude) return;
+  S._coversLoading = true;
+  try { const f = await window.claude.use("files"); S.covers = await f.json("db/covers/status.json"); S.coversAt = Date.now(); }
+  catch (e) { S.covers = { error: e.message || String(e) }; }
+  finally { S._coversLoading = false; S.coversLoaded = true; if (S.view === "channel") render(); }
+}
+const COVER_PLATFORMS = [["facebook", "Facebook"], ["instagram", "Instagram"], ["youtube", "YouTube"], ["tiktok", "TikTok"]];
+function chanCoversCard() {
+  loadCovers();
+  const d = S.covers;
+  const panel = el("section", { class: "panel", id: "chan-covers" }, el("div", { class: "row", style: "justify-content:space-between;align-items:center" },
+    el("h2", { text: "Covers" }),
+    el("div", { class: "row", style: "gap:8px;align-items:center" },
+      el("span", { class: "note", text: d && d.at ? "read " + new Date(d.at).toLocaleString() : "" }),
+      el("button", { class: "btn", type: "button", text: "Refresh", onclick: () => loadCovers(true) }))));
+  panel.append(el("div", { class: "note", text: "Which posts really got a cover, platform by platform: Facebook's preferred thumbnail, Instagram's cover, YouTube's thumbnail and TikTok's cover frame. The publisher records it on every posting run (tools/cover-audit.mjs, after every post), so this is the list of what is missing, not a guess." }));
+  if (!d) { panel.append(el("div", { class: "note", text: "No cover report yet. On your PC: npm run covers — and from now on the publisher writes it after every posting run." })); return panel; }
+  if (d.error) { panel.append(el("div", { class: "note", style: "color:var(--warn)", text: "Could not read db/covers/status.json (" + d.error + "). On your PC: npm run covers — it writes the file and the page shows it." })); return panel; }
+  const t = d.totals || {};
+  panel.append(el("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin:8px 0" },
+    ...COVER_PLATFORMS.map(([k, name]) => {
+      const x = t[k] || { sent: 0, withCover: 0, withoutCover: 0 };
+      return el("span", { class: "pill" + (x.withoutCover ? " warn" : " ok"), title: `${x.withoutCover} without a cover`, text: `${name} ${x.withCover}/${x.sent}` });
+    })));
+  const miss = d.missing || [];
+  if (!miss.length) { panel.append(el("div", { class: "empty", text: "Every post has a cover on every platform it went to." })); return panel; }
+  const byPlat = {}; for (const m of miss) byPlat[m.platform] = (byPlat[m.platform] || 0) + 1;
+  panel.append(el("div", { class: "note", text: `${miss.length} post(s) without a cover: ` + COVER_PLATFORMS.filter(([k]) => byPlat[k]).map(([k, name]) => `${name} ${byPlat[k]}`).join(" · ") + ". A TikTok row older than 13 Nov 2026 is expected: the cover frame was only built that night." }));
+  const td = (v, extra = {}) => el("td", { style: "white-space:nowrap", ...extra, text: v });
+  panel.append(el("div", { style: "overflow:auto;max-height:420px" }, el("table", { class: "tbl", style: "width:100%;font-size:13px;border-collapse:collapse" },
+    el("thead", {}, el("tr", {}, ...["Day", "Slot", "Platform", "Why", "Post"].map((h) => el("th", { style: "text-align:left", text: h })))),
+    el("tbody", {}, ...miss.map((m) => {
+      const row = (d.rows || []).find((r) => r.day === m.day && r.slot === m.slot);
+      const link = row && row[m.platform] ? row[m.platform].link : null;
+      return el("tr", {}, td(m.day), td(m.slot),
+        td((COVER_PLATFORMS.find(([k]) => k === m.platform) || [, m.platform])[1], { style: "white-space:nowrap;color:var(--warn)" }),
+        td(m.why, { style: "white-space:normal", class: "dim" }),
+        el("td", {}, link ? el("a", { href: safeUrl(link), target: "_blank", rel: "noopener", text: m.title }) : el("span", { class: "dim", text: m.title })));
+    })))));
+  return panel;
+}
+
 // ---------- Music tab: your own library of original tracks (Eleven Music), made once, reused in every video ----------
 // every original track you can pick in a project: library requests that are ready + the chapter scores of past videos
 function originals() {
@@ -3626,6 +3671,7 @@ function viewChannel() {
   const h = S.health, st = chState(), wrap = el("div", { style: "display:grid;gap:18px" });
   const att = attentionSection(); if (att) wrap.append(att);
   wrap.append(chanSocialCard());
+  wrap.append(chanCoversCard());
   wrap.append(chanElevenCard());
 
   // 2. Google Flow Creative Studio & B-Roll Vault
