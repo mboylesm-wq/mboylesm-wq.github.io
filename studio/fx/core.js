@@ -147,20 +147,23 @@
   // from that one clock. Before this, Board.tsx drew the line itself on a fixed 0.8 s beat: no word timing, no FX Lab.
   //   raw: { steps: [{ from, to, san, piece }], label, badge, rewind }  (Board.tsx `visual.lines`)
   //   sqXY(sq) -> [x, y] centre of a square in the canvas' own geometry
-  //   o: { at: absolute seconds per step (prepare.mjs times them to the words), t0, gap, endAt (the rewind), after (scene end), only }
+  //   o: { at: seconds per step measured from the line's start (prepare.mjs times them to the words), t0: seconds into the
+  //        scene the line starts, gap, endAt: when the rewind chip takes over, after: the scene's end, only }
+  // Every time inside `line` is relative to t0, because an effect's `a.t` is its age since the event fired.
   function whatIfEvent(raw, sqXY, o) {
     o = o || {};
     if (!raw || !Array.isArray(raw.steps) || !raw.steps.length) return null;
     const at = Array.isArray(o.at) ? o.at : [], gap = o.gap == null ? 0.8 : o.gap, t0 = o.t0 || 0;
+    const rel = (x) => Math.max(0, +(x - t0).toFixed(3));
     const steps = raw.steps.map((s, k) => {
       const A = sqXY(s.from), B = sqXY(s.to);
       return { from: s.from, to: s.to, san: s.san || "", piece: s.piece || "", x0: A[0], y0: A[1], x1: B[0], y1: B[1],
-        at: at[k] != null && isFinite(at[k]) ? Math.max(0, at[k]) : t0 + k * gap };
+        at: at[k] != null && isFinite(at[k]) ? rel(at[k]) : k * gap };
     });
     const last = steps[steps.length - 1].at;
     return { type: "whatif", i: o.i || 0, t: t0, land: t0, only: o.only || null,
       x: steps[0].x1, y: steps[0].y1, fx: steps[0].x0, fy: steps[0].y0, piece: steps[0].piece, san: steps[0].san,
-      line: { t0, endAt: o.endAt == null ? last + 1.2 : o.endAt, after: o.after == null ? last + 2.5 : o.after,
+      line: { t0: 0, endAt: o.endAt == null ? last + 1.2 : rel(o.endAt), after: o.after == null ? last + 2.5 : rel(o.after),
         label: raw.label || "", badge: raw.badge || "", rewind: raw.rewind || "", steps } };
   }
   // every active effect instance at time t: [{fx, ev, age}] for the given profile map
