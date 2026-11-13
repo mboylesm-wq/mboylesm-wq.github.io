@@ -104,14 +104,17 @@
   };
 
   // ---------- presets (what fires on which event) ----------
-  const EVENTS = ["move", "capture", "check", "mate", "castle", "promo", "brilliant", "great", "blunder", "mistake", "start"];
-  const EVENT_NAMES = { move: "Every move", capture: "Capture", check: "Check", mate: "Checkmate", castle: "Castling", promo: "Promotion", brilliant: "Brilliant (!!)", great: "Great (!)", blunder: "Blunder (??)", mistake: "Mistake (?)", start: "Game start" };
+  const EVENTS = ["move", "capture", "check", "mate", "castle", "promo", "brilliant", "great", "blunder", "mistake", "start", "whatif"];
+  const EVENT_NAMES = { move: "Every move", capture: "Capture", check: "Check", mate: "Checkmate", castle: "Castling", promo: "Promotion", brilliant: "Brilliant (!!)", great: "Great (!)", blunder: "Blunder (??)", mistake: "Mistake (?)", start: "Game start", whatif: "What if (ghost line)" };
+  // the "what if" look out of the box: dashed arrows, the ghost piece, the ?/?? badge, the IF label and the rewind chip
+  // (db/fx/preset.json's `map.whatif` replaces this list; a board with `visual.lines` always gets one of them)
+  const WHATIF_DEFAULT = ["wi-arrow", "wi-piece", "wi-badge", "wi-label", "wi-rewind"];
   // Two profiles: long-form stays calmer (Mark, 6 Nov 2026: "the video blinks too much"); reels go big on big moments.
   const DEFAULTS = {
     long: { enabled: false, moveStyle: "mv-slide", background: { id: "gradient", b1: "#10151f", b2: "#1e293b", speed: 1 }, theme: "wood", colors: {}, c1: "#ffd166", c2: "#4cc9f0", intensity: 0.8, speed: 1,
-      map: { move: ["sq-lastmove"], capture: ["cap-shockwave", "cam-punch"], check: ["chk-pulse", "chk-laser"], mate: ["mate-topple", "mate-slam", "mate-rays"], castle: ["sp-castle-shield"], promo: ["sp-promo-beam", "sp-promo-crown"], brilliant: ["an-brilliant-badge", "an-brilliant-burst"], great: ["an-great-badge"], blunder: ["an-blunder-badge", "an-blunder-red"], mistake: ["an-mistake-badge"], start: [] } },
+      map: { move: ["sq-lastmove"], capture: ["cap-shockwave", "cam-punch"], check: ["chk-pulse", "chk-laser"], mate: ["mate-topple", "mate-slam", "mate-rays"], castle: ["sp-castle-shield"], promo: ["sp-promo-beam", "sp-promo-crown"], brilliant: ["an-brilliant-badge", "an-brilliant-burst"], great: ["an-great-badge"], blunder: ["an-blunder-badge", "an-blunder-red"], mistake: ["an-mistake-badge"], start: [], whatif: ["wi-arrow", "wi-piece", "wi-badge", "wi-label", "wi-rewind"] } },
     reel: { enabled: false, moveStyle: "mv-hop", background: { id: "starfield", b1: "#05030f", b2: "#1b1145", speed: 1 }, theme: "wood", colors: {}, c1: "#ffd166", c2: "#ff2d55", intensity: 1.3, speed: 1,
-      map: { move: ["sq-lastmove", "sq-dust"], capture: ["cap-knockoff", "cap-explode", "cam-shake", "scr-flash"], check: ["chk-crosshair", "chk-text", "chk-siren"], mate: ["mate-topple", "mate-slam", "mate-fireworks", "mate-confetti", "mate-slowmo", "cam-shake"], castle: ["sp-castle-swirl"], promo: ["sp-promo-beam", "sp-promo-text"], brilliant: ["an-brilliant-word", "an-brilliant-burst", "scr-speedlines"], great: ["an-great-badge", "an-great-sparkle"], blunder: ["an-blunder-word", "an-blunder-crack", "an-blunder-sad"], mistake: ["an-mistake-wobble"], start: ["cam-push", "tx-subscribe-free"] } },
+      map: { move: ["sq-lastmove", "sq-dust"], capture: ["cap-knockoff", "cap-explode", "cam-shake", "scr-flash"], check: ["chk-crosshair", "chk-text", "chk-siren"], mate: ["mate-topple", "mate-slam", "mate-fireworks", "mate-confetti", "mate-slowmo", "cam-shake"], castle: ["sp-castle-swirl"], promo: ["sp-promo-beam", "sp-promo-text"], brilliant: ["an-brilliant-word", "an-brilliant-burst", "scr-speedlines"], great: ["an-great-badge", "an-great-sparkle"], blunder: ["an-blunder-word", "an-blunder-crack", "an-blunder-sad"], mistake: ["an-mistake-wobble"], start: ["cam-push", "tx-subscribe-free"], whatif: ["wi-arrow", "wi-piece", "wi-badge", "wi-label", "wi-rewind"] } },
   };
 
   // registry: the effect and background files add themselves here
@@ -137,6 +140,28 @@
       else if (sym === "??") ev.push(Object.assign({ type: "blunder" }, base)); else if (sym === "?") ev.push(Object.assign({ type: "mistake" }, base)); else if (sym === "?!") ev.push(Object.assign({ type: "mistake" }, base));
     });
     return ev;
+  }
+  // ---------- "what if" ghost lines (14 Nov 2026) ----------
+  // An alternative continuation is NOT a move played on the board, so it has no move/capture/check event: it becomes ONE
+  // event that carries the whole line (`ev.line`) with every step already in canvas pixels, and the wi-* effects draw it
+  // from that one clock. Before this, Board.tsx drew the line itself on a fixed 0.8 s beat: no word timing, no FX Lab.
+  //   raw: { steps: [{ from, to, san, piece }], label, badge, rewind }  (Board.tsx `visual.lines`)
+  //   sqXY(sq) -> [x, y] centre of a square in the canvas' own geometry
+  //   o: { at: absolute seconds per step (prepare.mjs times them to the words), t0, gap, endAt (the rewind), after (scene end), only }
+  function whatIfEvent(raw, sqXY, o) {
+    o = o || {};
+    if (!raw || !Array.isArray(raw.steps) || !raw.steps.length) return null;
+    const at = Array.isArray(o.at) ? o.at : [], gap = o.gap == null ? 0.8 : o.gap, t0 = o.t0 || 0;
+    const steps = raw.steps.map((s, k) => {
+      const A = sqXY(s.from), B = sqXY(s.to);
+      return { from: s.from, to: s.to, san: s.san || "", piece: s.piece || "", x0: A[0], y0: A[1], x1: B[0], y1: B[1],
+        at: at[k] != null && isFinite(at[k]) ? Math.max(0, at[k]) : t0 + k * gap };
+    });
+    const last = steps[steps.length - 1].at;
+    return { type: "whatif", i: o.i || 0, t: t0, land: t0, only: o.only || null,
+      x: steps[0].x1, y: steps[0].y1, fx: steps[0].x0, fy: steps[0].y0, piece: steps[0].piece, san: steps[0].san,
+      line: { t0, endAt: o.endAt == null ? last + 1.2 : o.endAt, after: o.after == null ? last + 2.5 : o.after,
+        label: raw.label || "", badge: raw.badge || "", rewind: raw.rewind || "", steps } };
   }
   // every active effect instance at time t: [{fx, ev, age}] for the given profile map
   function active(events, prof, t, opts) {
@@ -174,7 +199,7 @@
   // shake offset in px for time t (seconds)
   const shakeAt = (amp, t) => ({ x: Math.sin(t * 61) * amp + Math.sin(t * 37) * amp * 0.5, y: Math.cos(t * 53) * amp * 0.7 });
 
-  const api = { version: "1.0.0", TAU, E, rng, hash, rgba, mix, hsl, burst, stamp, piece, glowDot, ring, bolt, FX, BG, byId, bgById, THEMES, EVENTS, EVENT_NAMES, DEFAULTS, eventsFor, active, movePose, camera, shakeAt, addEffects, addBackgrounds,
+  const api = { version: "1.0.0", TAU, E, rng, hash, rgba, mix, hsl, burst, stamp, piece, glowDot, ring, bolt, FX, BG, byId, bgById, THEMES, EVENTS, EVENT_NAMES, DEFAULTS, WHATIF_DEFAULT, eventsFor, whatIfEvent, active, movePose, camera, shakeAt, addEffects, addBackgrounds,
     _lib: { TAU, PI, E, clamp, lerp, rng, hash, rgba, mix, fadeOut, font, star, poly, glowDot, ring, bolt, stamp, burst, piece, sqRect },
     count: () => ({ effects: FX.length, backgrounds: BG.length, moveStyles: FX.filter((f) => f.cat === "move").length }) };
   if (typeof module === "object" && module.exports) module.exports = api;
