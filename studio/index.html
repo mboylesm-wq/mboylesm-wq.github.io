@@ -2857,13 +2857,13 @@ function chanCoversCard() {
   const t = d.totals || {};
   panel.append(el("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin:8px 0" },
     ...COVER_PLATFORMS.map(([k, name]) => {
-      const x = t[k] || { sent: 0, withCover: 0, withoutCover: 0 };
-      return el("span", { class: "pill" + (x.withoutCover ? " warn" : " ok"), title: `${x.withoutCover} without a cover`, text: `${name} ${x.withCover}/${x.sent}` });
+      const x = t[k] || { sent: 0, withCover: 0, withFrame: 0, withoutCover: 0 };
+      return el("span", { class: "pill" + (x.withoutCover ? " warn" : " ok"), title: `${x.withoutCover} without a cover${x.withFrame ? `, ${x.withFrame} with a chosen frame` : ""}`, text: `${name} ${x.withCover}/${x.sent}` + (x.withFrame ? ` · ${x.withFrame} frame` : "") });
     })));
   const miss = d.missing || [];
   if (!miss.length) { panel.append(el("div", { class: "empty", text: "Every post has a cover on every platform it went to." })); return panel; }
   const byPlat = {}; for (const m of miss) byPlat[m.platform] = (byPlat[m.platform] || 0) + 1;
-  panel.append(el("div", { class: "note", text: `${miss.length} post(s) without a cover: ` + COVER_PLATFORMS.filter(([k]) => byPlat[k]).map(([k, name]) => `${name} ${byPlat[k]}`).join(" · ") + ". A TikTok row older than 13 Nov 2026 is expected: the cover frame was only built that night." }));
+  panel.append(el("div", { class: "note", text: `${miss.length} post(s) without a cover: ` + COVER_PLATFORMS.filter(([k]) => byPlat[k]).map(([k, name]) => `${name} ${byPlat[k]}`).join(" · ") + ". A TikTok row older than 13 Nov 2026 is expected: the cover frame was only built that night. A post counted with a chosen frame shows the reel's 1 s frame, not the drawn cover, because the platform refused the image." }));
   const td = (v, extra = {}) => el("td", { style: "white-space:nowrap", ...extra, text: v });
   panel.append(el("div", { style: "overflow:auto;max-height:420px" }, el("table", { class: "tbl", style: "width:100%;font-size:13px;border-collapse:collapse" },
     el("thead", {}, el("tr", {}, ...["Day", "Slot", "Platform", "Why", "Post"].map((h) => el("th", { style: "text-align:left", text: h })))),
