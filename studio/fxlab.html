@@ -47,6 +47,7 @@ textarea { width:100%; min-height:90px; font:12px/1.4 ui-monospace,monospace; }
 .note { color:var(--mute); font-size:12px; }
 #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#222; border:1px solid var(--gold); padding:8px 14px; border-radius:10px; display:none; z-index:9; }
 #count { color:var(--mute); font-size:12px; }
+body:not(.v3) #d3box { display:none; } body.v3 .transport, body.v3 #cv { display:none !important; }
 </style>
 </head>
 <body>
@@ -54,6 +55,9 @@ textarea { width:100%; min-height:90px; font:12px/1.4 ui-monospace,monospace; }
   <h1><b>PnoyChess</b> FX Lab</h1>
   <div class="seg" title="Which preset you are editing (and the preview shape)">
     <button id="t-long" class="on">Long-form 16:9</button><button id="t-reel">Reel 9:16</button>
+  </div>
+  <div class="seg" title="Flat preview (fast) or the 3D board (the render's own code, Remotion Player)">
+    <button id="v-2d" class="on">2D</button><button id="v-3d">3D</button>
   </div>
   <label class="note"><input type="checkbox" id="enabled"> Use this preset in renders</label>
   <span id="count"></span>
@@ -75,6 +79,19 @@ textarea { width:100%; min-height:90px; font:12px/1.4 ui-monospace,monospace; }
     <div class="row"><select id="theme" style="flex:1"></select></div>
     <div class="row"><label>Light / dark</label><input type="color" id="sqL"><input type="color" id="sqD"><label style="min-width:0">frame</label><input type="color" id="frm"></div>
     <div class="row"><label>Coordinates</label><input type="checkbox" id="coords"> <label style="min-width:0">Flip</label><input type="checkbox" id="flip"></div>
+    <div id="d3box">
+    <h2>3D board</h2>
+    <div class="row"><label>Camera</label><select id="cam3d" style="flex:1"><option value="drift">Drift (default)</option><option value="top">Top-down</option><option value="tilt">45° tilt</option><option value="low">Low cinematic</option><option value="orbit">Slow orbit</option><option value="follow">Follow the move</option></select></div>
+    <div class="row"><label>Surface</label><select id="surface" style="flex:1"><option value="wood">Wood</option><option value="marble">Marble</option><option value="glass">Glass</option><option value="neon">Neon grid</option><option value="metal">Metal</option></select></div>
+    <div class="row"><label>Pieces</label><select id="set3d" style="flex:1"><option value="classic">Classic (real model)</option><option value="turned">Turned (boxwood &amp; ebony)</option></select></div>
+    <div class="row"><label>In renders</label><input type="checkbox" id="use3d"> <span class="note">boards of this format render in 3D</span></div>
+    <h2>Geometry shapes <span class="note">(preview; put them in a plan)</span></h2>
+    <div class="row"><label><input type="checkbox" id="sh-rays"> Rays</label><span class="note">what the piece that just moved reaches</span></div>
+    <div class="row"><label><input type="checkbox" id="sh-control"> Control</label><span class="note">gold = White, cyan = Black</span></div>
+    <div class="row"><label><input type="checkbox" id="sh-net"> King net</label><span class="note">flight squares of the side to move</span></div>
+    <div class="row"><label>Pawn square</label><input type="text" id="sh-square" placeholder="e.g. a5" style="width:70px"><span class="note">rule of the square</span></div>
+    <div class="row"><button id="copy3d" style="flex:1">Copy plan fields</button></div>
+    </div>
     <h2>Effect colours &amp; strength</h2>
     <div class="row"><label>Accent</label><input type="color" id="c1"><input type="color" id="c2"></div>
     <div class="row"><label>Intensity</label><input type="range" id="intensity" min="0.2" max="2" step="0.05"><span id="iv" class="note"></span></div>
@@ -86,7 +103,7 @@ textarea { width:100%; min-height:90px; font:12px/1.4 ui-monospace,monospace; }
   </section>
 
   <section id="stage">
-    <div id="wrap"><canvas id="cv"></canvas></div>
+    <div id="wrap"><canvas id="cv"></canvas><div id="p3" style="display:none;width:100%;max-height:100%"></div></div>
     <div class="transport">
       <button id="restart" title="Restart">⏮</button>
       <button id="back" title="Previous move">◀</button>
@@ -179,7 +196,7 @@ let G = null, EVENTS = [], moveAt = [], T = 0, playing = true, extra = [];
 function loadGame(text) {
   try { G = parsePgn(text); } catch (e) { $("pgnmsg").textContent = "⚠ " + e.message; return false; }
   G.boards = [boardOf(G.start)].concat(G.moves.map((m) => boardOf(m.fenAfter)));
-  $("pgnmsg").textContent = `${G.moves.length} moves loaded`; retime(); T = 0; return true;
+  $("pgnmsg").textContent = `${G.moves.length} moves loaded`; retime(); T = 0; render3d(); return true;
 }
 function retime() {
   if (!G) return; const gap = +$("gap").value, st = F.byId[prof().moveStyle] || F.byId["mv-slide"], fl = st.dur / (prof().speed || 1);
@@ -258,13 +275,39 @@ function draw() {
   ctx.fillText(mv ? `${Math.ceil(ply / 2)}${mv.color === "w" ? "." : "…"} ${mv.san}${G.annotations[ply - 1] || ""}` : "Start", g.bx, g.by - S * (W > H ? 0.35 : 0.6));
 }
 
+// ---------- 3D view (13 Nov 2026): the render's own Board (src/info/Board.tsx, view "3d") in a Remotion Player ----------
+// fxlab3d.js (published next to the page; .cache/ in the repo) is built from src/lab/lab3d.tsx (tools/build-fxlab3d.mjs), so this preview IS the render's code.
+let view = "2d", lab3d = null, t3 = 0;
+const d3 = () => (prof().d3 = prof().d3 || { view: "2d", cam3d: "drift", surface: "wood", set: "classic" });
+function shapesUI() { const out = []; if ($("sh-rays").checked) out.push({ kind: "rays" }); if ($("sh-control").checked) out.push({ kind: "control" }); if ($("sh-net").checked) out.push({ kind: "net" });
+  const q = $("sh-square").value.trim().toLowerCase(); if (/^[a-h][1-8]$/.test(q)) out.push({ kind: "square", sq: q }); return out; }
+function boardVisual() { const c = d3(); return { type: "board", view: "3d", set: c.set, cam3d: c.cam3d, surface: c.surface, shapes: shapesUI(), fen: G.start, moves: G.moves.map((m) => m.san), moveEvery: +$("gap").value,
+  annotations: G.annotations, themes: G.words, orientation: $("flip").checked ? "black" : "white", coords: $("coords").checked, fx: Object.assign({}, prof(), { enabled: true }) }; }
+function load3d() {
+  if (lab3d) return lab3d;
+  // staticFile() paths (the 3D chess set): next to the page when published, the repo's assets/ folder when opened from the PC
+  // (a path, not a full URL: staticFile() encodes each part, so "https:" would become a relative folder)
+  window.remotion_staticBase = new URL(/github\.io$/.test(location.hostname) ? "." : "../assets", location.href).pathname.replace(/\/$/, "");
+  return (lab3d = loadScript(["./fxlab3d.js", "../.cache/fxlab3d.js"]).then(() => window.PnoyLab3D, (e) => { lab3d = null; throw new Error("fxlab3d.js (run node tools/build-fxlab3d.mjs)"); }));
+}
+function render3d() {
+  if (view !== "3d" || !G) return; clearTimeout(t3);
+  t3 = setTimeout(() => load3d().then((L) => {
+    const long = target === "long", fps = 30, el = $("p3");
+    el.style.aspectRatio = long ? "16 / 9" : "9 / 16"; el.style.width = long ? "100%" : "auto"; el.style.height = long ? "auto" : "100%";
+    L.render(el, { v: boardVisual(), frames: Math.ceil((0.8 + G.moves.length * +$("gap").value + 3.5) * fps), width: long ? 1920 : 1080, height: long ? 1080 : 1920, fps });
+  }, (e) => toast("⚠ 3D view could not load: " + e.message)), 250);
+}
+function setView(v) { view = v; document.body.classList.toggle("v3", v === "3d"); $("v-2d").classList.toggle("on", v === "2d"); $("v-3d").classList.toggle("on", v === "3d"); $("p3").style.display = v === "3d" ? "block" : "none"; setPlay(v === "2d"); render3d(); }
+function sync3d() { const c = d3(); $("cam3d").value = c.cam3d; $("surface").value = c.surface; $("set3d").value = c.set; $("use3d").checked = c.view === "3d"; render3d(); }
+
 // ---------- loop ----------
 let last = performance.now();
 function tick(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (playing && G) { T += dt; if (T > total()) { if ($("loop").checked) T = 0; else { T = total(); setPlay(false); } } }
   extra = extra.filter((e) => T - e.t < 6 && T >= e.t - 0.01);
-  draw(); $("scrub").value = Math.round((T / total()) * 1000); $("tm").textContent = `${T.toFixed(1)} / ${total().toFixed(1)} s`;
+  if (view !== "3d") draw(); $("scrub").value = Math.round((T / total()) * 1000); $("tm").textContent = `${T.toFixed(1)} / ${total().toFixed(1)} s`;
   requestAnimationFrame(tick);
 }
 function setPlay(v) { playing = v; $("play").textContent = v ? "⏸ Pause" : "▶ Play"; $("play").classList.toggle("on", v); }
@@ -293,7 +336,7 @@ function syncUI() {
   $("c1").value = p.c1; $("c2").value = p.c2; $("intensity").value = p.intensity; $("iv").textContent = (+p.intensity).toFixed(2); $("fxsp").value = p.speed; $("sv").textContent = (+p.speed).toFixed(2) + "×";
   opt($("mstyle"), F.FX.filter((f) => f.cat === "move").map((f) => [f.id, f.name]), p.moveStyle);
   $("events").innerHTML = F.EVENTS.map((e) => `<div class="ev${e === selEvent ? " sel" : ""}" data-e="${e}"><div class="t"><span>${F.EVENT_NAMES[e]}</span><span class="note">${(p.map[e] || []).length}</span></div><div class="chips">${(p.map[e] || []).map((id) => `<span class="chip">${(F.byId[id] || { name: id }).name}<button data-rm="${e}|${id}" title="Remove">✕</button></span>`).join("") || '<span class="note">nothing</span>'}</div></div>`).join("");
-  persist(); renderLib();
+  persist(); renderLib(); sync3d();
 }
 let cat = "all";
 const CATS = [["all", "All"], ["move", "Move styles"], ["capture", "Captures"], ["check", "Check"], ["mate", "Checkmate"], ["special", "Castle/Promo"], ["annotation", "!! ?? marks"], ["camera", "Camera"], ["screen", "Screen"], ["square", "Squares"], ["text", "Text pops"]];
@@ -318,6 +361,11 @@ bind("theme", (el) => { prof().theme = el.value; prof().colors = {}; }, "change"
 bind("sqL", (el) => ((prof().colors = prof().colors || {}).light = el.value)); bind("sqD", (el) => ((prof().colors = prof().colors || {}).dark = el.value)); bind("frm", (el) => ((prof().colors = prof().colors || {}).frame = el.value));
 bind("c1", (el) => (prof().c1 = el.value)); bind("c2", (el) => (prof().c2 = el.value)); bind("intensity", (el) => (prof().intensity = +el.value)); bind("fxsp", (el) => { prof().speed = +el.value; retime(); });
 bind("mstyle", (el) => { prof().moveStyle = el.value; retime(); }, "change"); bind("enabled", (el) => (prof().enabled = el.checked), "change");
+$("v-2d").onclick = () => setView("2d"); $("v-3d").onclick = () => setView("3d");
+bind("cam3d", (el) => (d3().cam3d = el.value), "change"); bind("surface", (el) => (d3().surface = el.value), "change"); bind("set3d", (el) => (d3().set = el.value), "change");
+bind("use3d", (el) => (d3().view = el.checked ? "3d" : "2d"), "change");
+["sh-rays", "sh-control", "sh-net", "sh-square", "flip", "coords", "gap"].forEach((id) => $(id).addEventListener("change", render3d));
+$("copy3d").onclick = () => { const c = d3(), j = JSON.stringify({ view: "3d", set: c.set, cam3d: c.cam3d, surface: c.surface, shapes: shapesUI() }); navigator.clipboard.writeText(j).then(() => toast("Copied: paste into a board scene's visual"), () => prompt("Copy these fields:", j)); };
 $("q").addEventListener("input", renderLib);
 $("t-long").onclick = () => { target = "long"; size(); retime(); syncUI(); }; $("t-reel").onclick = () => { target = "reel"; size(); retime(); syncUI(); };
 $("play").onclick = () => setPlay(!playing); $("restart").onclick = () => { T = 0; setPlay(true); };
