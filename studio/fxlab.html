@@ -142,7 +142,7 @@ function loadPieces() {
   })));
 }
 // the engine's four files, in order (the same files Remotion draws with: src/fx/lab/)
-const ENGINE = ["core.js", "fx-moves.js", "fx-moments.js", "backgrounds.js"].reduce((p, f) => p.then(() => loadScript(["./fx/" + f, "../src/fx/lab/" + f])), Promise.resolve());
+const ENGINE = ["core.js", "fx-moves.js", "fx-moments.js", "fx-whatif.js", "backgrounds.js"].reduce((p, f) => p.then(() => loadScript(["./fx/" + f, "../src/fx/lab/" + f])), Promise.resolve());
 Promise.all([ENGINE, loadScript(["./chess.js", "../chess/vendor/chess.js"]), loadPieces()]).then(start, (e) => { document.body.insertAdjacentHTML("afterbegin", `<p style="padding:20px;color:#f88">Could not load ${e && e.message}</p>`); });
 
 function start() {
@@ -206,9 +206,21 @@ function retime() {
 const total = () => (G && G.moves.length ? moveAt[moveAt.length - 1] + 4.5 : 5);
 
 // ---------- canvas ----------
+// The preview keeps its 1280x720 logical frame (720x1280 for a reel): that is the unit every effect, background and the render's
+// own canvas are written in. Only the backing store follows the size it is shown at (Mark, 13 Nov 2026: the long-form board
+// looked pixelated in the lab). It used to be a fixed 720p bitmap that CSS stretched over the stage, so a 2560 px window
+// showed it magnified about 1.4x. PX = canvas pixels per logical unit, capped at 2x: past that it is only slower, not sharper.
 const cv = $("cv"), ctx = cv.getContext("2d");
-function size() { const long = target === "long"; cv.width = long ? 1280 : 720; cv.height = long ? 720 : 1280; const w = $("wrap"); const k = Math.min(w.clientWidth / cv.width, (w.clientHeight || 600) / cv.height); cv.style.width = cv.width * k + "px"; cv.style.height = cv.height * k + "px"; }
-function geom() { const W = cv.width, H = cv.height, long = W > H; const bs = Math.round(long ? H * 0.84 : W * 0.92); return { W, H, bs, bx: Math.round((W - bs) / 2), by: Math.round(long ? (H - bs) / 2 : H * 0.24), S: bs / 8 }; }
+let PX = 1;
+const LOG = () => (target === "long" ? [1280, 720] : [720, 1280]);
+function size() {
+  const [W, H] = LOG(), w = $("wrap"), k = Math.min(w.clientWidth / W, (w.clientHeight || 600) / H);
+  const dpr = Math.min(3, Math.max(1, window.devicePixelRatio || 1));
+  PX = Math.min(2, Math.max(1, k * dpr));
+  cv.width = Math.round(W * PX); cv.height = Math.round(H * PX);
+  cv.style.width = W * k + "px"; cv.style.height = H * k + "px";
+}
+function geom() { const W = LOG()[0], H = LOG()[1], long = W > H; const bs = Math.round(long ? H * 0.84 : W * 0.92); return { W, H, bs, bx: Math.round((W - bs) / 2), by: Math.round(long ? (H - bs) / 2 : H * 0.24), S: bs / 8 }; }
 function sqXY(sq, g) { const f = sq.charCodeAt(0) - 97, r = +sq[1] - 1, flip = $("flip").checked; const col = flip ? 7 - f : f, row = flip ? r : 7 - r; return [g.bx + col * g.S + g.S / 2, g.by + row * g.S + g.S / 2]; }
 const themeOf = (p) => { const th = F.THEMES[p.theme] || F.THEMES.wood, cc = p.colors || {}; return { light: cc.light || th.light, dark: cc.dark || th.dark, frame: cc.frame || th.frame, line: th.line }; };
 const imgOf = (t) => IMGS[t] || null;
@@ -222,7 +234,7 @@ function act(fxd, ev, age, seed, g, p) {
 
 function draw() {
   const p = prof(), g = geom(), { W, H, S } = g, th = themeOf(p);
-  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; ctx.filter = "none";
+  ctx.setTransform(PX, 0, 0, PX, 0, 0); ctx.globalAlpha = 1; ctx.globalCompositeOperation = "source-over"; ctx.filter = "none";
   // background
   const bgd = F.bgById[p.background.id] || F.bgById.solid; ctx.save(); bgd.draw(ctx, T, W, H, { b1: p.background.b1, b2: p.background.b2, sp: p.background.speed == null ? 1 : p.background.speed }); ctx.restore();
   if (!G) return;
@@ -269,7 +281,7 @@ function draw() {
   layer("over");
   ctx.restore(); ctx.filter = "none";
   layer("post"); layer("text");
-  if (chroma > 0.5) { ctx.save(); ctx.globalAlpha = 0.35; ctx.globalCompositeOperation = "screen"; ctx.drawImage(cv, chroma, 0); ctx.drawImage(cv, -chroma, 0); ctx.restore(); }
+  if (chroma > 0.5) { ctx.save(); ctx.globalAlpha = 0.35; ctx.globalCompositeOperation = "screen"; ctx.drawImage(cv, chroma, 0, W, H); ctx.drawImage(cv, -chroma, 0, W, H); ctx.restore(); }
   // HUD
   const mv = ply ? G.moves[ply - 1] : null; ctx.font = `700 ${Math.round(S * 0.32)}px system-ui`; ctx.fillStyle = "rgba(255,255,255,.85)"; ctx.textAlign = "left";
   ctx.fillText(mv ? `${Math.ceil(ply / 2)}${mv.color === "w" ? "." : "…"} ${mv.san}${G.annotations[ply - 1] || ""}` : "Start", g.bx, g.by - S * (W > H ? 0.35 : 0.6));
@@ -316,6 +328,15 @@ function setPlay(v) { playing = v; $("play").textContent = v ? "⏸ Pause" : "�
 function fire(id) {
   const fx = F.byId[id]; if (!G || !G.moves.length) return;
   if (fx.cat === "move") { prof().moveStyle = id; retime(); syncUI(); let i = moveAt.findIndex((t) => t > T); if (i < 0) i = 0; T = moveAt[i] - 0.05; setPlay(true); return; }
+  // a "what if" effect draws an imagined line, not a move: play the last two moves on screen again as the ghost line
+  if (fx.cat === "whatif") {
+    let k = 0; for (let i = 0; i < moveAt.length; i++) if (T >= moveAt[i]) k = i + 1;
+    const steps = [G.moves[Math.max(0, k - 1)], G.moves[k]].filter(Boolean).map((m) => ({ from: m.from, to: m.to, san: m.san, piece: m.color + m.piece }));
+    if (steps.length < 2) return;
+    const g = geom(), t0 = T, ev = F.whatIfEvent({ steps, label: "IF DEMO\u2026", badge: "??", rewind: "Back to the puzzle" }, (q) => sqXY(q, g), { t0, at: [t0, t0 + 0.9], endAt: t0 + 2.6, after: t0 + 4.2, only: [id] });
+    if (ev) extra.push(ev);
+    setPlay(true); return;
+  }
   let ply = 0; for (let i = 0; i < moveAt.length; i++) if (T >= moveAt[i]) ply = i + 1;
   const i = Math.max(0, ply - 1), m = G.moves[i];
   // pick a move that suits the effect when the current one does not (a capture for capture effects, a check for check effects)
@@ -339,18 +360,19 @@ function syncUI() {
   persist(); renderLib(); sync3d();
 }
 let cat = "all";
-const CATS = [["all", "All"], ["move", "Move styles"], ["capture", "Captures"], ["check", "Check"], ["mate", "Checkmate"], ["special", "Castle/Promo"], ["annotation", "!! ?? marks"], ["camera", "Camera"], ["screen", "Screen"], ["square", "Squares"], ["text", "Text pops"]];
+const CATS = [["all", "All"], ["move", "Move styles"], ["capture", "Captures"], ["check", "Check"], ["mate", "Checkmate"], ["special", "Castle/Promo"], ["annotation", "!! ?? marks"], ["whatif", "What if"], ["camera", "Camera"], ["screen", "Screen"], ["square", "Squares"], ["text", "Text pops"]];
 function renderLib() {
   $("cats").innerHTML = CATS.map(([c, n]) => `<button data-cat="${c}" class="${c === cat ? "on" : ""}">${n}</button>`).join("");
   const q = $("q").value.trim().toLowerCase(), p = prof();
   const list = F.FX.filter((f) => (cat === "all" || f.cat === cat) && (!q || (f.name + " " + f.id + " " + f.cat).toLowerCase().includes(q)));
-  $("lib").innerHTML = list.map((f) => { const inSel = f.cat === "move" ? p.moveStyle === f.id : (p.map[selEvent] || []).includes(f.id);
-    return `<div class="card"><span class="tag">${f.cat}</span><div class="n">${f.name}<small>${(f.on || []).join(", ")}</small></div><button data-fire="${f.id}" title="Preview now">▶</button>${f.cat === "move" ? `<button data-add="${f.id}" class="${inSel ? "on" : ""}">${inSel ? "✓ used" : "Use"}</button>` : `<button data-add="${f.id}" class="${inSel ? "on" : ""}" title="Add to ${F.EVENT_NAMES[selEvent]}">${inSel ? "✓ " : "+ "}${F.EVENT_NAMES[selEvent].split(" ")[0]}</button>`}</div>`; }).join("") || '<p class="note">No effect matches.</p>';
+  $("lib").innerHTML = list.map((f) => { const inSel = f.cat === "move" ? p.moveStyle === f.id : (f.cat === "whatif" ? (p.map.whatif || []) : (p.map[selEvent] || [])).includes(f.id);
+    const evName = f.cat === "whatif" ? "What if" : F.EVENT_NAMES[selEvent];
+    return `<div class="card"><span class="tag">${f.cat}</span><div class="n">${f.name}<small>${(f.on || []).join(", ")}</small></div><button data-fire="${f.id}" title="Preview now">▶</button>${f.cat === "move" ? `<button data-add="${f.id}" class="${inSel ? "on" : ""}">${inSel ? "✓ used" : "Use"}</button>` : `<button data-add="${f.id}" class="${inSel ? "on" : ""}" title="Add to ${evName}">${inSel ? "✓ " : "+ "}${evName.split(" ")[0]}</button>`}</div>`; }).join("") || '<p class="note">No effect matches.</p>';
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest("[data-fire],[data-add],[data-rm],[data-cat],.ev"); if (!b) return; const p = prof();
   if (b.dataset.fire) fire(b.dataset.fire);
-  else if (b.dataset.add) { const id = b.dataset.add, fx = F.byId[id]; if (fx.cat === "move") { p.moveStyle = id; retime(); } else { const l = p.map[selEvent] = p.map[selEvent] || []; const k = l.indexOf(id); k >= 0 ? l.splice(k, 1) : l.push(id); fire(id); } syncUI(); }
+  else if (b.dataset.add) { const id = b.dataset.add, fx = F.byId[id]; if (fx.cat === "move") { p.moveStyle = id; retime(); } else { const key = fx.cat === "whatif" ? "whatif" : selEvent, l = p.map[key] = p.map[key] || []; const k = l.indexOf(id); k >= 0 ? l.splice(k, 1) : l.push(id); fire(id); } syncUI(); }
   else if (b.dataset.rm) { const [ev, id] = b.dataset.rm.split("|"); p.map[ev] = (p.map[ev] || []).filter((x) => x !== id); syncUI(); e.stopPropagation(); }
   else if (b.dataset.cat) { cat = b.dataset.cat; renderLib(); }
   else if (b.classList.contains("ev")) { selEvent = b.dataset.e; syncUI(); }
