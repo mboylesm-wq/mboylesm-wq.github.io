@@ -47,7 +47,7 @@ textarea { width:100%; min-height:90px; font:12px/1.4 ui-monospace,monospace; }
 .note { color:var(--mute); font-size:12px; }
 #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#222; border:1px solid var(--gold); padding:8px 14px; border-radius:10px; display:none; z-index:9; }
 #count { color:var(--mute); font-size:12px; }
-body:not(.v3) #d3box { display:none; } body.v3 .transport, body.v3 #cv { display:none !important; }
+body:not(.v3) #d3box { display:none; } body.v3 .transport, body.v3 #cv, body.vreal .transport, body.vreal #cv { display:none !important; }
 </style>
 </head>
 <body>
@@ -56,8 +56,8 @@ body:not(.v3) #d3box { display:none; } body.v3 .transport, body.v3 #cv { display
   <div class="seg" title="Which preset you are editing (and the preview shape)">
     <button id="t-long" class="on">Long-form 16:9</button><button id="t-reel">Reel 9:16</button>
   </div>
-  <div class="seg" title="Flat preview (fast) or the 3D board (the render's own code, Remotion Player)">
-    <button id="v-2d" class="on">2D</button><button id="v-3d">3D</button>
+  <div class="seg" title="Flat preview (fast), 2.5D Studio (BoardReal + Championship Staunton), or 3D Three.js board (Remotion Player)">
+    <button id="v-2d" class="on">2D</button><button id="v-real">2.5D</button><button id="v-3d">3D</button>
   </div>
   <label class="note"><input type="checkbox" id="enabled"> Use this preset in renders</label>
   <span id="count"></span>
@@ -293,8 +293,11 @@ let view = "2d", lab3d = null, t3 = 0;
 const d3 = () => (prof().d3 = prof().d3 || { view: "2d", cam3d: "drift", surface: "wood", set: "turned" });
 function shapesUI() { const out = []; if ($("sh-rays").checked) out.push({ kind: "rays" }); if ($("sh-control").checked) out.push({ kind: "control" }); if ($("sh-net").checked) out.push({ kind: "net" });
   const q = $("sh-square").value.trim().toLowerCase(); if (/^[a-h][1-8]$/.test(q)) out.push({ kind: "square", sq: q }); return out; }
-function boardVisual() { const c = d3(); return { type: "board", view: "3d", set: c.set, cam3d: c.cam3d, surface: c.surface, shapes: shapesUI(), fen: G.start, moves: G.moves.map((m) => m.san), moveEvery: +$("gap").value,
-  annotations: G.annotations, themes: G.words, orientation: $("flip").checked ? "black" : "white", coords: $("coords").checked, fx: Object.assign({}, prof(), { enabled: true }) }; }
+function boardVisual() { const c = d3(), isReal = view === "real"; return isReal
+  ? { type: "board", view: "2d", set: "real", fen: G.start, moves: G.moves.map((m) => m.san), moveEvery: +$("gap").value,
+      annotations: G.annotations, themes: G.words, orientation: $("flip").checked ? "black" : "white", coords: $("coords").checked, fx: Object.assign({}, prof(), { enabled: true }) }
+  : { type: "board", view: "3d", set: c.set, cam3d: c.cam3d, surface: c.surface, shapes: shapesUI(), fen: G.start, moves: G.moves.map((m) => m.san), moveEvery: +$("gap").value,
+      annotations: G.annotations, themes: G.words, orientation: $("flip").checked ? "black" : "white", coords: $("coords").checked, fx: Object.assign({}, prof(), { enabled: true }) }; }
 function load3d() {
   if (lab3d) return lab3d;
   // staticFile() paths (the 3D chess set): next to the page when published, the repo's assets/ folder when opened from the PC
@@ -303,14 +306,14 @@ function load3d() {
   return (lab3d = loadScript(["./fxlab3d.js", "../.cache/fxlab3d.js"]).then(() => window.PnoyLab3D, (e) => { lab3d = null; throw new Error("fxlab3d.js (run node tools/build-fxlab3d.mjs)"); }));
 }
 function render3d() {
-  if (view !== "3d" || !G) return; clearTimeout(t3);
+  if ((view !== "3d" && view !== "real") || !G) return; clearTimeout(t3);
   t3 = setTimeout(() => load3d().then((L) => {
     const long = target === "long", fps = 30, el = $("p3");
     el.style.aspectRatio = long ? "16 / 9" : "9 / 16"; el.style.width = long ? "100%" : "auto"; el.style.height = long ? "auto" : "100%";
     L.render(el, { v: boardVisual(), frames: Math.ceil((0.8 + G.moves.length * +$("gap").value + 3.5) * fps), width: long ? 1920 : 1080, height: long ? 1080 : 1920, fps });
   }, (e) => toast("⚠ 3D view could not load: " + e.message)), 250);
 }
-function setView(v) { view = v; document.body.classList.toggle("v3", v === "3d"); $("v-2d").classList.toggle("on", v === "2d"); $("v-3d").classList.toggle("on", v === "3d"); $("p3").style.display = v === "3d" ? "block" : "none"; setPlay(v === "2d"); render3d(); }
+function setView(v) { view = v; document.body.classList.toggle("v3", v === "3d"); document.body.classList.toggle("vreal", v === "real"); $("v-2d").classList.toggle("on", v === "2d"); $("v-real").classList.toggle("on", v === "real"); $("v-3d").classList.toggle("on", v === "3d"); $("p3").style.display = v === "2d" ? "none" : "block"; setPlay(v === "2d"); render3d(); }
 function sync3d() { const c = d3(); $("cam3d").value = c.cam3d; $("surface").value = c.surface; $("set3d").value = c.set; $("use3d").checked = c.view === "3d"; render3d(); }
 
 // ---------- loop ----------
@@ -319,7 +322,7 @@ function tick(now) {
   const dt = Math.min(0.1, (now - last) / 1000); last = now;
   if (playing && G) { T += dt; if (T > total()) { if ($("loop").checked) T = 0; else { T = total(); setPlay(false); } } }
   extra = extra.filter((e) => T - e.t < 6 && T >= e.t - 0.01);
-  if (view !== "3d") draw(); $("scrub").value = Math.round((T / total()) * 1000); $("tm").textContent = `${T.toFixed(1)} / ${total().toFixed(1)} s`;
+  if (view === "2d") draw(); $("scrub").value = Math.round((T / total()) * 1000); $("tm").textContent = `${T.toFixed(1)} / ${total().toFixed(1)} s`;
   requestAnimationFrame(tick);
 }
 function setPlay(v) { playing = v; $("play").textContent = v ? "⏸ Pause" : "▶ Play"; $("play").classList.toggle("on", v); }
@@ -383,7 +386,7 @@ bind("theme", (el) => { prof().theme = el.value; prof().colors = {}; }, "change"
 bind("sqL", (el) => ((prof().colors = prof().colors || {}).light = el.value)); bind("sqD", (el) => ((prof().colors = prof().colors || {}).dark = el.value)); bind("frm", (el) => ((prof().colors = prof().colors || {}).frame = el.value));
 bind("c1", (el) => (prof().c1 = el.value)); bind("c2", (el) => (prof().c2 = el.value)); bind("intensity", (el) => (prof().intensity = +el.value)); bind("fxsp", (el) => { prof().speed = +el.value; retime(); });
 bind("mstyle", (el) => { prof().moveStyle = el.value; retime(); }, "change"); bind("enabled", (el) => (prof().enabled = el.checked), "change");
-$("v-2d").onclick = () => setView("2d"); $("v-3d").onclick = () => setView("3d");
+$("v-2d").onclick = () => setView("2d"); $("v-real").onclick = () => setView("real"); $("v-3d").onclick = () => setView("3d");
 bind("cam3d", (el) => (d3().cam3d = el.value), "change"); bind("surface", (el) => (d3().surface = el.value), "change"); bind("set3d", (el) => (d3().set = el.value), "change");
 bind("use3d", (el) => (d3().view = el.checked ? "3d" : "2d"), "change");
 ["sh-rays", "sh-control", "sh-net", "sh-square", "flip", "coords", "gap"].forEach((id) => $(id).addEventListener("change", render3d));
