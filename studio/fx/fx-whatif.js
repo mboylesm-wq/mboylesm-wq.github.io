@@ -65,10 +65,11 @@
     ctx.restore();
   }
 
-  // the imagined piece walking its arrow: starts only once the arrow has reached it, hops, lands, holds
+  // the imagined piece: it stands on the from-square from the moment its step starts (the host hides the real piece on
+  // that square at the same instant, so nothing ever blinks), waits for the arrow to reach it, then walks, hops, lands
   function ghost(ctx, a, st, k, o) {
     const al = life(a, st);
-    if (!st.piece || al <= 0.01 || a.t < st.at + DRAW * 0.55 || a.t >= goneAt(a.line, k)) return;
+    if (!st.piece || al <= 0.01 || a.t < st.at || a.t >= goneAt(a.line, k)) return;
     const q = E.inOut(clamp((a.t - st.at - DRAW * 0.55) / TRAVEL, 0, 1));
     const x = lerp(st.x0, st.x1, q), y = lerp(st.y0, st.y1, q), S = a.S;
     const hop = Math.sin(q * Math.PI) * S * (o.hop == null ? 0.18 : o.hop);
