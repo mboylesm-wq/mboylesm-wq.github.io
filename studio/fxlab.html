@@ -290,7 +290,7 @@ function draw() {
 // ---------- 3D view (13 Nov 2026): the render's own Board (src/info/Board.tsx, view "3d") in a Remotion Player ----------
 // fxlab3d.js (published next to the page; .cache/ in the repo) is built from src/lab/lab3d.tsx (tools/build-fxlab3d.mjs), so this preview IS the render's code.
 let view = "2d", lab3d = null, t3 = 0;
-const d3 = () => (prof().d3 = prof().d3 || { view: "2d", cam3d: "drift", surface: "wood", set: "classic" });
+const d3 = () => (prof().d3 = prof().d3 || { view: "2d", cam3d: "drift", surface: "wood", set: "turned" });
 function shapesUI() { const out = []; if ($("sh-rays").checked) out.push({ kind: "rays" }); if ($("sh-control").checked) out.push({ kind: "control" }); if ($("sh-net").checked) out.push({ kind: "net" });
   const q = $("sh-square").value.trim().toLowerCase(); if (/^[a-h][1-8]$/.test(q)) out.push({ kind: "square", sq: q }); return out; }
 function boardVisual() { const c = d3(); return { type: "board", view: "3d", set: c.set, cam3d: c.cam3d, surface: c.surface, shapes: shapesUI(), fen: G.start, moves: G.moves.map((m) => m.san), moveEvery: +$("gap").value,
