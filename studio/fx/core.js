@@ -106,9 +106,10 @@
   // ---------- presets (what fires on which event) ----------
   const EVENTS = ["move", "capture", "check", "mate", "castle", "promo", "brilliant", "great", "blunder", "mistake", "start", "whatif"];
   const EVENT_NAMES = { move: "Every move", capture: "Capture", check: "Check", mate: "Checkmate", castle: "Castling", promo: "Promotion", brilliant: "Brilliant (!!)", great: "Great (!)", blunder: "Blunder (??)", mistake: "Mistake (?)", start: "Game start", whatif: "What if (ghost line)" };
-  // the "what if" look out of the box: dashed arrows, the ghost piece, the ?/?? badge, the IF label and the rewind chip
-  // (db/fx/preset.json's `map.whatif` replaces this list; a board with `visual.lines` always gets one of them)
+  // the "what if" look out of the box: dashed arrows, the ghost piece, the ?/?? badge, the IF label and the rewind chip.
+  // The preset's `map.whatif` picks the arrow's style and any extras; whatIfIds() always adds the rest (14 Nov 2026).
   const WHATIF_DEFAULT = ["wi-arrow", "wi-piece", "wi-badge", "wi-label", "wi-rewind"];
+  const WI_PIECE = ["wi-piece", "wi-piece-heavy", "wi-piece-fade"], WI_CONTENT = ["wi-badge", "wi-label", "wi-rewind"];
   // Two profiles: long-form stays calmer (Mark, 6 Nov 2026: "the video blinks too much"); reels go big on big moments.
   const DEFAULTS = {
     long: { enabled: false, moveStyle: "mv-slide", background: { id: "gradient", b1: "#10151f", b2: "#1e293b", speed: 1 }, theme: "wood", colors: {}, c1: "#ffd166", c2: "#4cc9f0", intensity: 0.8, speed: 1,
@@ -121,6 +122,18 @@
   const FX = [], BG = [], byId = {}, bgById = {};
   function addEffects(list) { list.forEach((f) => { if (byId[f.id]) throw new Error("PnoyFX: duplicate effect id " + f.id); byId[f.id] = f; FX.push(f); }); }
   function addBackgrounds(list) { list.forEach((b) => { if (bgById[b.id]) throw new Error("PnoyFX: duplicate background id " + b.id); bgById[b.id] = b; BG.push(b); }); }
+  // The ids a "what if" line is drawn with. The profile chooses the arrow's look (dashed, chalk, neon) and may add
+  // extras; the ghost piece that carries each move, the ?/?? badge, the IF label and the "Back to the puzzle" chip are
+  // always there — they are what explains the line, and without them the board hid the real pieces and drew arrows in
+  // their place (Mark, 14 Nov 2026: "the pieces disappears and not shown why"). Exactly one ghost piece variant.
+  function whatIfIds(list) {
+    const ids = (Array.isArray(list) ? list : []).filter((id) => id && byId[id]);
+    if (!ids.length) return WHATIF_DEFAULT.slice();
+    const out = ids.slice();
+    if (!out.some((id) => WI_PIECE.indexOf(id) >= 0)) out.push("wi-piece");
+    WI_CONTENT.forEach((id) => { if (out.indexOf(id) < 0 && byId[id]) out.push(id); });
+    return out;
+  }
 
   // ---------- runtime helpers for hosts ----------
   // Turn a move list (chess.js verbose moves + optional annotations/words) into timed events. moveAt[i] = seconds.
@@ -202,7 +215,7 @@
   // shake offset in px for time t (seconds)
   const shakeAt = (amp, t) => ({ x: Math.sin(t * 61) * amp + Math.sin(t * 37) * amp * 0.5, y: Math.cos(t * 53) * amp * 0.7 });
 
-  const api = { version: "1.0.0", TAU, E, rng, hash, rgba, mix, hsl, burst, stamp, piece, glowDot, ring, bolt, FX, BG, byId, bgById, THEMES, EVENTS, EVENT_NAMES, DEFAULTS, WHATIF_DEFAULT, eventsFor, whatIfEvent, active, movePose, camera, shakeAt, addEffects, addBackgrounds,
+  const api = { version: "1.0.0", TAU, E, rng, hash, rgba, mix, hsl, burst, stamp, piece, glowDot, ring, bolt, FX, BG, byId, bgById, THEMES, EVENTS, EVENT_NAMES, DEFAULTS, WHATIF_DEFAULT, whatIfIds, eventsFor, whatIfEvent, active, movePose, camera, shakeAt, addEffects, addBackgrounds,
     _lib: { TAU, PI, E, clamp, lerp, rng, hash, rgba, mix, fadeOut, font, star, poly, glowDot, ring, bolt, stamp, burst, piece, sqRect },
     count: () => ({ effects: FX.length, backgrounds: BG.length, moveStyles: FX.filter((f) => f.cat === "move").length }) };
   if (typeof module === "object" && module.exports) module.exports = api;
