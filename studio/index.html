@@ -1229,11 +1229,7 @@ setInterval(() => {
 }, 3000);
 // what a project needs before it can be rendered (the same two rules as the Render step), and how the PC queue runs: the video rendering
 // now first, then rushed ones, then by when each was asked for (tools/docu.mjs next)
-const voiceReady = (p) => !!(p.narration && (p.narration.kind === "clone" || p.narration.kind === "ai-stock" || p.narration.kind === "kokoro" || p.narration.kind === "elevenlabs" || (p.narration.parts && p.narration.parts.length)));
-// the free offline voice (Kokoro-82M on Mark's PC, tools/tts-kokoro.mjs): game reviews use it until his own voice is ready
-// personalities (tools/tts-kokoro.mjs KOKORO_PRESETS: blended stock voices with their own pace), then the plain voices
-const KOKORO_VOICES = [["hype", "Hype Commentator: fast, punchy, big reactions"], ["storyteller", "Calm Storyteller: relaxed and friendly"], ["broadcaster", "Classic Broadcaster: TV-sports host"], ["analyst", "Deep Analyst: low and serious"], ["trailer", "Movie Trailer: deep and dramatic"], ["teacher", "Warm Teacher: warm and clear"], ["presenter", "Bright Presenter: upbeat and quick"], ["nighthost", "Smooth Night Host: soft, late-night"], ["duo", "Neutral Host: modern podcast"],
-  ["af_heart", "Heart (female, US): best quality"], ["af_bella", "Bella (female, US)"], ["am_michael", "Michael (male, US)"], ["am_fenrir", "Fenrir (male, US)"], ["am_puck", "Puck (male, US)"]];
+const voiceReady = (p) => !!(p.narration && (p.narration.kind === "clone" || p.narration.kind === "elevenlabs" || (p.narration.parts && p.narration.parts.length)));
 const canRender = (p) => !!(p.plan && p.plan.scenes && p.plan.scenes.length && factsReady(p) && voiceReady(p));
 const hasVideo = (p) => !!(p && p.result && (p.result.renderedAt || p.result.pcFile || (p.result.release && p.result.release.tag) || (p.result.parts && p.result.parts.length)));
 
@@ -2093,19 +2089,19 @@ function projectEditor(p) {
   if (p.kind === "review") top.append(reviewInfo(p));
   // steps
   const steps = el("section", { class: "panel steps" });
-  const aiVoice = !!(p.narration && p.narration.kind === "ai-stock"), elVoice = !!(p.narration && p.narration.kind === "elevenlabs"), kkVoice = !!(p.narration && p.narration.kind === "kokoro"), clVoice = !!(p.narration && p.narration.kind === "clone");
-  const factsDone = factsReady(p), voiceDone = aiVoice || elVoice || kkVoice || clVoice || !!(p.narration && p.narration.parts && p.narration.parts.length);
+  const elVoice = !!(p.narration && p.narration.kind === "elevenlabs"), clVoice = !!(p.narration && p.narration.kind === "clone");
+  const factsDone = factsReady(p), voiceDone = elVoice || clVoice || !!(p.narration && p.narration.parts && p.narration.parts.length);
   steps.append(
     el("div", { class: "step" + (factsDone ? " done" : "") }, el("div", {}, el("h3", { text: "Check the facts" }),
       el("div", { class: "note", text: "Read each claim against its source, then press Confirmed, or Waive it with a reason. Fix a wrong fact in the script below: that scene's claims are listed again. The AI only finds the facts; you approve them, and nothing renders or goes to YouTube until every claim is done." }),
       el("ul", {}, ...(p.sources || []).map((s) => el("li", {}, el("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener", text: s.title || s.url })))),
       factsBox(p))),
     el("div", { class: "step" + (voiceDone ? " done" : "") }, el("div", {}, el("h3", { text: "Choose your narration voice" }),
-      el("div", { class: "note", text: "ElevenLabs is the default for a documentary. F5-TTS is 100% free and runs on this PC: press it and you approve the free voice for this one video, because it is not the paid voice." }),
+      el("div", { class: "note", text: "ElevenLabs is the default for a documentary. GPT-SoVITS is 100% free and runs on this PC: press it and you approve the free voice for this one video, because it is not the paid voice." }),
       el("div", { class: "row" }, el("button", { class: "btn" + (elVoice ? " primary" : ""), type: "button", text: elVoice ? "Using my ElevenLabs voice ✓" : "Use my ElevenLabs voice (cloud)", title: "The cloud reads the script with your ElevenLabs clone, with exact caption timing.",
         onclick: () => save(p, { narration: elVoice ? null : { kind: "elevenlabs", model: "eleven_v4", style: "documentary", name: "My ElevenLabs voice", size: 0 } }).then(render) }),
-        el("button", { class: "btn" + (clVoice ? " primary" : ""), type: "button", id: "clone-voice", text: clVoice ? "Using F5-TTS voice (free, on this PC) ✓" : "Use F5-TTS voice (free, on this PC)", title: "Your cloned voice with F5-TTS made locally on your PC GPU: 0 credits, about 3x realtime, calm or dramatic delivery per scene.",
-        onclick: () => save(p, { narration: clVoice ? null : { kind: "clone", style: "auto", approved: true, name: "My cloned voice: F5-TTS (local, free)", size: 0 } }).then(render) })),
+        el("button", { class: "btn" + (clVoice ? " primary" : ""), type: "button", id: "clone-voice", text: clVoice ? "Using GPT-SoVITS voice (free, on this PC) ✓" : "Use GPT-SoVITS voice (free, on this PC)", title: "Your cloned voice with GPT-SoVITS made locally on your PC GPU: 0 credits, calm or dramatic delivery per scene.",
+        onclick: () => save(p, { narration: clVoice ? null : { kind: "clone", style: "auto", approved: true, name: "My cloned voice: GPT-SoVITS (local, free)", size: 0 } }).then(render) })),
       clVoice ? el("label", { style: "max-width:420px" }, "Delivery (your voice)",
         el("select", { "aria-label": "Cloned voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. Your PC makes the narration again at the next render (free)."); render(); }) },
           ...[["auto", "Auto: dramatic on exclamations and your takes, calm elsewhere"], ["calm", "Calm: the Baguio opening (default documentary)"], ["dramatic", "Dramatic: the Morphy mate line, more lift"]].map(([v, t]) => el("option", { value: v, selected: (p.narration.style || "auto") === v, text: t })))) : null,
@@ -2117,7 +2113,7 @@ function projectEditor(p) {
           onclick: () => save(p, { narration: { ...p.narration, model: "eleven_v4", style: "documentary" } }).then(() => { say(`Upgraded. The whole voice is made again at the next render: about ${plainScript(p).length.toLocaleString()} credits.`); render(); }) }),
           el("span", { class: "note", text: "This video keeps its older voice until you upgrade." })),
         el("div", { class: "note", text: `Your ElevenLabs clone (${p.narration.model ? "Eleven v4" : "older model"}) reads the script in the cloud (about 9,000 credits per 10 minutes) with exact caption timing. Names in the pronunciation list (FIDE = Fee-day…) are said correctly; captions keep the real spelling.` })) :
-      clVoice ? el("div", { class: "note", text: "Your own voice: F5-TTS running locally on your GPU (0 credits, about 3x realtime, broadcast mastered to -14 LUFS, no internet). A changed scene is made again at the next render; the rest is reused. Names from the pronunciation list and chess moves are spoken the right way." }) :
+      clVoice ? el("div", { class: "note", text: "Your own voice: GPT-SoVITS running locally on your GPU (0 credits, broadcast mastered to -14 LUFS, no internet). A changed scene is made again at the next render; the rest is reused. Names from the pronunciation list and chess moves are spoken the right way." }) :
       null)),
     el("div", { class: "step" + (["waiting", "rendering", "review", "approved", "pc", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Render" }),
       GH() ? el("div", { class: "note", text: "Your PC makes it: the ElevenLabs voice (saved to GitHub at once), licensed photos and 3D depth maps on GitHub, then the 1080p render (about 6 minutes), description, subtitles and thumbnails. Press Render, then double-click render-pc.cmd in C:\\PnoyChess\\docu. Nothing goes to YouTube until you approve it below, unless you tick Approve automatically." })
