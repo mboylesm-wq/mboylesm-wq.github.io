@@ -48,6 +48,21 @@ textarea { width:100%; min-height:90px; font:12px/1.4 ui-monospace,monospace; }
 #toast { position:fixed; bottom:18px; left:50%; transform:translateX(-50%); background:#222; border:1px solid var(--gold); padding:8px 14px; border-radius:10px; display:none; z-index:9; }
 #count { color:var(--mute); font-size:12px; }
 body:not(.v3) #d3box { display:none; } body.v3 .transport, body.v3 #cv, body.vreal .transport, body.vreal #cv { display:none !important; }
+#bg-modal { position:fixed; inset:0; background:rgba(7,9,13,.82); backdrop-filter:blur(6px); display:none; align-items:center; justify-content:center; padding:20px; z-index:20; }
+#bg-modal.open { display:flex; }
+#bg-sheet { background:var(--panel); border:1px solid var(--line); border-radius:14px; width:min(1060px,100%); max-height:88vh; display:flex; flex-direction:column; overflow:hidden; box-shadow:0 24px 70px rgba(0,0,0,.7); }
+#bg-head { display:flex; align-items:center; gap:10px; padding:12px 16px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+#bg-head h2 { margin:0; font-size:16px; color:var(--gold); }
+#bg-cats { display:flex; flex-wrap:wrap; gap:6px; padding:10px 16px; border-bottom:1px solid var(--line); }
+#bg-cats button { font-size:12px; padding:4px 10px; }
+#bg-grid { padding:14px 16px; overflow:auto; display:grid; grid-template-columns:repeat(auto-fill,minmax(190px,1fr)); gap:12px; }
+.bg-card { background:#12161d; border:1px solid var(--line); border-radius:10px; overflow:hidden; cursor:pointer; text-align:left; padding:0; display:flex; flex-direction:column; transition:border-color .15s,transform .15s; }
+.bg-card:hover { border-color:var(--gold); transform:translateY(-2px); }
+.bg-card.on { border-color:var(--gold); box-shadow:0 0 0 1px var(--gold); }
+.bg-card canvas { width:100%; aspect-ratio:16/9; display:block; background:#000; }
+.bg-card .meta { padding:7px 9px; }
+.bg-card .meta b { display:block; font-size:12px; color:var(--text); }
+.bg-card .meta small { font-size:11px; color:var(--mute); }
 </style>
 </head>
 <body>
@@ -72,8 +87,8 @@ body:not(.v3) #d3box { display:none; } body.v3 .transport, body.v3 #cv, body.vre
 <main>
   <section class="col" id="left">
     <h2>Background</h2>
-    <div class="row"><select id="bg" style="flex:1"></select></div>
-    <div class="row"><label>Colours</label><input type="color" id="b1"><input type="color" id="b2"></div>
+    <div class="row"><select id="bg" style="flex:1;min-width:0"></select><button id="bg-prev" title="Previous background" style="padding:5px 8px">◀</button><button id="bg-next" title="Next background" style="padding:5px 8px">▶</button><button id="bg-rand" title="Random background" style="padding:5px 8px">🎲</button><button id="bg-browse" title="Browse all backgrounds visually" style="padding:5px 9px">Browse</button></div>
+    <div class="row"><label>Colours</label><input type="color" id="b1"><input type="color" id="b2"><button id="bg-cols-reset" title="Use this background's curated colours" style="font-size:12px;padding:3px 8px">↺ Default</button></div>
     <div class="row"><label>Motion</label><input type="range" id="bgsp" min="0" max="3" step="0.1"></div>
     <h2>Board</h2>
     <div class="row"><select id="theme" style="flex:1"></select></div>
@@ -129,6 +144,17 @@ body:not(.v3) #d3box { display:none; } body.v3 .transport, body.v3 #cv, body.vre
   </section>
 </main>
 <div id="toast"></div>
+<div id="bg-modal" role="dialog" aria-label="Browse animated backgrounds">
+  <div id="bg-sheet">
+    <div id="bg-head">
+      <h2>Animated Backgrounds</h2>
+      <input type="text" id="bg-q" placeholder="Search forest, beach, ocean, neon…" style="flex:1;min-width:180px">
+      <button id="bg-close">✕ Close</button>
+    </div>
+    <div id="bg-cats"></div>
+    <div id="bg-grid"></div>
+  </div>
+</div>
 <input type="file" id="file" accept=".json,application/json" hidden>
 <script>
 // ---------- load the shared engine, chess.js and the piece set (published copy first, then the repo layout) ----------
@@ -141,8 +167,8 @@ function loadPieces() {
     let i = 0; const im = new Image(); im.onload = () => { IMGS[t] = im; ok(); }; im.onerror = () => { i++; if (i < PIECE_DIRS.length) im.src = PIECE_DIRS[i] + t + ".svg"; else ok(); }; im.src = PIECE_DIRS[0] + t + ".svg";
   })));
 }
-// the engine's four files, in order (the same files Remotion draws with: src/fx/lab/)
-const ENGINE = ["core.js", "fx-moves.js", "fx-moments.js", "fx-whatif.js", "backgrounds.js"].reduce((p, f) => p.then(() => loadScript(["./fx/" + f, "../src/fx/lab/" + f])), Promise.resolve());
+// the engine's files, in order (the same files Remotion draws with: src/fx/lab/)
+const ENGINE = ["core.js", "fx-moves.js", "fx-moments.js", "fx-whatif.js", "backgrounds.js", "backgrounds-scenes.js"].reduce((p, f) => p.then(() => loadScript(["./fx/" + f, "../src/fx/lab/" + f])), Promise.resolve());
 Promise.all([ENGINE, loadScript(["./chess.js", "../chess/vendor/chess.js"]), loadPieces()]).then(start, (e) => { document.body.insertAdjacentHTML("afterbegin", `<p style="padding:20px;color:#f88">Could not load ${e && e.message}</p>`); });
 
 function start() {
@@ -351,10 +377,22 @@ function fire(id) {
 
 // ---------- UI ----------
 function opt(sel, items, val) { sel.innerHTML = items.map(([v, n]) => `<option value="${v}"${v === val ? " selected" : ""}>${n}</option>`).join(""); }
+function optBgs(sel, list, val) {
+  const groups = [], byCat = {};
+  list.forEach((b) => { const c = b.cat || "Other"; if (!byCat[c]) { byCat[c] = []; groups.push(c); } byCat[c].push(b); });
+  sel.innerHTML = groups.map((c) => `<optgroup label="${c}">${byCat[c].map((b) => `<option value="${b.id}"${b.id === val ? " selected" : ""}>${b.name}</option>`).join("")}</optgroup>`).join("");
+}
+function pickBg(id, keepCols) {
+  const p = prof(), b = F.bgById[id] || F.BG[0]; if (!b) return;
+  p.background.id = b.id;
+  if (!keepCols && b.b1 && b.b2) { p.background.b1 = b.b1; p.background.b2 = b.b2; }
+  syncUI();
+}
 function syncUI() {
   const p = prof(); retime();
   $("t-long").classList.toggle("on", target === "long"); $("t-reel").classList.toggle("on", target === "reel"); $("enabled").checked = !!p.enabled;
-  opt($("bg"), F.BG.map((b) => [b.id, b.name]), p.background.id); $("b1").value = p.background.b1; $("b2").value = p.background.b2; $("bgsp").value = p.background.speed == null ? 1 : p.background.speed;
+  optBgs($("bg"), F.BG, p.background.id); $("b1").value = p.background.b1; $("b2").value = p.background.b2; $("bgsp").value = p.background.speed == null ? 1 : p.background.speed;
+  const curBg = F.bgById[p.background.id]; $("bg-cols-reset").style.display = curBg && curBg.b1 ? "" : "none";
   opt($("theme"), Object.keys(F.THEMES).map((k) => [k, k[0].toUpperCase() + k.slice(1)]), p.theme); const th = themeOf(p);
   const hex = (c, d) => (/^#[0-9a-f]{6}$/i.test(c) ? c : d); $("sqL").value = hex(th.light, "#eeeeee"); $("sqD").value = hex(th.dark, "#777777"); $("frm").value = hex(th.frame, "#222222");
   $("c1").value = p.c1; $("c2").value = p.c2; $("intensity").value = p.intensity; $("iv").textContent = (+p.intensity).toFixed(2); $("fxsp").value = p.speed; $("sv").textContent = (+p.speed).toFixed(2) + "×";
@@ -362,6 +400,25 @@ function syncUI() {
   $("events").innerHTML = F.EVENTS.map((e) => `<div class="ev${e === selEvent ? " sel" : ""}" data-e="${e}"><div class="t"><span>${F.EVENT_NAMES[e]}</span><span class="note">${(p.map[e] || []).length}</span></div><div class="chips">${(p.map[e] || []).map((id) => `<span class="chip">${(F.byId[id] || { name: id }).name}<button data-rm="${e}|${id}" title="Remove">✕</button></span>`).join("") || '<span class="note">nothing</span>'}</div></div>`).join("");
   persist(); renderLib(); sync3d();
 }
+// ---------- Visual background browser ----------
+let bgCat = "All", bgHover = null, bgAnim = 0;
+function renderBgBrowser() {
+  const cats = ["All", ...new Set(F.BG.map((b) => b.cat || "Other"))];
+  $("bg-cats").innerHTML = cats.map((c) => `<button data-bgcat="${c}" class="${c === bgCat ? "on" : ""}">${c}</button>`).join("");
+  const q = $("bg-q").value.trim().toLowerCase(), cur = prof().background.id;
+  const list = F.BG.filter((b) => (bgCat === "All" || (b.cat || "Other") === bgCat) && (!q || (b.name + " " + b.id + " " + (b.cat || "")).toLowerCase().includes(q)));
+  const grid = $("bg-grid");
+  grid.innerHTML = list.map((b) => `<button class="bg-card${b.id === cur ? " on" : ""}" data-pickbg="${b.id}"><canvas width="240" height="135"></canvas><div class="meta"><b>${b.name}</b><small>${b.cat || "Other"}</small></div></button>`).join("") || '<p class="note">No background matches.</p>';
+  grid.querySelectorAll(".bg-card").forEach((card) => {
+    const b = F.bgById[card.dataset.pickbg], cv2 = card.querySelector("canvas"), c2 = cv2.getContext("2d");
+    const drawThumb = (tm) => { c2.save(); c2.clearRect(0, 0, 240, 135); b.draw(c2, tm, 240, 135, { b1: b.b1 || prof().background.b1, b2: b.b2 || prof().background.b2, sp: 1 }); c2.restore(); };
+    drawThumb(2.4);
+    card.onmouseenter = () => { bgHover = { drawThumb, t0: performance.now() }; };
+    card.onmouseleave = () => { if (bgHover && bgHover.drawThumb === drawThumb) { bgHover = null; drawThumb(2.4); } };
+  });
+}
+function openBgBrowser() { $("bg-modal").classList.add("open"); renderBgBrowser(); $("bg-q").focus(); cancelAnimationFrame(bgAnim); const loop = (now) => { if (!$("bg-modal").classList.contains("open")) return; if (bgHover) bgHover.drawThumb(2.4 + (now - bgHover.t0) / 1000); bgAnim = requestAnimationFrame(loop); }; bgAnim = requestAnimationFrame(loop); }
+function closeBgBrowser() { $("bg-modal").classList.remove("open"); bgHover = null; cancelAnimationFrame(bgAnim); }
 let cat = "all";
 const CATS = [["all", "All"], ["move", "Move styles"], ["capture", "Captures"], ["check", "Check"], ["mate", "Checkmate"], ["special", "Castle/Promo"], ["annotation", "!! ?? marks"], ["whatif", "What if"], ["camera", "Camera"], ["screen", "Screen"], ["square", "Squares"], ["text", "Text pops"]];
 function renderLib() {
@@ -381,7 +438,17 @@ document.addEventListener("click", (e) => {
   else if (b.classList.contains("ev")) { selEvent = b.dataset.e; syncUI(); }
 });
 const bind = (id, fn, ev) => $(id).addEventListener(ev || "input", () => { fn($(id)); syncUI(); });
-bind("bg", (el) => (prof().background.id = el.value), "change"); bind("b1", (el) => (prof().background.b1 = el.value)); bind("b2", (el) => (prof().background.b2 = el.value)); bind("bgsp", (el) => (prof().background.speed = +el.value));
+$("bg").addEventListener("change", () => pickBg($("bg").value));
+$("bg-prev").onclick = () => { const i = F.BG.findIndex((b) => b.id === prof().background.id); pickBg(F.BG[(i - 1 + F.BG.length) % F.BG.length].id); };
+$("bg-next").onclick = () => { const i = F.BG.findIndex((b) => b.id === prof().background.id); pickBg(F.BG[(i + 1) % F.BG.length].id); };
+$("bg-rand").onclick = () => { const pool = F.BG.filter((b) => b.id !== prof().background.id && !["solid", "gradient"].includes(b.id)); pickBg(pool[Math.floor(Math.random() * pool.length)].id); };
+$("bg-cols-reset").onclick = () => pickBg(prof().background.id);
+$("bg-browse").onclick = openBgBrowser; $("bg-close").onclick = closeBgBrowser;
+$("bg-modal").onclick = (e) => { if (e.target === $("bg-modal")) closeBgBrowser(); };
+$("bg-q").oninput = renderBgBrowser;
+$("bg-cats").onclick = (e) => { const b = e.target.closest("[data-bgcat]"); if (b) { bgCat = b.dataset.bgcat; renderBgBrowser(); } };
+$("bg-grid").onclick = (e) => { const c = e.target.closest("[data-pickbg]"); if (c) { pickBg(c.dataset.pickbg); closeBgBrowser(); } };
+bind("b1", (el) => (prof().background.b1 = el.value)); bind("b2", (el) => (prof().background.b2 = el.value)); bind("bgsp", (el) => (prof().background.speed = +el.value));
 bind("theme", (el) => { prof().theme = el.value; prof().colors = {}; }, "change");
 bind("sqL", (el) => ((prof().colors = prof().colors || {}).light = el.value)); bind("sqD", (el) => ((prof().colors = prof().colors || {}).dark = el.value)); bind("frm", (el) => ((prof().colors = prof().colors || {}).frame = el.value));
 bind("c1", (el) => (prof().c1 = el.value)); bind("c2", (el) => (prof().c2 = el.value)); bind("intensity", (el) => (prof().intensity = +el.value)); bind("fxsp", (el) => { prof().speed = +el.value; retime(); });
@@ -398,7 +465,7 @@ $("fwd").onclick = () => { const i = moveAt.findIndex((t) => t > T + 0.01); if (
 $("back").onclick = () => { let i = -1; moveAt.forEach((t, k) => { if (t < T - 0.6) i = k; }); T = i >= 0 ? moveAt[i] - 0.02 : 0; setPlay(true); };
 $("scrub").addEventListener("input", () => { T = ($("scrub").value / 1000) * total(); setPlay(false); });
 $("gap").onchange = retime;
-document.addEventListener("keydown", (e) => { if (e.target.matches("input,textarea,select")) return; if (e.code === "Space") { e.preventDefault(); setPlay(!playing); } if (e.code === "ArrowRight") $("fwd").click(); if (e.code === "ArrowLeft") $("back").click(); });
+document.addEventListener("keydown", (e) => { if (e.code === "Escape" && $("bg-modal").classList.contains("open")) { closeBgBrowser(); return; } if (e.target.matches("input,textarea,select")) return; if (e.code === "Space") { e.preventDefault(); setPlay(!playing); } if (e.code === "ArrowRight") $("fwd").click(); if (e.code === "ArrowLeft") $("back").click(); });
 opt($("sample"), SAMPLES.map((s, i) => [String(i), s.name]), "0");
 $("sample").onchange = () => { $("pgn").value = SAMPLES[+$("sample").value].pgn; loadGame($("pgn").value); setPlay(true); };
 $("loadpgn").onclick = () => { if (loadGame($("pgn").value)) setPlay(true); };
@@ -407,7 +474,7 @@ $("wild").onclick = () => {
   const p = prof(), R = F.rng((Date.now() & 0xffffff) + 1), pick = (arr, n) => { const a = arr.slice(), out = []; while (a.length && out.length < n) out.push(a.splice(Math.floor(R() * a.length), 1)[0]); return out; };
   F.EVENTS.forEach((e) => { const own = F.FX.filter((f) => f.cat !== "move" && (f.on || []).includes(e) && !["camera", "screen", "text"].includes(f.cat)).map((f) => f.id), extraFx = F.FX.filter((f) => ["camera", "screen"].includes(f.cat) && (f.on || []).includes(e)).map((f) => f.id);
     p.map[e] = e === "move" ? pick(own, 2) : pick(own, 2 + Math.floor(R() * 2)).concat(pick(extraFx, e === "start" ? 1 : Math.floor(R() * 2) + (e === "mate" ? 1 : 0))); });
-  p.moveStyle = pick(F.FX.filter((f) => f.cat === "move").map((f) => f.id), 1)[0]; const bgs = F.BG.filter((b) => !["solid", "gradient"].includes(b.id)); p.background.id = bgs[Math.floor(R() * bgs.length)].id;
+  p.moveStyle = pick(F.FX.filter((f) => f.cat === "move").map((f) => f.id), 1)[0]; const bgs = F.BG.filter((b) => !["solid", "gradient"].includes(b.id)); const chosenBg = bgs[Math.floor(R() * bgs.length)]; p.background.id = chosenBg.id; if (chosenBg.b1 && chosenBg.b2) { p.background.b1 = chosenBg.b1; p.background.b2 = chosenBg.b2; }
   const hues = [["#ffd166", "#ff2d55"], ["#4cc9f0", "#f72585"], ["#06d6a0", "#ffd166"], ["#c77dff", "#4cc9f0"], ["#ff9f1c", "#2ec4b6"]][Math.floor(R() * 5)]; p.c1 = hues[0]; p.c2 = hues[1];
   syncUI(); T = 0; setPlay(true); toast("Wild combo! Keep what you like, ✕ what you don't.");
 };
