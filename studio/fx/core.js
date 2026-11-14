@@ -86,14 +86,28 @@
     }
     ctx.restore();
   }
+  const REAL_SIN = Math.sin((32 * PI) / 180), REAL_COS = Math.cos((32 * PI) / 180), REAL_TAN = REAL_SIN / REAL_COS;
+  function realScale(a, y) {
+    const cy = a.by + a.bs * 0.5, P = a.bs * 2.8, sy = y >= a.by - a.bs && y <= a.by + a.bs * 2 ? y : a.y;
+    return clamp(1 + ((sy - cy) * REAL_TAN) / P, 0.85, 1.18);
+  }
   // draw a piece image centred at x,y with size sz (falls back to a disc with the letter)
   function piece(ctx, a, type, x, y, sz, rot, alpha) {
     const im = type && a.img ? a.img(type) : null; ctx.save(); ctx.globalAlpha *= alpha == null ? 1 : alpha; ctx.translate(x, y); if (rot) ctx.rotate(rot);
-    if (im) ctx.drawImage(im, -sz / 2, -sz / 2, sz, sz);
+    if (im && a.real) { const sc = realScale(a, y), rsz = sz * (2.38 / 0.96) * sc; ctx.drawImage(im, -rsz * 0.5, -rsz * 0.5634 + 0.1 * a.S * REAL_COS * sc, rsz, rsz); }
+    else if (im) ctx.drawImage(im, -sz / 2, -sz / 2, sz, sz);
     else if (type) { ctx.fillStyle = type[0] === "w" ? "#f4f1ea" : "#222"; ctx.beginPath(); ctx.arc(0, 0, sz * 0.32, 0, TAU); ctx.fill(); ctx.fillStyle = type[0] === "w" ? "#222" : "#f4f1ea"; ctx.font = font(sz * 0.4, 800); ctx.textAlign = "center"; ctx.textBaseline = "middle"; ctx.fillText(type[1].toUpperCase(), 0, 0); }
     ctx.restore();
   }
   function sqRect(a, x, y) { return [x - a.S / 2, y - a.S / 2, a.S, a.S]; }
+  function fillSq(ctx, a, x, y) {
+    if (!a.real) { ctx.fillRect(x - a.S / 2, y - a.S / 2, a.S, a.S); return; }
+    const cx = a.bx + a.bs * 0.5, cy = a.by + a.bs * 0.5, P = a.bs * 2.8, sc = realScale(a, y);
+    const bx = (x - cx) / sc, by = (y - cy) / (REAL_COS * sc), h = a.S * 0.5;
+    const pr = (ox, oy) => { const dy = by + oy, s = P / (P - dy * REAL_SIN); return [cx + (bx + ox) * s, cy + dy * REAL_COS * s]; };
+    poly(ctx, [pr(-h, -h), pr(h, -h), pr(h, h), pr(-h, h)]);
+    ctx.fill();
+  }
 
   // ---------- board themes ----------
   const THEMES = {
@@ -215,8 +229,8 @@
   // shake offset in px for time t (seconds)
   const shakeAt = (amp, t) => ({ x: Math.sin(t * 61) * amp + Math.sin(t * 37) * amp * 0.5, y: Math.cos(t * 53) * amp * 0.7 });
 
-  const api = { version: "1.0.0", TAU, E, rng, hash, rgba, mix, hsl, burst, stamp, piece, glowDot, ring, bolt, FX, BG, byId, bgById, THEMES, EVENTS, EVENT_NAMES, DEFAULTS, WHATIF_DEFAULT, whatIfIds, eventsFor, whatIfEvent, active, movePose, camera, shakeAt, addEffects, addBackgrounds,
-    _lib: { TAU, PI, E, clamp, lerp, rng, hash, rgba, mix, fadeOut, font, star, poly, glowDot, ring, bolt, stamp, burst, piece, sqRect },
+  const api = { version: "1.0.0", TAU, E, rng, hash, rgba, mix, hsl, burst, stamp, piece, fillSq, glowDot, ring, bolt, FX, BG, byId, bgById, THEMES, EVENTS, EVENT_NAMES, DEFAULTS, WHATIF_DEFAULT, whatIfIds, eventsFor, whatIfEvent, active, movePose, camera, shakeAt, addEffects, addBackgrounds,
+    _lib: { TAU, PI, E, clamp, lerp, rng, hash, rgba, mix, fadeOut, font, star, poly, glowDot, ring, bolt, stamp, burst, piece, sqRect, fillSq },
     count: () => ({ effects: FX.length, backgrounds: BG.length, moveStyles: FX.filter((f) => f.cat === "move").length }) };
   if (typeof module === "object" && module.exports) module.exports = api;
   root.PnoyFX = api;
