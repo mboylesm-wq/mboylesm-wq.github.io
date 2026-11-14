@@ -11,7 +11,7 @@
 (function (root) {
   "use strict";
   const F = typeof module === "object" && module.exports && typeof require === "function" ? require("./core.js") : root.PnoyFX;
-  const { E, clamp, lerp, rgba, font, piece, TAU } = F._lib;
+  const { E, clamp, lerp, rgba, font, piece, fillSq, TAU } = F._lib;
   const FX = [];
   const add = (cat, on, list) => list.forEach((e) => FX.push(Object.assign({ cat, on, layer: "over", dur: 98 }, e)));
 
@@ -110,8 +110,8 @@
       if (!a.line) return;
       a.line.steps.forEach((st, k) => { const al = life(a, st) * 0.22; if (al <= 0.01) return;
         ctx.save(); ctx.globalAlpha = al; ctx.fillStyle = col(k);
-        ctx.fillRect(st.x0 - a.S / 2, st.y0 - a.S / 2, a.S, a.S);
-        ctx.globalAlpha = life(a, st) * 0.3; ctx.fillRect(st.x1 - a.S / 2, st.y1 - a.S / 2, a.S, a.S); ctx.restore(); }); } },
+        fillSq(ctx, a, st.x0, st.y0);
+        ctx.globalAlpha = life(a, st) * 0.3; fillSq(ctx, a, st.x1, st.y1); ctx.restore(); }); } },
     // the imagined piece (pick one, or neither and the arrows carry it)
     { id: "wi-piece", name: "Ghost piece slides", draw: (ctx, a) => { if (!a.line) return; a.line.steps.forEach((st, k) => ghost(ctx, a, st, k, {})); } },
     { id: "wi-piece-heavy", name: "Heavy ghost piece (big hop)", draw: (ctx, a) => { if (!a.line) return; a.line.steps.forEach((st, k) => ghost(ctx, a, st, k, { hop: 0.34, alpha: 0.88 })); } },
