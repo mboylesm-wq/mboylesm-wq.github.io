@@ -6,24 +6,6 @@
 (function () {
   "use strict";
   const PUB = "chess/publisher/";
-  // Every publisher switch controlled by the Schedule pause toggle (all 8 must go to dry-run together so no platform slips through)
-  const PAUSE_KEYS = ["mode", "igBackfill", "tiktok", "youtube", "tiktokBackfill", "tiktokExtrasPost", "docuShorts", "cards"];
-  const isPostingLive = (cfg) => !!(cfg && PAUSE_KEYS.some((k) => cfg[k] === "live"));
-  function pausePostingConfig(cfg) {
-    if (!isPostingLive(cfg)) return { ...(cfg || {}) };
-    const next = { ...(cfg || {}) }, restore = {};
-    for (const k of PAUSE_KEYS) { restore[k] = (cfg && cfg[k]) || "live"; next[k] = "dry-run"; }
-    next.pausedRestore = restore;
-    next.pausedAt = new Date().toISOString();
-    return next;
-  }
-  function resumePostingConfig(cfg) {
-    const next = { ...(cfg || {}) }, saved = (cfg && cfg.pausedRestore) || {};
-    for (const k of PAUSE_KEYS) next[k] = typeof saved[k] === "string" ? saved[k] : "live";
-    delete next.pausedRestore;
-    delete next.pausedAt;
-    return next;
-  }
   // every rendered reel is also on its day's Release; the card links there even when the day file has no videoUrl
   const REL = "https://github.com/mboylesm-wq/pnoychess-docu/releases/download/";
   const videoHref = (D, it) => it.videoUrl || (it.video ? REL + "reels-" + D + "/" + it.video : null);
@@ -145,34 +127,12 @@
       const seen = new Set(all.filter((r) => r.it.kind === "docu-short").map((r) => r.it.key));
       all = all.concat(shortRows(shorts).filter((r) => !seen.has(r.it.key) && dates.includes(r.D)));
       all.sort((a, b) => (b.D + b.slot).localeCompare(a.D + a.slot));
-      const live = isPostingLive(cfg);
+      const live = cfg.mode === "live";
 
       box.textContent = "";
 
       let act = null;
       try { act = await window.claude.use("actions"); } catch (e) {}
-      const pauseBtn = files.saveJson ? el("button", {
-        class: live ? "btn" : "btn primary",
-        type: "button",
-        text: live ? "⏸ Pause posting" : "▶ Resume posting",
-        title: live
-          ? "Pause all scheduled and manual posting across Facebook, Instagram, YouTube Shorts, TikTok, cards, and documentary shorts (switches chess/publisher/config.json to dry-run)"
-          : "Resume posting using the saved platform switches in chess/publisher/config.json",
-        onclick: async (ev) => {
-          const btn = ev.target;
-          btn.disabled = true;
-          try {
-            const nextCfg = live ? pausePostingConfig(cfg) : resumePostingConfig(cfg);
-            await files.saveJson(PUB + "config.json", nextCfg, "studio: " + (live ? "pause" : "resume") + " posting");
-            say(live ? "Posting paused (all switches set to dry-run)." : "Posting resumed (platform switches restored).");
-            await load(true);
-          } catch (e) {
-            btn.disabled = false;
-            say("Could not " + (live ? "pause" : "resume") + " posting: " + (e.message || e.code || e));
-          }
-        }
-      }) : null;
-
       const runPubBtn = act ? el("button", {
         class: "btn", type: "button", text: "Post due now", title: "Post every slot that is due and approved right now (Facebook, Instagram, YouTube Shorts, TikTok) on GitHub Actions (publish.yml), without waiting for the timetable",
         onclick: async (ev) => {
@@ -206,23 +166,13 @@
           el("h2", { style: "margin:0 0 4px 0;", text: "Schedule & Posting" }),
           el("p", { class: "note", style: "margin:0;", text: "Daily 6-slot lesson lineup, community cards, and documentary shorts across FB, IG, YouTube, TikTok." })
         ),
-        el("div", { class: "row", style: "gap:8px;align-items:center;flex-wrap:wrap;" },
-          el("span", { class: "pill " + (live ? "ok" : "warn"), text: live ? "Posting: LIVE" : "Posting: PAUSED" }),
-          pauseBtn,
+        el("div", { class: "row", style: "gap:8px;align-items:center;" },
+          el("span", { class: "pill " + (live ? "ok" : "warn"), text: live ? "Posting: LIVE" : "Posting: DRY-RUN" }),
           runPubBtn,
           runReelsBtn,
           refreshBtn
         )
       ));
-
-      if (!live) {
-        const pausedInfo = cfg.pausedAt ? " (paused " + cfg.pausedAt.slice(0, 16).replace("T", " ") + " UTC)" : "";
-        box.append(el("div", {
-          class: "warn",
-          style: "padding:10px 12px;border-radius:8px;margin-bottom:10px;border:1px solid rgba(245,158,11,0.4);background:rgba(245,158,11,0.1);font-size:13px;",
-          text: "Auto-posting is PAUSED (all switches in dry-run)" + pausedInfo + ". Scheduled and manual runs will not post anything until you click Resume posting."
-        }));
-      }
 
       // 6-Slot Lesson Lineup Card Section
       const curDayData = days.find((d) => d.D === selectedDay);
@@ -445,5 +395,5 @@
     return box;
   }
 
-  window.PublishBoard = { view, rows, cardRows, shortRows, dayWindow, videoHref, PAUSE_KEYS, isPostingLive, pausePostingConfig, resumePostingConfig };
+  window.PublishBoard = { view, rows, cardRows, shortRows, dayWindow, videoHref };
 })();
