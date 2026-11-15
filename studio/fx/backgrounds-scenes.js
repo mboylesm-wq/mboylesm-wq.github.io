@@ -388,7 +388,7 @@
     const b1 = c.b1 || "#3b2414", b2 = c.b2 || "#5a3b22";
     lin(ctx, W, H, b1, b2, 0.2); ctx.strokeStyle = "rgba(0,0,0,0.14)";
     for (let i = 0; i < 70; i++) { ctx.lineWidth = 1 + hash(i) * 2; ctx.beginPath(); const y = (i / 70) * H; for (let x = 0; x <= W; x += 20) ctx.lineTo(x, y + Math.sin(x * 0.01 + i) * 6); ctx.stroke(); }
-  }, { cat: "Venues & Textures", b1: "#3b2414", b2: "#5a3b22" });
+  }, { cat: "Venues & Textures", b1: "#3b2414", b2: "#5a3b22", static: true });
 
   bg("marble", "Marble", (ctx, t, W, H, c) => {
     const b1 = c.b1 || "#e9e6e1", b2 = c.b2 || "#cfcac2";
