@@ -2839,6 +2839,9 @@ async function loadCovers(force = false) {
   finally { S._coversLoading = false; S.coversLoaded = true; if (S.view === "channel") render(); }
 }
 const COVER_PLATFORMS = [["facebook", "Facebook"], ["instagram", "Instagram"], ["youtube", "YouTube"], ["tiktok", "TikTok"]];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+// "2026-11-14" → "14 Nov": the day a platform's cover path began to hold (COVER_SINCE in tools/cover-audit.mjs)
+function coverDay(iso) { const m = String(iso || "").match(/^(\d{4})-(\d\d)-(\d\d)/); return m ? `${+m[3]} ${MONTHS[+m[2] - 1]}` : ""; }
 function chanCoversCard() {
   loadCovers();
   const d = S.covers;
@@ -2847,30 +2850,52 @@ function chanCoversCard() {
     el("div", { class: "row", style: "gap:8px;align-items:center" },
       el("span", { class: "note", text: d && d.at ? "read " + new Date(d.at).toLocaleString() : "" }),
       el("button", { class: "btn", type: "button", text: "Refresh", onclick: () => loadCovers(true) }))));
-  panel.append(el("div", { class: "note", text: "Which posts really got a cover, platform by platform: Facebook's preferred thumbnail, Instagram's cover, YouTube's thumbnail and TikTok's cover frame. The publisher records it on every posting run (tools/cover-audit.mjs, after every post), so this is the list of what is missing, not a guess." }));
+  panel.append(el("div", { class: "note", text: "Which posts really got a cover, platform by platform: Facebook's preferred thumbnail, Instagram's cover, YouTube's thumbnail and the cover frame the publisher sent to TikTok. A post from before its platform's cover fix is kept as history below: it cannot be repaired afterwards, so it is never counted as a failure today." }));
   if (!d) { panel.append(el("div", { class: "note", text: "No cover report yet. On your PC: npm run covers — and from now on the publisher writes it after every posting run." })); return panel; }
   if (d.error) { panel.append(el("div", { class: "note", style: "color:var(--warn)", text: "Could not read db/covers/status.json (" + d.error + "). On your PC: npm run covers — it writes the file and the page shows it." })); return panel; }
-  const t = d.totals || {};
+  const since = d.since || {}, cur = d.current || null, t = d.totals || {};
   panel.append(el("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin:8px 0" },
     ...COVER_PLATFORMS.map(([k, name]) => {
-      const x = t[k] || { sent: 0, withCover: 0, withFrame: 0, withoutCover: 0 };
-      return el("span", { class: "pill" + (x.withoutCover ? " warn" : " ok"), title: `${x.withoutCover} without a cover${x.withFrame ? `, ${x.withFrame} with a chosen frame` : ""}`, text: `${name} ${x.withCover}/${x.sent}` + (x.withFrame ? ` · ${x.withFrame} frame` : "") });
+      const x = (cur && cur[k]) || t[k] || { sent: 0, withCover: 0, withFrame: 0, withoutCover: 0 };
+      const when = coverDay((cur && x.since) || since[k]);
+      return el("span", { class: "pill" + (x.withoutCover ? " warn" : " ok"),
+        title: `${x.withoutCover} without a cover${x.withFrame ? `, ${x.withFrame} with a chosen frame` : ""}${when ? ` (posts since ${when})` : ""}`,
+        text: `${name} ${x.withCover}/${x.sent}` + (x.withFrame ? ` · ${x.withFrame} frame` : "") });
     })));
-  const miss = d.missing || [];
-  if (!miss.length) { panel.append(el("div", { class: "empty", text: "Every post has a cover on every platform it went to." })); return panel; }
-  const byPlat = {}; for (const m of miss) byPlat[m.platform] = (byPlat[m.platform] || 0) + 1;
-  panel.append(el("div", { class: "note", text: `${miss.length} post(s) without a cover: ` + COVER_PLATFORMS.filter(([k]) => byPlat[k]).map(([k, name]) => `${name} ${byPlat[k]}`).join(" · ") + ". A TikTok row older than 13 Nov 2026 is expected: the cover frame was only built that night. A post counted with a chosen frame shows the reel's 1 s frame, not the drawn cover, because the platform refused the image." }));
-  const td = (v, extra = {}) => el("td", { style: "white-space:nowrap", ...extra, text: v });
-  panel.append(el("div", { style: "overflow:auto;max-height:420px" }, el("table", { class: "tbl", style: "width:100%;font-size:13px;border-collapse:collapse" },
-    el("thead", {}, el("tr", {}, ...["Day", "Slot", "Platform", "Why", "Post"].map((h) => el("th", { style: "text-align:left", text: h })))),
-    el("tbody", {}, ...miss.map((m) => {
-      const row = (d.rows || []).find((r) => r.day === m.day && r.slot === m.slot);
-      const link = row && row[m.platform] ? row[m.platform].link : null;
-      return el("tr", {}, td(m.day), td(m.slot),
-        td((COVER_PLATFORMS.find(([k]) => k === m.platform) || [, m.platform])[1], { style: "white-space:nowrap;color:var(--warn)" }),
-        td(m.why, { style: "white-space:normal", class: "dim" }),
-        el("td", {}, link ? el("a", { href: safeUrl(link), target: "_blank", rel: "noopener", text: m.title }) : el("span", { class: "dim", text: m.title })));
-    })))));
+  if (!cur) panel.append(el("div", { class: "note", text: "This report was written before the split into current and history, so these counts mix both. The next posting run rewrites it (npm run covers does it now)." }));
+  const miss = d.missing || [], hist = d.history || [];
+  if (!miss.length) panel.append(el("div", { class: "empty", text: "Every post since the cover fix has a cover on every platform it went to." }));
+  else {
+    const byPlat = {}; for (const m of miss) byPlat[m.platform] = (byPlat[m.platform] || 0) + 1;
+    panel.append(el("div", { class: "note", style: "color:var(--warn)", text: `${miss.length} post(s) WITHOUT a cover since the fix: ` + COVER_PLATFORMS.filter(([k]) => byPlat[k]).map(([k, name]) => `${name} ${byPlat[k]}`).join(" · ") + ". These are the ones to act on. A post counted with a chosen frame shows the reel's 1 s frame, not the drawn cover, because the platform refused the image." }));
+    const td = (v, extra = {}) => el("td", { style: "white-space:nowrap", ...extra, text: v });
+    panel.append(el("div", { style: "overflow:auto;max-height:420px" }, el("table", { class: "tbl", style: "width:100%;font-size:13px;border-collapse:collapse" },
+      el("thead", {}, el("tr", {}, ...["Day", "Slot", "Platform", "Since", "Why", "Post"].map((h) => el("th", { style: "text-align:left", text: h })))),
+      el("tbody", {}, ...miss.map((m) => {
+        const row = (d.rows || []).find((r) => r.day === m.day && r.slot === m.slot);
+        const link = row && row[m.platform] ? row[m.platform].link : null;
+        return el("tr", {}, td(m.day), td(m.slot),
+          td((COVER_PLATFORMS.find(([k]) => k === m.platform) || [, m.platform])[1], { style: "white-space:nowrap;color:var(--warn)" }),
+          td(coverDay(m.since || since[m.platform]), { class: "dim" }),
+          td(m.why, { style: "white-space:normal", class: "dim" }),
+          el("td", {}, link ? el("a", { href: safeUrl(link), target: "_blank", rel: "noopener", text: m.title }) : el("span", { class: "dim", text: m.title })));
+      })))));
+  }
+  // the backlog: found when the tracker was built, older than the fix, unrepairable — folded away so it can never be
+  // mistaken for today's failures again (Mark, 15 Nov 2026: the panel looked broken while no code had changed)
+  if (hist.length) {
+    const days = hist.map((m) => String(m.day)).sort(), from = coverDay(days[0]), to = coverDay(days[days.length - 1]);
+    const span = from && to && from !== to ? `${from}–${to}` : from;
+    const det = el("details", { style: "margin-top:12px;border-top:1px solid var(--line);padding-top:8px" },
+      el("summary", { class: "note", style: "cursor:pointer", text: `${hist.length} earlier post(s) predate their platform's cover fix (${span}) — history, nothing to do` }));
+    const td = (v, extra = {}) => el("td", { class: "dim", style: "white-space:nowrap", ...extra, text: v });
+    det.append(el("div", { style: "overflow:auto;max-height:300px;margin-top:8px" }, el("table", { class: "tbl", style: "width:100%;font-size:13px;border-collapse:collapse" },
+      el("thead", {}, el("tr", {}, ...["Day", "Slot", "Platform", "Why", "Post"].map((h) => el("th", { style: "text-align:left", text: h })))),
+      el("tbody", {}, ...hist.map((m) => el("tr", {}, td(m.day), td(m.slot),
+        td((COVER_PLATFORMS.find(([k]) => k === m.platform) || [, m.platform])[1]),
+        td(m.why, { style: "white-space:normal" }), td(m.title, { style: "white-space:normal" })))))));
+    panel.append(det);
+  }
   return panel;
 }
 
@@ -3609,7 +3634,7 @@ function viewPosts() {
 // ---------- needs attention: the few things that are stuck, failed or blocked, on Review and Channel ----------
 // Pure (no DOM, no network) so the page harness can call it: edits = db/ytedits, projects = db/projects,
 // cards = db/cards, runs = the newest GitHub Actions runs (only on the GitHub page).
-function attentionItems({ edits = [], projects = [], cards = [], runs = [], now = Date.now() } = {}) {
+function attentionItems({ edits = [], projects = [], cards = [], runs = [], covers = null, now = Date.now() } = {}) {
   const H = 3600e3, lit = (iso) => { const t = Date.parse(iso); return isNaN(t) ? 0 : t; };
   const old = (iso, h) => lit(iso) > 0 && now - lit(iso) > h * H;
   const days = (iso) => Math.max(1, Math.round((now - lit(iso)) / 864e5));
@@ -3634,6 +3659,9 @@ function attentionItems({ edits = [], projects = [], cards = [], runs = [], now 
   if (toPc.length) items.push({ level: "warn", kind: "pc", go: "projects", text: `${toPc.length} video${toPc.length === 1 ? "" : "s"} ready for render-pc`, detail: "Your PC has not been run for a day: double-click render-pc.cmd." });
   const cardDays = (cards || []).filter((d) => (d.items || []).some((c) => c.status === "waiting") && old(d.day + "T00:00:00+08:00", 36));
   if (cardDays.length) items.push({ level: "warn", kind: "cards", go: "posts", text: `${cardDays.length} day${cardDays.length === 1 ? "" : "s"} of cards still waiting for approval`, detail: "Cards never post without your yes, so those slots go out empty." });
+  // a cover that failed SINCE the platform's fix (tools/cover-audit.mjs keeps the old backlog out of this list)
+  const coverMiss = ((covers && covers.missing) || []).length;
+  if (coverMiss) items.push({ level: "warn", kind: "covers", go: "channel", text: `${coverMiss} post${coverMiss === 1 ? "" : "s"} without a cover since the fix`, detail: "The Covers panel on Channel names the platform and why. A Short can still get its thumbnail; a Facebook, Instagram or TikTok post cannot be repaired once it is out, but a refusal that keeps repeating can." });
   return items.slice(0, 5);
 }
 function attentionStrip(items) {
@@ -3659,11 +3687,12 @@ function ensureAttentionRuns() {
     .catch(() => { S._runs = S._runs || []; })
     .then(() => { S._runsAt = Date.now(); S._runsLoading = false; if (S.view === "channel" || S.view === "review") render(); });
 }
-function attentionSection() { return attentionStrip(attentionItems({ edits: S.edits || [], projects: S.projects || [], cards: S.cards || [], runs: S._runs || [], now: Date.now() })); }
+function attentionSection() { return attentionStrip(attentionItems({ edits: S.edits || [], projects: S.projects || [], cards: S.cards || [], runs: S._runs || [], covers: S.covers || null, now: Date.now() })); }
 
 function viewChannel() {
   if (S._ensureChannel) S._ensureChannel();
   ensureAttentionRuns();
+  loadCovers(); // the "needs attention" strip reads it too
   const h = S.health, st = chState(), wrap = el("div", { style: "display:grid;gap:18px" });
   const att = attentionSection(); if (att) wrap.append(att);
   wrap.append(chanSocialCard());
