@@ -168,7 +168,7 @@ function loadPieces() {
   })));
 }
 // the engine's files, in order (the same files Remotion draws with: src/fx/lab/)
-const ENGINE = ["core.js", "fx-moves.js", "fx-moments.js", "fx-whatif.js", "backgrounds.js", "backgrounds-scenes.js"].reduce((p, f) => p.then(() => loadScript(["./fx/" + f, "../src/fx/lab/" + f])), Promise.resolve());
+const ENGINE = ["core.js", "fx-moves.js", "fx-moments.js", "fx-whatif.js", "backgrounds.js", "backgrounds-scenes.js", "backgrounds-world.js", "backgrounds-fx.js"].reduce((p, f) => p.then(() => loadScript(["./fx/" + f, "../src/fx/lab/" + f])), Promise.resolve());
 Promise.all([ENGINE, loadScript(["./chess.js", "../chess/vendor/chess.js"]), loadPieces()]).then(start, (e) => { document.body.insertAdjacentHTML("afterbegin", `<p style="padding:20px;color:#f88">Could not load ${e && e.message}</p>`); });
 
 function start() {
@@ -180,6 +180,7 @@ const C = F.count(); $("count").textContent = `${C.effects} effects · ${C.backg
 // ---------- preset state ----------
 let P; try { P = JSON.parse(localStorage.getItem(LS)); } catch (e) {}
 if (!P || !P.long || !P.reel) P = { version: 1, long: clone(F.DEFAULTS.long), reel: clone(F.DEFAULTS.reel) };
+["long", "reel"].forEach((k) => { const g = P[k] && P[k].background, b = g && F.bgById[g.id]; if (b && b.b1 && b.b2 && (!g.b1 || !g.b2 || (b.id !== "solid" && g.b1 === "#000000" && g.b2 === "#0d0d0d"))) { g.b1 = b.b1; g.b2 = b.b2; } });
 let target = "long", selEvent = "capture";
 const prof = () => P[target];
 const persist = () => { try { localStorage.setItem(LS, JSON.stringify(P)); } catch (e) {} };
