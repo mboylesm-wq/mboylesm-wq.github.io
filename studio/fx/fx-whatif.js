@@ -29,13 +29,13 @@
     return tin * tout;
   };
   const drawn = (a, st) => E.out(clamp((a.t - st.at) / DRAW, 0, 1));
-  // a step's piece leaves the board when a later step takes it (a capture) or takes its square
+  // a step's piece leaves the board when a later step moves it away (at o.at) or captures it (once the capturer lands)
   const goneAt = (L, k) => {
     const st = L.steps[k];
     for (let j = k + 1; j < L.steps.length; j++) {
       const o = L.steps[j];
       if (o.from === st.to) return o.at;
-      if (o.to === st.to && /x/.test(o.san)) return o.at;
+      if (o.to === st.to && /x/.test(o.san)) return o.at + DRAW * 0.55 + TRAVEL;
     }
     return Infinity;
   };
