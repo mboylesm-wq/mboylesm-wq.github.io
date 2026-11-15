@@ -305,17 +305,18 @@
   }, { cat: "Landscapes & Nature", b1: "#180606", b2: "#ff5400" });
 
   bg("aurora", "Aurora", (ctx, t, W, H, c) => {
+    const b1 = c.b1 || "#22d3ee", b2 = c.b2 || "#a855f7";
     lin(ctx, W, H, "#020617", "#0b1d3a"); stars(ctx, W, H * 0.7, 90, 16, t, c.sp);
     ctx.save(); ctx.globalCompositeOperation = "lighter";
     for (let b = 0; b < 3; b++) {
       ctx.beginPath();
       for (let x = 0; x <= W; x += W / 40) { const y = H * (0.3 + b * 0.08) + Math.sin(x * 0.006 + t * 0.6 * c.sp + b) * H * 0.06 + Math.sin(x * 0.013 - t * 0.4 * c.sp) * H * 0.03; x ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }
       ctx.lineTo(W, H); ctx.lineTo(0, H); ctx.closePath();
-      const g = ctx.createLinearGradient(0, H * 0.2, 0, H * 0.8); g.addColorStop(0, rgba([c.b1, c.b2, "#7cffcb"][b], 0.35)); g.addColorStop(1, rgba("#000000", 0));
+      const g = ctx.createLinearGradient(0, H * 0.2, 0, H * 0.8); g.addColorStop(0, rgba([b1, b2, "#7cffcb"][b], 0.35)); g.addColorStop(1, rgba("#000000", 0));
       ctx.fillStyle = g; ctx.fill();
     }
     ctx.restore();
-  }, { cat: "Landscapes & Nature" });
+  }, { cat: "Landscapes & Nature", b1: "#22d3ee", b2: "#a855f7" });
 
   // ---------- 4. VENUES & TEXTURES ----------
   bg("rainy-cafe", "Rainy Chess Café", (ctx, t, W, H, c) => {
@@ -384,17 +385,19 @@
   }, { cat: "Venues & Textures", b1: "#1e211f", b2: "#d6ccb8" });
 
   bg("wood-table", "Wooden table", (ctx, t, W, H, c) => {
-    lin(ctx, W, H, "#3b2414", "#5a3b22", 0.2); ctx.strokeStyle = "rgba(0,0,0,0.14)";
+    const b1 = c.b1 || "#3b2414", b2 = c.b2 || "#5a3b22";
+    lin(ctx, W, H, b1, b2, 0.2); ctx.strokeStyle = "rgba(0,0,0,0.14)";
     for (let i = 0; i < 70; i++) { ctx.lineWidth = 1 + hash(i) * 2; ctx.beginPath(); const y = (i / 70) * H; for (let x = 0; x <= W; x += 20) ctx.lineTo(x, y + Math.sin(x * 0.01 + i) * 6); ctx.stroke(); }
     rad(ctx, W * (0.5 + Math.sin(t * 0.25 * c.sp) * 0.12), H * 0.45, Math.max(W, H) * 0.55, [[0, "rgba(255,214,150,0.18)"], [1, "rgba(0,0,0,0.35)"]]);
-  }, { cat: "Venues & Textures" });
+  }, { cat: "Venues & Textures", b1: "#3b2414", b2: "#5a3b22" });
 
   bg("marble", "Marble", (ctx, t, W, H, c) => {
-    lin(ctx, W, H, "#e9e6e1", "#cfcac2"); ctx.strokeStyle = "rgba(90,90,100,0.18)";
+    const b1 = c.b1 || "#e9e6e1", b2 = c.b2 || "#cfcac2";
+    lin(ctx, W, H, b1, b2); ctx.strokeStyle = "rgba(90,90,100,0.18)";
     for (let i = 0; i < 26; i++) { ctx.lineWidth = 0.5 + hash(i + 5) * 2.5; ctx.beginPath(); let x = hash(i) * W, y = 0; ctx.moveTo(x, y); while (y < H) { y += 18; x += (hash(Math.floor(y) + i * 99) - 0.5) * 30; ctx.lineTo(x, y); } ctx.stroke(); }
     const sx = ((t * 0.12 * c.sp) % 1.6 - 0.3) * W, g = ctx.createLinearGradient(sx - W * 0.2, 0, sx + W * 0.2, H);
     g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(0.5, "rgba(255,255,255,0.22)"); g.addColorStop(1, "rgba(255,255,255,0)"); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
-  }, { cat: "Venues & Textures" });
+  }, { cat: "Venues & Textures", b1: "#e9e6e1", b2: "#cfcac2" });
 
   // ---------- 5. EXTRA SCI-FI ----------
   bg("eclipse-corona", "Solar Eclipse Corona", (ctx, t, W, H, c) => {
