@@ -91,6 +91,7 @@ body:not(.v3) #d3box { display:none; } body.v3 .transport, body.v3 #cv, body.vre
     <div class="row"><label>Colours</label><input type="color" id="b1"><input type="color" id="b2"><button id="bg-cols-reset" title="Use this background's curated colours" style="font-size:12px;padding:3px 8px">↺ Default</button></div>
     <div class="row"><label>Motion</label><input type="range" id="bgsp" min="0" max="3" step="0.1"></div>
     <h2>Board</h2>
+    <div class="row"><label>In renders</label><select id="renderView" style="flex:1"><option value="2d">2D (flat board)</option><option value="real">2.5D (Studio board + Staunton)</option><option value="3d">3D (Three.js board)</option></select></div>
     <div class="row"><select id="theme" style="flex:1"></select></div>
     <div class="row"><label>Light / dark</label><input type="color" id="sqL"><input type="color" id="sqD"><label style="min-width:0">frame</label><input type="color" id="frm"></div>
     <div class="row"><label>Coordinates</label><input type="checkbox" id="coords"> <label style="min-width:0">Flip</label><input type="checkbox" id="flip"></div>
@@ -99,7 +100,6 @@ body:not(.v3) #d3box { display:none; } body.v3 .transport, body.v3 #cv, body.vre
     <div class="row"><label>Camera</label><select id="cam3d" style="flex:1"><option value="drift">Drift (default)</option><option value="top">Top-down</option><option value="tilt">45° tilt</option><option value="low">Low cinematic</option><option value="orbit">Slow orbit</option><option value="follow">Follow the move</option></select></div>
     <div class="row"><label>Surface</label><select id="surface" style="flex:1"><option value="wood">Wood</option><option value="marble">Marble</option><option value="glass">Glass</option><option value="neon">Neon grid</option><option value="metal">Metal</option></select></div>
     <div class="row"><label>Pieces</label><select id="set3d" style="flex:1"><option value="classic">Classic (real model)</option><option value="turned">Turned (boxwood &amp; ebony)</option></select></div>
-    <div class="row"><label>In renders</label><input type="checkbox" id="use3d"> <span class="note">boards of this format render in 3D</span></div>
     <h2>Geometry shapes <span class="note">(preview; put them in a plan)</span></h2>
     <div class="row"><label><input type="checkbox" id="sh-rays"> Rays</label><span class="note">what the piece that just moved reaches</span></div>
     <div class="row"><label><input type="checkbox" id="sh-control"> Control</label><span class="note">gold = White, cyan = Black</span></div>
@@ -341,7 +341,7 @@ function render3d() {
   }, (e) => toast("⚠ 3D view could not load: " + e.message)), 250);
 }
 function setView(v) { view = v; document.body.classList.toggle("v3", v === "3d"); document.body.classList.toggle("vreal", v === "real"); $("v-2d").classList.toggle("on", v === "2d"); $("v-real").classList.toggle("on", v === "real"); $("v-3d").classList.toggle("on", v === "3d"); $("p3").style.display = v === "2d" ? "none" : "block"; setPlay(v === "2d"); render3d(); }
-function sync3d() { const c = d3(); $("cam3d").value = c.cam3d; $("surface").value = c.surface; $("set3d").value = c.set; $("use3d").checked = c.view === "3d"; render3d(); }
+function sync3d() { const c = d3(), rv = c.view || "2d"; $("renderView").value = rv; $("cam3d").value = c.cam3d; $("surface").value = c.surface; $("set3d").value = c.set; if (view !== rv) setView(rv); else render3d(); }
 
 // ---------- loop ----------
 let last = performance.now();
@@ -454,9 +454,10 @@ bind("theme", (el) => { prof().theme = el.value; prof().colors = {}; }, "change"
 bind("sqL", (el) => ((prof().colors = prof().colors || {}).light = el.value)); bind("sqD", (el) => ((prof().colors = prof().colors || {}).dark = el.value)); bind("frm", (el) => ((prof().colors = prof().colors || {}).frame = el.value));
 bind("c1", (el) => (prof().c1 = el.value)); bind("c2", (el) => (prof().c2 = el.value)); bind("intensity", (el) => (prof().intensity = +el.value)); bind("fxsp", (el) => { prof().speed = +el.value; retime(); });
 bind("mstyle", (el) => { prof().moveStyle = el.value; retime(); }, "change"); bind("enabled", (el) => (prof().enabled = el.checked), "change");
-$("v-2d").onclick = () => setView("2d"); $("v-real").onclick = () => setView("real"); $("v-3d").onclick = () => setView("3d");
+const pickView = (v) => { d3().view = v; setView(v); syncUI(); };
+$("v-2d").onclick = () => pickView("2d"); $("v-real").onclick = () => pickView("real"); $("v-3d").onclick = () => pickView("3d");
+bind("renderView", (el) => { d3().view = el.value; setView(el.value); }, "change");
 bind("cam3d", (el) => (d3().cam3d = el.value), "change"); bind("surface", (el) => (d3().surface = el.value), "change"); bind("set3d", (el) => (d3().set = el.value), "change");
-bind("use3d", (el) => (d3().view = el.checked ? "3d" : "2d"), "change");
 ["sh-rays", "sh-control", "sh-net", "sh-square", "flip", "coords", "gap"].forEach((id) => $(id).addEventListener("change", render3d));
 $("copy3d").onclick = () => { const c = d3(), j = JSON.stringify({ view: "3d", set: c.set, cam3d: c.cam3d, surface: c.surface, shapes: shapesUI() }); navigator.clipboard.writeText(j).then(() => toast("Copied: paste into a board scene's visual"), () => prompt("Copy these fields:", j)); };
 $("q").addEventListener("input", renderLib);
