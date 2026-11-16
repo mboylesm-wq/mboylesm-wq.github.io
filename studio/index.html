@@ -876,7 +876,7 @@ function tailSentences(t, n) { t = String(t || ""); if (t.length <= n) return t;
 // version: add 1 whenever the wording changes and say why in CHANGELOG.md. They are functions because they use
 // FORMATS and MOODS further down; `npm test` runs them through tests/page-harness.html.
 const PROMPTS = {
-  version: 7,
+  version: 8,
   // the house style, sent with the outline and every chapter
   rules: `You write narration for "PnoyChess", a Filipino chess YouTube channel making long-form videos in English: documentaries, explainers and essays about any chess topic.
 Style: stakes in the first 15 seconds, no channel intro; short spoken sentences; a new visual every 1-2 sentences; never three photos in a row; explain chess so beginners follow.
@@ -884,6 +884,25 @@ Story: one central question is opened in the cold open and answered clearly at t
 Voice: the narrator is Mark, a Filipino chess player and the voice of PnoyChess. In every chapter, one scene is his own take in the first person ("I think…", "Look at this move…", "For us in the Philippines…"): his view, a quick analysis, or why it matters to players; clearly an opinion, any facts in it still sourced. Mark those scenes "take": true. This personal commentary is what makes the channel original, not a template. A take scene gets a real picture like any other scene (a photo of the person or place, a board or a map); never a title card or any on-screen label saying "My take".
 Accuracy: only facts you are confident are true and can source; never invent quotes, numbers or dates; if unsure, leave it out. Never copy text from books or websites.`,
   // the visuals Claude may pick: the outline gets the core ones, a chapter both
+  proofRules: `PROOF FILM MODE (3Blue1Brown):
+This is one theorem, not a tour. Before scenes, fill a proof card: theorem (one sentence), misconception, counterexample, real game, visual signature, source. Then map nine beats: cold open, question, strip, measure, invariant, counterexample, real game, cost, takeaway.
+The diagram is the argument. Every scene must change the viewer's model: rise, collapse, measure, slide, cut, collide, land or flip. No chapter that only lists examples.
+Truth first: every FEN, move, number and quotation is verified. Never put a paraphrase inside quotation marks. Use the actual FIDE page as a document popup when citing a rule.
+Notation: square names are letter + number (a1 = ay-one); do not say move numbers; the on-screen move list may show them. Start a named opening at the initial position and play every named ply. A knight must land on a square, not only light it.
+Visual contract: coordinates must not move; no camera orbit on a board with a-h and 1-8; use 2.5D board for rank/file, Chebyshev, open-file and tier lessons; 3D only when physicality matters. White gold, Black cyan, danger crimson; no white beam core. One idea per scene, one emphasis word.
+No stock photos, no stock video, no generic filler. Public-domain portraits and actual documents are allowed with a credit.`,
+  visProof: `Visual JSON per scene (PROOF FILM: procedural only; no photo or video):
+board {"type":"board","view":"2d","set":"real","theme":"wood","fen":"<legal FEN>","moves":["<SAN>"],"moveAt":[<seconds per move>],"marks":[{"squares":["d4"],"color":"#F59E0B","style":"pulse","label":"8"}],"arrows":[{"from":"d4","to":"e6","color":"#F59E0B"}],"boxes":[{"squares":["a1","h1"],"color":"#06B6D4"}],"title":"<question>"} real position, legal SAN, one moveAt per move; 2.5D for geometry; 3D only for physicality
+terrain {"type":"terrain","mode":"mobility|control|distance","piece":"n","fen":"<legal FEN>","showValues":true,"labels":["d4"],"title":"<the field>"} a whole-board surface; static camera; layer words, never ring
+beams {"type":"beams","fen":"<legal FEN>","from":["d4"],"punch":"<4-8 words>","title":"<reach>","fide":{"src":"images/<actual-page>.png","credit":"<source>","at":<start>,"until":<end>}} a piece's reach only; FIDE is an actual page crop, not a paraphrase
+bars {"type":"bars","title":"...","unit":"squares","items":[{"label":"...","value":8}],"highlight":0} counted values in the order the voice names them
+compare {"type":"compare","title":"...","left":{"name":"...","lines":["..."]},"right":{"name":"...","lines":["..."]}} two ideas, no stock photos
+timeline {"type":"timeline","title":"...","items":[{"year":"1921","text":"...","photos":[{"src":"images/<pd>.jpg","name":"...","years":"...","credit":"Public domain · Wikimedia Commons"}]}]} history with credited PD portraits
+quote {"type":"quote","text":"<real quote>","author":"...","source":"...","portrait":{"src":"images/<pd>.jpg","name":"...","years":"...","credit":"Public domain · Wikimedia Commons"}} actual quote, credited
+words {"type":"words"} one pivot sentence, 4-14 words
+counter {"type":"counter","value":8,"label":"..."} one computed number
+end {"type":"end"} the story's last image; no CTA inside the story
+Rules: no camOrbit; no spoken move numbers; no table/ring; no stock media; one visual per scene; every number computed and sourced.`,
   visCore: `Visual JSON per scene (pick one):
 photo {"type":"photo","search":"<Wikimedia Commons search: person or place + year>","motion":"zoomIn|zoomOut|panLeft|panRight|punchIn","label":"<short place/date tag, optional>"} real people and places, most scenes
 video {"type":"video","query":"<2-4 words for stock b-roll: place or mood, e.g. Manila city streets, crowded tournament hall, night lights>","search":"<same 2-4 words>"} atmospheric B-roll video scenes (about 1 per chapter)
@@ -969,9 +988,11 @@ Optional per scene: "ambience":"hall|crowd|wind|city|night|rain|none".`,
   // the outline and cold open (the first call of a new script)
   outline: (opt, target) => {
     const s = (opt && opt.visualStyle) || "documentary";
-    const vis = s === "explainer" ? PROMPTS.visExplainer : s === "tactical" ? PROMPTS.visTactical : s === "noir" ? PROMPTS.visNoir : s === "retro" ? PROMPTS.visRetro : PROMPTS.visCore;
+    const vis = s === "explainer" ? PROMPTS.visExplainer : s === "tactical" ? PROMPTS.visTactical : s === "noir" ? PROMPTS.visNoir : s === "retro" ? PROMPTS.visRetro : s === "proof" ? PROMPTS.visProof : PROMPTS.visCore;
     const isDoc = s === "documentary";
     return `${PROMPTS.rules}
+
+${s === "proof" ? PROMPTS.proofRules : ""}
 
 ${vis}
 
@@ -980,15 +1001,17 @@ ${opt.format === "auto" ? `Format: pick the one that tells this topic best and n
 Topics: the channel covers anything about chess (people, games, history, psychology, science, AI, culture). For an idea topic, do not force it into a biography or invent a turning point, a person or a scene: build it from sourced claims, studies, numbers and real games, and for science or psychology cite the study or an expert source (journal, university, FIDE, a book by the researcher) as well as chess sites.
 ${!isDoc ? "Visual Style: " + s + " (follow the style instructions in the visual list above).\n" : ""}${(opt.sources || []).length ? "Starting sources: " + opt.sources.map((s) => s.title + " " + s.url).join("; ") : ""}
 Cite verifiable chess sources, best first. Official: fide.com, ratings.fide.com, handbook.fide.com, olimpbase.org, chess-results.com, uschess.org, europechess.net. Press: chessbase.com, chessbase.in, chess.com, lichess.org, theweekinchess.com, newinchess.com, chessdom.com, chess24.com, worldchess.com. Game databases: chessgames.com, 365chess.com. Reference (biography and background only, never the sole source for a result, rating, date, prize or rule): wikipedia.org, chessprogramming.org.
-Reply with only JSON: {${opt.format === "auto" ? '"format":"<the format key you picked>",' : ""}"title":"<YouTube title, max 60 chars>","titles":["<3 strong alternative titles, max 60 chars, curiosity without lies>"],"question":"<the one central question the cold open opens and the ending answers>","thumbnail":{"text":"<2-3 huge words, under 14 letters, that add tension the title does not say: stakes, emotion or a number (e.g. TOO YOUNG?, 18 = KING, NOBODY SAW IT); never words from the title; put *stars* around the one key word>","small":"<place + year tag, e.g. BAGUIO 1978>","person":"<full name of the one person the story is about, or empty>"},"coldOpen":[{"text":"<8-25 words>","visual":{...}}],"next":"<end card line 'Next: ...' teasing a related story>","chapters":[{"title":"<short>","words":<target words>,"mood":"<${Object.keys(MOODS).join("|")}>","beats":["<what this chapter covers, fact by fact>"],"opens":"<the small question this chapter leaves open>"}],"sources":[{"title":"<source name>","url":"<real URL, prefer Wikipedia/FIDE/official>"}]}
+Reply with only JSON: {${s === "proof" ? '"proof":{"theorem":"<one sentence>","misconception":"<the belief>","counterexample":"<the exception>","realGame":"<a real PGN or study>","visual":"<the one image>","source":"<the source>"},"beats":["<beat 1>","<beat 2>","<beat 3>","<beat 4>","<beat 5>","<beat 6>","<beat 7>","<beat 8>","<beat 9>"],' : ""}${opt.format === "auto" ? '"format":"<the format key you picked>",' : ""}"title":"<YouTube title, max 60 chars>","titles":["<3 strong alternative titles, max 60 chars, curiosity without lies>"],"question":"<the one central question the cold open opens and the ending answers>","thumbnail":{"text":"<2-3 huge words, under 14 letters, that add tension the title does not say: stakes, emotion or a number (e.g. TOO YOUNG?, 18 = KING, NOBODY SAW IT); never words from the title; put *stars* around the one key word>","small":"<place + year tag, e.g. BAGUIO 1978>","person":"<full name of the one person the story is about, or empty>"},"coldOpen":[{"text":"<8-25 words>","visual":{...}}],"next":"<end card line 'Next: ...' teasing a related story>","chapters":[{"title":"<short>","words":<target words>,"mood":"<${Object.keys(MOODS).join("|")}>","beats":["<what this chapter covers, fact by fact>"],"opens":"<the small question this chapter leaves open>"}],"sources":[{"title":"<source name>","url":"<real URL, prefer Wikipedia/FIDE/official>"}]}
 coldOpen: 2-6 quick scenes (40-70 words in all) opening the video before the PnoyChess sting: the most dramatic moment, no greeting, the last scene asks the central question. ${s === "explainer" || s === "tactical" ? "The FIRST scene is a dynamic board position, data chart, counter or kinetic words; never a photo." : "The FIRST scene is the strongest real picture: a photo of the person or the decisive moment, a board with the key move, or a map; never kinetic words or a title card first, and a photo or clip there gets a \"fallback\" (a geo or board visual) in case no licensed picture exists."}
 Use 4-6 chapters; chapter words must add up to about ${target}.`;
   },
   // one chapter; opt.current + opt.note when rewriting it
   chapter: ({ p, chs, ch, i, words, prevText, opt, last }) => {
     const s = (p && ((p.outline && p.outline.visualStyle) || p.visualStyle)) || "documentary";
-    const vis = s === "explainer" ? PROMPTS.visExplainer : s === "tactical" ? PROMPTS.visTactical : s === "noir" ? PROMPTS.visNoir : s === "retro" ? PROMPTS.visRetro : PROMPTS.visCore + "\n" + PROMPTS.visMore;
+    const vis = s === "explainer" ? PROMPTS.visExplainer : s === "tactical" ? PROMPTS.visTactical : s === "noir" ? PROMPTS.visNoir : s === "retro" ? PROMPTS.visRetro : s === "proof" ? PROMPTS.visProof : PROMPTS.visCore + "\n" + PROMPTS.visMore;
     return `${PROMPTS.rules}
+
+${s === "proof" ? PROMPTS.proofRules : ""}
 
 ${vis}
 
@@ -996,6 +1019,7 @@ Film: ${p.title}${p.outline && p.outline.format && FORMATS[p.outline.format] ? "
 ${p.outline && p.outline.question ? `Central question of the film: "${p.outline.question}".` : ""}
 ${prevText ? (i === 0 ? "The cold open before this chapter: " : "The previous chapter ended with: ") + "\"" + tailSentences(prevText, 400) + "\"" : ""}
 ${i > 0 && chs[i - 1].opens ? `Answer early in this chapter the question the previous one left open: "${chs[i - 1].opens}".` : ""}
+${s === "proof" ? "PROOF CARD: " + JSON.stringify(p.plan.proof || {}) + "\nBEATS: " + (p.plan.beats || []).join(" | ") + "\n" : ""}
 Write chapter ${i + 1}, "${ch.title}", about ${words} words of narration${(ch.beats || []).length ? ", covering: " + ch.beats.join("; ") : ""}.
 ${opt.current ? "Current version (rewrite it: keep the facts, make it better" + (opt.note ? "; " + opt.note : "") + "):\n\"" + opt.current.slice(0, 4000) + "\"" : ""}
 ${last ? "This is the last chapter: answer the central question clearly, tease a related next story, then finish with one short end scene." : ch.opens ? `End the chapter by opening this question: "${ch.opens}".` : ""}
@@ -1346,10 +1370,11 @@ const FORMATS = {
   history: ["History of an idea", "how one idea, tool or way of playing changed over time, in order: where it started, the turning points (each a real, dated, sourced event), where it stands today and what comes next"],
   science: ["Science & numbers", "the science or math behind the topic: each chapter one question answered with a sourced number, study or calculation (shown as counters, bars or charts), from the simple fact to the mind-blowing one; speculation clearly labelled"],
   myths: ["Myth vs fact", "4-6 things many players believe about the topic, one chapter each: the belief, why people believe it, what the evidence or a real game shows, and the verdict (true, false, or partly)"],
+  proof: ["Proof film", "one theorem proved visually: a proof card, nine beats, a counterexample and a real game; procedural diagrams and actual documents, no stock media"],
   auto: ["Let the AI pick", "choose the format above that tells this topic best"],
 };
 // the visual style that suits each format; picking a format sets it on the form (Mark can still change it)
-const FORMAT_STYLE = { story: "documentary", rivalry: "documentary", whatif: "documentary", countdown: "documentary", breakdown: "tactical", lecture: "tactical", idea: "explainer", history: "documentary", science: "explainer", myths: "explainer" };
+const FORMAT_STYLE = { story: "documentary", rivalry: "documentary", whatif: "documentary", countdown: "documentary", breakdown: "tactical", lecture: "tactical", idea: "explainer", history: "documentary", science: "explainer", myths: "explainer", proof: "proof" };
 // the writing AIs the page offers ("provider:model"); "custom" shows a provider list and a model box (any model name)
 const AI_WRITERS = [
   ["deepseek:deepseek-chat", "DeepSeek Chat (cheapest, default)"],
@@ -1381,7 +1406,8 @@ const VISUAL_STYLES = {
   explainer: ["Explainer (Vox / Code-Only)", "100% vector Remotion graphics (boards, charts, maps, quotes) with zero external photos"],
   tactical: ["Tactical Masterclass (Board Breakdown)", "Board-first tactical analysis: legal SAN moves, Stockfish evals, colored arrows, ghost refutations, player cards"],
   noir: ["Noir Investigation (Mystery / Scandal)", "High-contrast dark mode: historical document receipts, telegrams, gold highlighter, timelines, route maps, suspense score"],
-  retro: ["Retro Broadcast (Vintage Archive)", "1970s–80s vintage broadcast: sepia/mono footage, wood theme chessboards, analog race scoreboards"]
+  retro: ["Retro Broadcast (Vintage Archive)", "1970s–80s vintage broadcast: sepia/mono footage, wood theme chessboards, analog race scoreboards"],
+  proof: ["Proof film (3Blue1Brown)", "One theorem, a proof card, nine beats, procedural diagrams and actual documents; no stock media"],
 };
 
 // ---------- capabilities (the page works without them, features light up when they arrive) ----------
@@ -1725,10 +1751,10 @@ async function write(opt) {
     const p = { id, title: outline.title, topic: opt.topic, minutes: opt.minutes, visualStyle: opt.visualStyle || "documentary", status: "writing", factsChecked: false, claimsRequired: true, sources: outline.sources || [], createdAt: new Date().toISOString(),
       writtenBy, scriptSource: writtenBy,
       titles: [outline.title, ...((outline.titles || []).filter((t) => t && t !== outline.title).slice(0, 3))],
-      outline: { chapters: outline.chapters.map((c) => ({ title: String(c.title || ""), words: +c.words || 0, mood: c.mood || "", beats: c.beats || [], opens: String(c.opens || "") })), target,
+      outline: { proof: outline.proof || null, beats: outline.beats || [], chapters: outline.chapters.map((c) => ({ title: String(c.title || ""), words: +c.words || 0, mood: c.mood || "", beats: c.beats || [], opens: String(c.opens || "") })), target,
         question: String(outline.question || ""), format: opt.format === "auto" ? (FORMATS[outline.format] && outline.format !== "auto" ? outline.format : "story") : opt.format || "story", visualStyle: opt.visualStyle || "documentary" },
       writing: { next: 0 },
-      plan: { title: outline.title, format: "16:9", music: { track: opt.music }, next: outline.next || "", coldOpen: scenes.length, scenes, writtenBy,
+      plan: { proof: outline.proof || null, beats: outline.beats || [], title: outline.title, format: "16:9", music: { track: opt.music }, next: outline.next || "", coldOpen: scenes.length, scenes, writtenBy,
         thumbnail: { text: (outline.thumbnail && outline.thumbnail.text) || outline.title.split(" ").slice(0, 4).join(" "), small: outline.thumbnail && outline.thumbnail.small || "", person: outline.thumbnail && outline.thumbnail.person || "", people: [] } } };
     await S.db.doc("projects/" + id).set({ ...p, updatedAt: new Date().toISOString() });
     S.cur = p;
@@ -2069,6 +2095,9 @@ function planIssues(p) {
   return issues;
 }
 function projectEditor(p) {
+  // a stub draft may have no plan yet, and a record saved plan-flat carries the plan fields at the top level:
+  // normalise both here, so the editor always has p.plan.scenes (16 Nov 2026: a flat record blanked the page)
+  if (!p.plan) p = { ...p, plan: p.scenes ? { ...p } : { scenes: [], fps: 30, sources: [] } };
   const scenes = p.plan.scenes, total = scenes.reduce((n, s) => n + words(s.text), 0);
   const author = scriptAuthor(p);
   const top = el("section", { class: "panel" },
@@ -2769,14 +2798,14 @@ function shortsBox(p) {
       safeToggle
     ),
     el("div", { class: "note", text: list.length ? `${list.length} Shorts from this video for Facebook, Instagram, TikTok and YouTube Shorts. They post by themselves to Facebook, Instagram and YouTube Shorts, one a day at 14:30 Manila (best first) once the full video is Public on YouTube; TikTok: download and use its caption. Every caption links to the full video${url ? "" : " (the link is filled in once it is on YouTube)"}.`
-      : GH() ? "Shorts are made on your PC right after each render (the saved voice, so no ElevenLabs credits)." : "5–8 vertical clips cut from this video (the cold open and one beat per chapter). They use the saved voice, so no ElevenLabs credits; about 20–40 minutes of cloud time." }),
+      : GH() ? "Shorts are made on your PC right after each render (the saved voice, so no ElevenLabs credits). Make Shorts cuts them later from the saved voice: press it, then double-click render-pc.cmd on the PC." : "5–8 vertical clips cut from this video (the cold open and one beat per chapter). They use the saved voice, so no ElevenLabs credits; about 20–40 minutes of cloud time." }),
     p.shortsNote ? el("div", { class: "note", text: p.shortsNote }) : null,
     holder,
-    el("div", { class: "row" }, el("button", { class: "btn" + (list.length ? "" : " primary"), type: "button", disabled: waiting || !S.db || BUSY.includes(p.status) || GH(), title: GH() ? "Not on the GitHub page yet: use the Claude page for this" : "", text: waiting ? "Making Shorts at the next cloud run…" : list.length ? "Make the Shorts again" : "Make Shorts",
+    el("div", { class: "row" }, el("button", { class: "btn" + (list.length ? "" : " primary"), type: "button", disabled: waiting || !S.db || BUSY.includes(p.status) || !["review", "done"].includes(p.status), title: !["review", "done"].includes(p.status) ? "Render the video first: the Shorts are cut from its saved voice" : GH() ? "Cuts the Shorts on your PC (free, saved voice): double-click render-pc.cmd once it is queued" : "", text: waiting ? (GH() ? "Shorts queued for your PC…" : "Making Shorts at the next cloud run…") : list.length ? "Make the Shorts again" : "Make Shorts",
       onclick: async () => {
         // remaking: the old clips leave storage first (the new set replaces them)
         if (list.length && S.assets) for (const s of list) if (s.asset) await S.assets.delete(s.asset).catch(() => {});
-        await save(p, { shortsRequest: "waiting", ...(list.length ? { shorts: null } : {}) }); say("Shorts will be made at the next cloud worker run."); render(); } }),
+        await save(p, { shortsRequest: "waiting", ...(list.length ? { shorts: null } : {}) }); say(GH() ? "Shorts queued: double-click render-pc.cmd on your PC and they will be cut from the saved voice (free)." : "Shorts will be made at the next cloud worker run."); render(); } }),
       ghWriter() && list.length ? el("button", { class: "btn", type: "button", disabled: shortsBusy(), text: shortsBusy() ? "Posting… (about 4 min)" : "Post next Short now",
         onclick: () => startPostShorts({ slot: "1430" }) }) : null));
 }
