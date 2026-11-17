@@ -553,6 +553,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
     <nav aria-label="Views">
       <button type="button" id="nav-publish" data-view="publish">Schedule</button>
       <button type="button" id="nav-projects" data-view="projects">Create</button>
+      <button type="button" id="nav-viral" data-view="viral">Viral</button>
       <button type="button" id="nav-review" data-view="review">Review</button>
       <button type="button" id="nav-channel" data-view="channel">Channel</button>
       <button type="button" id="nav-tools" data-view="tools">Tools</button>
@@ -1411,7 +1412,7 @@ const VISUAL_STYLES = {
 };
 
 // ---------- capabilities (the page works without them, features light up when they arrive) ----------
-const S = { reels: [], reelOpen: null, view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, trendGames: null, grTop: "all", projects: [], music: [], cur: null, busy: false, health: null, edits: [], prefill: null, draftForm: null, sysHealth: null };
+const S = { reels: [], reelOpen: null, view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, trendGames: null, grTop: "all", grPrefill: null, viralFilter: "all", viralHideMade: true, projects: [], music: [], cur: null, busy: false, health: null, edits: [], prefill: null, draftForm: null, sysHealth: null };
 try { const d = localStorage.getItem("docu.draftForm"); if (d) S.draftForm = JSON.parse(d); } catch (e) {}
 
 function clearDraft() {
@@ -1455,7 +1456,7 @@ function saveDraft(data) {
     }, () => {});
     db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if ((S.view === "music" || S.cur) && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
-    db.collection("trendgames").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trendGames = snap.docs[0] ? snap.docs[0].data() : null; if (S.view === "gamereview" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("trendgames").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trendGames = snap.docs[0] ? snap.docs[0].data() : null; if ((S.view === "gamereview" || S.view === "viral") && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("health").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "status"); S.sysHealth = d ? d.data() : null; if (S.view === "health" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     S._ensureChannel = () => {
       if (S._channelSub) return;
@@ -1524,6 +1525,7 @@ function render() {
     S.view === "trends" ? viewTrends() :
     S.view === "write" ? viewWrite() :
     S.view === "gamereview" ? viewGameReview() :
+    S.view === "viral" ? viewViral() :
     S.view === "reel" ? viewReel() :
     S.view === "pgn" ? viewPgn() :
     S.view === "review" ? viewReview() :
@@ -4019,6 +4021,7 @@ function lazyView(src, make) {
   return box;
 }
 function viewReel() { return lazyView("reel.js", () => window.ReelStudio.view(S.reelOpen)); }
+function viewViral() { return lazyView("viral.js", () => window.ViralBoard.view()); }
 function viewPublish() { return lazyView("publish.js", () => window.PublishBoard.view()); }
 function viewTools(initialSub) {
   if (initialSub) S.toolTab = initialSub;
@@ -4412,6 +4415,8 @@ function viewGameReview() {
   const file = el("input", { type: "file", id: "gr-file", accept: ".pgn,.txt", "aria-label": "PGN file" });
   file.addEventListener("change", async () => { const f = file.files && file.files[0]; if (f) { pgn.value = await f.text(); updatePgnPreview(); } });
   const src = el("input", { id: "gr-source", type: "url", placeholder: "https://… (where the game is published: Lichess, chessgames, Wikipedia…)", "aria-label": "Source link" });
+  // a game picked on the Viral tab arrives with its own PGN and issue page (studio/viral.js: Review this game)
+  if (S.grPrefill) { pgn.value = S.grPrefill.pgn || ""; src.value = S.grPrefill.source || ""; S.grPrefill = null; updatePgnPreview(); }
   const depth = el("select", { id: "gr-depth", "aria-label": "Engine depth" }, ...[["16", "Normal (depth 16)"], ["20", "Deep (depth 20, slower)"], ["12", "Quick (depth 12)"]].map(([v, t]) => el("option", { value: v, text: t })));
   const eng = el("input", { type: "checkbox", id: "gr-engine", checked: true });
   // trending games: only games with a player on the FIDE top 50 open or the FIDE top 50 women (studio/trending.js,
