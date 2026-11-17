@@ -330,7 +330,7 @@ function load3d() {
   // staticFile() paths (the 3D chess set): next to the page when published, the repo's assets/ folder when opened from the PC
   // (a path, not a full URL: staticFile() encodes each part, so "https:" would become a relative folder)
   window.remotion_staticBase = new URL(/github\.io$/.test(location.hostname) ? "." : "../assets", location.href).pathname.replace(/\/$/, "");
-  return (lab3d = loadScript(["./fxlab3d.js?v=20261117polished", "../.cache/fxlab3d.js"]).then(() => window.PnoyLab3D, (e) => { lab3d = null; throw new Error("fxlab3d.js (run node tools/build-fxlab3d.mjs)"); }));
+  return (lab3d = loadScript(["./fxlab3d.js?v=20261115knight", "../.cache/fxlab3d.js"]).then(() => window.PnoyLab3D, (e) => { lab3d = null; throw new Error("fxlab3d.js (run node tools/build-fxlab3d.mjs)"); }));
 }
 function render3d() {
   if ((view !== "3d" && view !== "real") || !G) return; clearTimeout(t3);
