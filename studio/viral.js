@@ -189,6 +189,7 @@
     if (!ranked.length) {
       body.append(el("div", { class: "empty", text: topics.length
         ? "Nothing matches that filter. Pick Everything, or untick Hide what is made."
+        : !S.db ? "Sign in with your GitHub key (top of the page) to read the radar's topics and the week's games: both live in the repo."
         : "The radar has not read the chess news yet. It runs every Monday morning; press Refresh the radar to start it now." }));
     } else {
       body.append(hero(ranked[0]));
