@@ -3860,7 +3860,7 @@ function viewChannel() {
       e.note ? el("div", { class: "note", text: e.note }) : null, e.why ? el("div", { class: "note", text: "Why: " + e.why }) : null, e.thumbIdea ? el("div", { class: "note", text: "Thumbnail idea: " + e.thumbIdea }) : null,
       e.status === "ask" ? null : el("div", {}, field("title", "Title", v.title), field("description", "Description", v.description, true), field("tags", "Tags (comma separated)", v.tags || []),
         fil ? el("div", { class: "grid2" }, field("tlTitle", "Filipino title", v.tl && v.tl.title), field("tlDescription", "Filipino description", v.tl && v.tl.description, true)) : null,
-        v.short ? el("div", { class: "note", style: "margin:8px 0" }, "Shorts use YouTube's native vertical video frame (16:9 custom thumbnails get cropped).") :
+        v.short ? el("div", {}, e.thumb ? el("img", { src: "/_blob/" + e.thumb, width: 180, height: 320, style: "border-radius:6px;max-width:100%;height:auto" }) : el("div", { class: "note" }, "A Short gets a vertical 9:16 thumbnail: the Shorts grid cuts 16:9 to a strip.")) :
         el("div", {},
           e.thumb ? el("figure", { style: "margin:8px 0" }, el("img", { src: "/_blob/" + e.thumb, alt: "New thumbnail for " + v.title, width: e.thumbShort ? 180 : 320, height: e.thumbShort ? 320 : 180, loading: "lazy", style: "border-radius:6px;max-width:100%;height:auto" }),
             el("figcaption", { class: "note", text: (e.thumbShort ? "New vertical Shorts thumbnail (what the Shorts grid shows)" : "New thumbnail") + (e.thumbScore != null ? ` (the best of 3 looks: ${e.thumbScore}/100 at phone size)` : "") + (v.thumb ? "; the current one is in the list above" : "") })) : null,
