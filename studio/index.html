@@ -554,6 +554,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
       <button type="button" id="nav-publish" data-view="publish">Schedule</button>
       <button type="button" id="nav-projects" data-view="projects">Create</button>
       <button type="button" id="nav-viral" data-view="viral">Viral</button>
+      <button type="button" id="nav-visualised" data-view="visualised">Visualised</button>
       <button type="button" id="nav-review" data-view="review">Review</button>
       <button type="button" id="nav-channel" data-view="channel">Channel</button>
       <button type="button" id="nav-tools" data-view="tools">Tools</button>
@@ -1526,6 +1527,7 @@ function render() {
     S.view === "write" ? viewWrite() :
     S.view === "gamereview" ? viewGameReview() :
     S.view === "viral" ? viewViral() :
+    S.view === "visualised" ? viewVisualised() :
     S.view === "reel" ? viewReel() :
     S.view === "pgn" ? viewPgn() :
     S.view === "review" ? viewReview() :
@@ -4022,6 +4024,7 @@ function lazyView(src, make) {
 }
 function viewReel() { return lazyView("reel.js", () => window.ReelStudio.view(S.reelOpen)); }
 function viewViral() { return lazyView("viral.js", () => window.ViralBoard.view()); }
+function viewVisualised() { return lazyView("visualised.js", () => window.VisualisedBoard.view()); }
 function viewPublish() { return lazyView("publish.js", () => window.PublishBoard.view()); }
 function viewTools(initialSub) {
   if (initialSub) S.toolTab = initialSub;
