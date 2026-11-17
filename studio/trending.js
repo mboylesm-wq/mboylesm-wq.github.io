@@ -31,7 +31,8 @@
     const sideName = (s) => `FIDE top ${n} ${SIDE(s)}`;
     const list = el("div", { id: "gr-trending", class: "stack" });
     let lastSide = "";
-    games.slice(0, 15).forEach((g, i) => {
+    // every game of the chosen list (20 open + 10 women at most): the counts on the buttons must match what is shown
+    games.forEach((g, i) => {
       if (pick === "all" && g.topSide !== lastSide) { lastSide = g.topSide; list.append(el("div", { class: "note", style: "margin-top:8px;font-weight:700;color:var(--gold)", text: sideName(g.topSide) })); }
       list.append(row(g, i, o));
     });
