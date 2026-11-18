@@ -1,0 +1,114 @@
+{
+ "checkedOn": "2026-11-18",
+ "checkedAt": "2026-11-18T02:33:48.918Z",
+ "summary": "all good",
+ "items": [
+  {
+   "renewUrl": "https://github.com/mboylesm-wq/pnoychess-docu/settings/secrets/actions",
+   "renewSteps": [
+    "GitHub → repo Settings → Secrets and variables → Actions → New repository secret: paste the value from KeePass under the exact name shown."
+   ],
+   "id": "secrets",
+   "name": "GitHub secrets present",
+   "where": "repo Settings → Secrets and variables → Actions",
+   "status": "ok",
+   "expires": "-",
+   "detail": "all 1 present"
+  },
+  {
+   "renewUrl": "https://business.facebook.com/settings/system-users",
+   "renewSteps": [
+    "Meta Business Suite → Settings → Users → System users → pnoychess-poster → Generate new token (app PnoyChess Poster, expiry Never, page + Instagram permissions).",
+    "Copy it into KeePass.",
+    "GitHub → repo Settings → Secrets and variables → Actions → FB_PAGE_TOKEN → Update → paste."
+   ],
+   "id": "facebook",
+   "name": "Facebook page token",
+   "where": "GitHub secret FB_PAGE_TOKEN (copy in KeePass)",
+   "status": "ok",
+   "expires": "never",
+   "detail": "Page \"Pnoy Chess\""
+  },
+  {
+   "renewUrl": "https://business.facebook.com/settings/system-users",
+   "renewSteps": [
+    "Meta Business Suite → Settings → Users → System users → pnoychess-poster → Generate new token (app PnoyChess Poster, expiry Never, page + Instagram permissions).",
+    "Copy it into KeePass.",
+    "GitHub → repo Settings → Secrets and variables → Actions → FB_PAGE_TOKEN → Update → paste."
+   ],
+   "id": "instagram",
+   "name": "Instagram access",
+   "where": "Same token as Facebook",
+   "status": "ok",
+   "expires": "with the Facebook token",
+   "detail": "@pnoychess"
+  },
+  {
+   "renewUrl": "https://github.com/mboylesm-wq/pnoychess-docu/settings/secrets/actions",
+   "renewSteps": [
+    "Start a chat: \"PnoyChess YouTube reconnect\". Claude runs the Google sign-in flow and gives you the new refresh token step.",
+    "Save it in KeePass, then update the GitHub secret YT_REFRESH_TOKEN."
+   ],
+   "id": "youtube",
+   "name": "YouTube connection",
+   "where": "GitHub secrets YT_CLIENT_ID, YT_CLIENT_SECRET, YT_REFRESH_TOKEN",
+   "status": "ok",
+   "expires": "no date (Google can cancel it)",
+   "detail": "Pnoy Chess"
+  },
+  {
+   "renewUrl": "https://github.com/mboylesm-wq/pnoychess-docu/actions/workflows/threads.yml",
+   "renewSteps": [
+    "GitHub → Actions → Threads connect → Run workflow, action refresh  (a long-lived token refreshes itself while it is under 60 days old).",
+    "If it says the token expired: action link, open the URL in the run summary, Allow as @pnoychess, Copy code; then run it again with action finish and paste the code.",
+    "The workflow seals the new token into chess/publisher/state/threads.enc and commits it. Steps and limits: docs/THREADS.md."
+   ],
+   "id": "threads",
+   "name": "Threads connection",
+   "where": "GitHub secret THREADS_TOKEN",
+   "status": "ok",
+   "expires": "?",
+   "detail": "@pnoychess · raw THREADS_TOKEN: replace it by hand every 60 days · Threads posting is dry-run"
+  },
+  {
+   "renewUrl": "https://publish.buffer.com/settings/api",
+   "renewSteps": [
+    "publish.buffer.com → Settings → API Access Tokens → copy the personal API key.",
+    "GitHub → repo Settings → Secrets and variables → Actions → BUFFER_API_KEY → Update → paste."
+   ],
+   "id": "tiktok",
+   "name": "TikTok via Buffer",
+   "where": "GitHub secret BUFFER_API_KEY",
+   "status": "ok",
+   "expires": "no date (personal API key)",
+   "detail": "channel pnoychessofficialtk"
+  },
+  {
+   "renewUrl": "https://console.cron-job.org/jobs",
+   "renewSteps": [
+    "cron-job.org → Cronjobs: the PnoyChess jobs reel maker, prep, slot and slot backup enabled? (prep backup is off on purpose since 30 Oct.) Open History for failures.",
+    "If GitHub answers 401: make a new fine-grained key (repo pnoychess-docu, Actions: Read and write) and paste \"Bearer <key>\" into the Authorization header of each job."
+   ],
+   "id": "cronjob",
+   "name": "Run timer (cron-job.org)",
+   "where": "cron-job.org jobs, GitHub key \"cronjob-pnoychess\" (no expiry, in KeePass)",
+   "status": "ok",
+   "expires": "no expiry",
+   "detail": "last run 2026-11-18 08:25 Manila"
+  },
+  {
+   "renewUrl": "https://github.com/settings/personal-access-tokens",
+   "renewSteps": [
+    "GitHub → Settings → Developer settings → Fine-grained tokens → Generate new token: repo pnoychess-docu, Contents: Read and write, Actions: Read-only, 1 year.",
+    "Save it in KeePass, open the Reel Inbox → Key tab → Remove key, then paste the new one."
+   ],
+   "id": "inbox-desktop",
+   "name": "Reel Inbox key (desktop)",
+   "where": "Browser on your desktop + KeePass",
+   "status": "ok",
+   "expires": "2027-10-28",
+   "detail": "fine-grained key made 28 Oct 2026 for 1 year (estimated; check GitHub → Settings → Fine-grained tokens)"
+  }
+ ],
+ "weeklyOn": "2026-11-02"
+}
