@@ -484,9 +484,10 @@ $("export").onclick = () => { const a = document.createElement("a"); a.href = UR
 $("import").onclick = () => $("file").click();
 $("file").onchange = async () => { try { const j = JSON.parse(await $("file").files[0].text()); if (!j.long || !j.reel) throw new Error("not an FX preset"); P = j; syncUI(); toast("Preset imported"); } catch (e) { toast("⚠ " + e.message); } };
 $("save").onclick = async () => {
-  let key = null; try { key = localStorage.getItem(KEY); } catch (e) {}
-  // opened from the PC folder (or before Studio signed in here) the Studio key is not in this browser yet: ask once
-  if (!key) { key = (prompt("Paste your PnoyChess Studio GitHub key (github_pat_…) to save this preset for renders. It stays only in this browser.") || "").trim(); if (!key) { toast("Saved in this browser only (no GitHub key)."); return; } try { localStorage.setItem(KEY, key); } catch (e) {} }
+  let key = null; try { key = sessionStorage.getItem(KEY); } catch (e) {}
+  // opened from the PC folder (or before Studio signed in here) the Studio key is not in this browser yet: ask once.
+  // Kept for this tab only (18 Nov 2026): a write token has no business surviving in a browser for ever.
+  if (!key) { key = (prompt("Paste your PnoyChess Studio GitHub key (github_pat_…) to save this preset for renders. It is kept until you close this tab.") || "").trim(); if (!key) { toast("Saved in this browser only (no GitHub key)."); return; } try { sessionStorage.setItem(KEY, key); } catch (e) {} }
   const H = { Authorization: "Bearer " + key, Accept: "application/vnd.github+json" }, url = `https://api.github.com/repos/${REPO}/contents/${PATH}`;
   try {
     let sha; const cur = await fetch(url + "?ref=main", { headers: H }); if (cur.ok) sha = (await cur.json()).sha; else if (cur.status !== 404) throw new Error("GitHub " + cur.status);
