@@ -40,19 +40,27 @@ const DEMAND = [
 ];
 
 // The story behind the story: a title that names one of these reads as a film, not as a wire report.
+// The third value says what the story may be hung on (18 Nov 2026 audit):
+//   "names" - a player's name plus this story states a fact about the chess ("the sacrifice", "the comeback")
+//   "pair"  - only the headline itself or two names may carry it. "Hans Niemann: the scandal", "Fischer: the last
+//             days" and "Kramnik: the collapse" accuse or bury a man the topic never accused: the name is the subject
+//             of the sentence, so it reads as a claim about him.
+// `queen` used to map to "the sacrifice", so a headline that merely mentioned a queen ("the Queen's Gambit", "a queen
+// endgame") offered "<Player>: the sacrifice". A queen is not a sacrifice; only the word for one is.
 const STORY = [
-  [/\bsacrific\w*|queen\b/i, "the sacrifice"],
-  [/\bcheat\w*|scandal|lawsuit|niemann|toilet|anal beads/i, "the scandal"],
-  [/\bdefect\w*|fled? the (ussr|soviet)|asylum/i, "the defection"],
-  [/\bhoax|mechanical turk|fraud/i, "the greatest hoax"],
-  [/\bcomeback|returned|rematch/i, "the comeback"],
-  [/\bcollapse|broke down|breakdown|depress\w*|madness|mind\b/i, "the collapse"],
-  [/\bunbeaten|invincib\w*|never lost/i, "the unbeaten run"],
-  [/\byoungest|teenager|prodigy\b/i, "the youngest champion"],
-  [/\bdied|death|killed|murder\w*/i, "the last days"],
-  [/\bfirst\b/i, "the first"],
-  [/\bdirty tricks|hypno\w*|mirror glasses/i, "match of dirty tricks"],
-  [/\bstopp?ed\b|no winner|abandon\w*/i, "the match nobody won"],
+  [/\bsacrific\w*|\bsac\b/i, "the sacrifice", "names"],
+  [/\bgambit\b/i, "the gambit", "names"],
+  [/\bcheat\w*|scandal|lawsuit|toilet|anal beads/i, "the scandal", "pair"],
+  [/\bdefect\w*|fled? the (ussr|soviet)|asylum/i, "the defection", "pair"],
+  [/\bhoax|mechanical turk|fraud/i, "the greatest hoax", "pair"],
+  [/\bcomeback|returned|rematch/i, "the comeback", "names"],
+  [/\bcollapse|broke down|breakdown|depress\w*|madness|mind\b/i, "the collapse", "pair"],
+  [/\bunbeaten|invincib\w*|never lost/i, "the unbeaten run", "names"],
+  [/\byoungest|teenager|prodigy\b/i, "the youngest champion", "names"],
+  [/\bdied|death|killed|murder\w*/i, "the last days", "pair"],
+  [/\bfirst\b/i, "the first", "names"],
+  [/\bdirty tricks|hypno\w*|mirror glasses/i, "match of dirty tricks", "pair"],
+  [/\bstopp?ed\b|no winner|abandon\w*/i, "the match nobody won", "pair"],
 ];
 
 const HOOK_OPEN = /^(the day|the night|the man|the woman|the game|the match|the boy|the girl|the queen|the king|how |why |what happened|inside |nobody |no one |when )/i;
@@ -210,16 +218,17 @@ function formatFor(topic, all, hit) {
 
 // ---------- title starting points ----------
 // Two shapes only, both noun phrases, so the grammar cannot break: "<Player>: the <story>" and
-// "<A> vs <B>: <story>". Nothing is invented: without a story in the topic there is no second option.
-// Mark edits them in Write; nothing here is sent anywhere.
+// "<A> vs <B>: <story>". Nothing is invented: without a story in the topic there is no second option, and a story
+// marked "pair" (a scandal, a death, a breakdown) is never hung on one player's name: "Hans Niemann: the scandal"
+// would say he did something the topic never said. Mark edits them in Write; nothing here is sent anywhere.
 export function titleOptions(topic = {}) {
   const title = String(topic.title || "").replace(/\s+/g, " ").trim();
-  const story = (STORY.find(([re]) => re.test(title)) || [])[1];
+  const hit = STORY.find(([re]) => re.test(title)), story = hit && hit[1], onNames = !!hit && hit[2] === "names";
   const found = PLAYERS.filter(([k]) => has(title, k)).map(([, n]) => n).filter((n, i, a) => a.indexOf(n) === i);
   const out = [{ text: clip(title, 70), pattern: "the headline as it stands" }];
   if (found.length >= 2 && /\bvs\.?\b/i.test(title)) {
     out.push({ text: clip(`${found[0]} vs ${found[1]}: ${story || "the game"}`, 90), pattern: "the two names, then the promise" });
-  } else if (found.length && story && !title.toLowerCase().startsWith(story)) {
+  } else if (found.length && onNames && !title.toLowerCase().startsWith(story)) {
     out.push({ text: clip(`${found[0]}: ${story}`, 90), pattern: "the player, then the story" });
   }
   return out.filter((o, i, a) => o.text && a.findIndex((x) => x.text === o.text) === i).slice(0, 3);
