@@ -2148,10 +2148,7 @@ function projectEditor(p) {
       clVoice ? el("div", { style: "display:grid;gap:8px" },
         el("label", { style: "max-width:460px" }, "Delivery (your voice)",
           el("select", { "aria-label": "Cloned voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. Your PC makes the narration again at the next render (free)."); render(); }) },
-            ...[["auto", "Auto (recommended): excitement for reels and Shorts, storytelling for long-form"], ["calm", "Calm teaching: even, gentle"], ["confident", "Confident explanation: settled and certain"], ["curious", "Curious: a question the film will answer"], ["reflective", "Reflective: a closing thought, a loss, a memory"], ["suspense", "Suspense: a held breath before the move"], ["excitement", "Excitement: the mate, the upset, the finish"]].map(([v, t]) => el("option", { value: v, selected: (p.narration.style || "auto") === v, text: t })))),
-        el("label", { style: "max-width:460px" }, "Voice model (runs on your PC)",
-          el("select", { "aria-label": "Local voice model", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, localModel: e.target.value } }).then(() => { say(e.target.value ? "Model saved. Your PC makes the narration again with it at the next render (free, slower for a v2Pro/v5 candidate)." : "Back to the pinned production voice. Your PC makes the narration again at the next render (free)."); render(); }) },
-            ...[["", "Pinned production voice (the one the channel uses)"], ["v2-e12", "v2 fine-tune, matched checkpoints (audition)"], ["v2pro", "v2Pro, zero-shot from your reference clips (audition)"], ["v5turbo", "v5turbo, zero-shot from your reference clips (audition)"]].map(([v, t]) => el("option", { value: v, selected: (p.narration.localModel || "") === v, text: t })))) ) : null,
+            ...[["auto", "Auto (recommended): excitement for reels and Shorts, storytelling for long-form"], ["calm", "Calm teaching: even, gentle"], ["confident", "Confident explanation: settled and certain"], ["curious", "Curious: a question the film will answer"], ["reflective", "Reflective: a closing thought, a loss, a memory"], ["suspense", "Suspense: a held breath before the move"], ["excitement", "Excitement: the mate, the upset, the finish"]].map(([v, t]) => el("option", { value: v, selected: (p.narration.style || "auto") === v, text: t }))))) : null,
       elVoice ? el("div", { style: "display:grid;gap:8px" },
         el("label", { style: "max-width:420px" }, "Delivery (same voice, different energy)",
           el("select", { "aria-label": "Voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. The narration is made again at the next render (ElevenLabs credits for the script)."); render(); }) },
@@ -3403,154 +3400,6 @@ function chanElevenCard() {
   );
 }
 
-function getFlowData() {
-  if (S.sysHealth && S.sysHealth.googleFlow) return S.sysHealth.googleFlow;
-  if (S.health && S.health.googleFlow) return S.health.googleFlow;
-  try {
-    const raw = window.localStorage.getItem("docu.flow.data");
-    if (raw) return JSON.parse(raw);
-  } catch {}
-  return {
-    plan: "Google AI Premium",
-    creditsTotal: 500,
-    creditsLeft: 450,
-    creditsUsed: 50,
-    costPerClip: 10,
-    estimatedClips: 45,
-    status: "active"
-  };
-}
-
-function chanFlowCard() {
-  const gf = getFlowData();
-  const limit = gf.creditsTotal || 500;
-  const left = gf.creditsLeft ?? 450;
-  const estClips = Math.floor(left / (gf.costPerClip || 10));
-  const estThumbs = Math.floor(left / 5);
-
-  const statusCls = left > 100 ? "ok" : left > 30 ? "warn" : "bad";
-  const statusLabel = left > 100 ? "Active Plan" : left > 30 ? "Moderate" : "Low Credits";
-
-  const refreshBtn = el("button", {
-    class: "btn",
-    type: "button",
-    id: "chan-flow-update",
-    text: "Log / Update Credits",
-    title: "Enter current Flow credits left from your flow.google profile",
-    onclick: async () => {
-      const cur = prompt("Enter your remaining Google Flow credits (from flow.google profile avatar):", String(left));
-      if (cur != null && cur.trim() !== "" && !isNaN(Number(cur))) {
-        const num = Number(cur.trim());
-        const updated = {
-          ...gf,
-          creditsLeft: num,
-          creditsUsed: Math.max(0, limit - num),
-          estimatedClips: Math.floor(num / (gf.costPerClip || 10)),
-          lastUpdated: new Date().toISOString()
-        };
-        try {
-          window.localStorage.setItem("docu.flow.data", JSON.stringify(updated));
-          if (S.db) {
-            await S.db.doc("health/status").update({ googleFlow: updated });
-          }
-          say(`Google Flow balance saved: ${num} credits (~${updated.estimatedClips} clips remaining).`);
-          render();
-        } catch (e) {
-          say("Saved locally: " + (e.message || e));
-          render();
-        }
-      }
-    }
-  });
-
-  const openFlowBtn = el("a", {
-    class: "btn primary",
-    href: "https://flow.google",
-    target: "_blank",
-    rel: "noopener noreferrer",
-    text: "Open Google Flow Studio ↗",
-    title: "Launch flow.google creative studio in a new tab"
-  });
-
-  const sampleAssets = [
-    { type: "Shorts Hook (9:16)", title: "Retro Clock Flag Drop", tags: ["tension", "clock", "retro"], projects: "baguio-1978, cardoso-1957", prompt: "Cinematic vertical 9:16 macro close-up of a vintage 1970s mechanical wooden chess clock. The red flag is vibrating on the edge of falling. Dramatic warm side-lighting cutting through cigarette smoke. Slow motion dolly in. Photorealistic, 35mm film grain, no text, no illegible numbers." },
-    { type: "Documentary B-Roll (16:9)", title: "1978 Baguio Auditorium", tags: ["baguio", "audience", "tension"], projects: "baguio-1978", prompt: "Wide 16:9 slow panning cinematic shot of a packed 1978 Philippine convention auditorium. Dramatic stage lighting focused down on a central wooden table, spectators in vintage 1970s attire in shadowy silhouette holding breath. Analog film texture, 1970s palette." },
-    { type: "Thumbnail Hero Art (16:9)", title: "Dual-Tone Grandmaster Spotlight", tags: ["thumbnail", "hero", "split-lighting"], projects: "wesley-so, eugenio-torre", prompt: "Ultra-wide 16:9 studio backdrop for a documentary thumbnail. Solitary dramatic overhead spotlight beam cutting through haze into total deep navy blackness (#060c1a). Warm golden amber rim-lighting (#FDD004) left, dark cyan right. Clean center space for cut-out." }
-  ];
-
-  const assetList = el("div", { style: "display:grid;gap:8px;margin-top:12px;" });
-  sampleAssets.forEach((a) => {
-    assetList.append(
-      el("div", { class: "proj", style: "padding:10px 12px;background:var(--card-bg, #0b1528);border:1px solid var(--line);border-radius:6px;display:grid;gap:6px;" },
-        el("div", { class: "row", style: "justify-content:space-between;align-items:center;" },
-          el("div", { class: "row", style: "gap:8px;align-items:center;" },
-            el("span", { class: "pill ok", style: "font-size:11px;", text: a.type }),
-            el("strong", { style: "font-size:13px;", text: a.title })
-          ),
-          el("button", {
-            class: "btn small",
-            type: "button",
-            text: "Copy Flow Prompt",
-            title: "Copy prompt to clipboard for flow.google",
-            onclick: () => {
-              if (navigator.clipboard) {
-                navigator.clipboard.writeText(a.prompt);
-                say(`Copied prompt for "${a.title}" to clipboard!`);
-              } else {
-                prompt("Copy prompt:", a.prompt);
-              }
-            }
-          })
-        ),
-        el("div", { style: "font-size:12px;color:var(--dim);font-family:monospace;background:rgba(0,0,0,0.25);padding:6px 8px;border-radius:4px;word-break:break-word;", text: a.prompt }),
-        el("div", { class: "note", style: "font-size:11px;" }, `Reused across: ${a.projects} · Tags: ${a.tags.join(", ")}`)
-      )
-    );
-  });
-
-  return el("section", { class: "panel", style: "border-left: 3px solid #4285F4;" },
-    el("div", { class: "row", style: "justify-content:space-between;align-items:center;" },
-      el("div", { class: "row", style: "gap:10px;align-items:center;" },
-        el("h2", { text: "Google Flow Creative Studio & B-Roll Vault" }),
-        el("span", { class: "pill " + statusCls, text: `${statusLabel}: ${left.toLocaleString()} credits left` })
-      ),
-      el("div", { class: "row", style: "gap:8px;" },
-        openFlowBtn,
-        refreshBtn
-      )
-    ),
-    el("div", { class: "note", style: "margin:6px 0 12px;" },
-      `AI-planned cinematic video shots and thumbnail hero art generated via Veo/Flow. Prompts are cataloged in ` +
-      `db/flow/catalog.json and reused across multiple documentaries so zero credits are wasted.`
-    ),
-    el("div", { class: "grid-4", style: "display:grid;grid-template-columns:repeat(auto-fit, minmax(140px, 1fr));gap:10px;" },
-      el("div", { style: "background:var(--bg);padding:10px;border-radius:6px;border:1px solid var(--line);" },
-        el("div", { style: "font-size:11px;color:var(--dim);text-transform:uppercase;" }, "Plan Tier"),
-        el("div", { style: "font-size:18px;font-weight:700;color:var(--fg);margin-top:2px;" }, gf.plan || "AI Premium")
-      ),
-      el("div", { style: "background:var(--bg);padding:10px;border-radius:6px;border:1px solid var(--line);" },
-        el("div", { style: "font-size:11px;color:var(--dim);text-transform:uppercase;" }, "Credits Balance"),
-        el("div", { style: "font-size:18px;font-weight:700;color:var(--accent);margin-top:2px;" }, `${left.toLocaleString()} / ${limit.toLocaleString()}`)
-      ),
-      el("div", { style: "background:var(--bg);padding:10px;border-radius:6px;border:1px solid var(--line);" },
-        el("div", { style: "font-size:11px;color:var(--dim);text-transform:uppercase;" }, "Est. Video B-Roll"),
-        el("div", { style: "font-size:18px;font-weight:700;color:var(--fg);margin-top:2px;" }, `~${estClips} clips (4s Veo)`)
-      ),
-      el("div", { style: "background:var(--bg);padding:10px;border-radius:6px;border:1px solid var(--line);" },
-        el("div", { style: "font-size:11px;color:var(--dim);text-transform:uppercase;" }, "Est. Thumb Backdrops"),
-        el("div", { style: "font-size:18px;font-weight:700;color:var(--fg);margin-top:2px;" }, `~${estThumbs} images`)
-      )
-    ),
-    el("div", { style: "margin-top:14px;" },
-      el("div", { class: "row", style: "justify-content:space-between;align-items:center;margin-bottom:6px;" },
-        el("h3", { style: "font-size:14px;", text: "AI-Decided Asset Queue & Multi-Project Reusable Bank" }),
-        el("span", { class: "note", text: "Prompts tuned to prevent illegal chess boards (atmosphere, clocks, silhouettes only)" })
-      ),
-      assetList
-    )
-  );
-}
-
 // ---------- Profiles: the channel's own words on every platform, all pointing at the YouTube channel
 // YouTube's part is written here and sent by the autopilot (db/channel/setup.json); Meta and TikTok allow no
 // bio/about write through their APIs, so the other three are copied by hand once (Copy button + the settings link).
@@ -3806,8 +3655,6 @@ function viewChannel() {
   wrap.append(chanElevenCard());
   wrap.append(chanKeysCard());
 
-  // 2. Google Flow Creative Studio & B-Roll Vault
-  wrap.append(chanFlowCard());
   const check = el("button", { class: "btn", type: "button", id: "chan-check", disabled: !S.actions, title: S.actions ? "" : "Only the GitHub page can start this", text: "Check the channel now", onclick: () => runChannel("audit") });
   const top = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Channel health" + (h ? ": " + h.score + "/100" : "") }), check));
   wrap.append(top);
