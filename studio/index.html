@@ -575,11 +575,20 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
 // tools/build-site.mjs puts this script in front of the page (site/index.html), so the page finds a window.claude
 // that keeps every document as db/<collection>/<id>.json and every upload as db/files/<id> in the pnoychess-docu
 // repo. Writing needs Claude and is simply not offered here (the page already works without it).
-// The access key is a fine-grained GitHub token for that one repo, kept only in this browser (as the reel Inbox does).
+// The access key is a fine-grained GitHub token for that one repo. Since 18 Nov 2026 it is kept for the browser SESSION
+// only (closed tab, gone); "Keep me signed in on this computer" is the opt-in that writes it to localStorage, because a
+// long-lived write token sitting in a browser forever is a credential nobody would notice was stolen. A key left behind
+// by an older version is moved into the session store and removed from localStorage at load.
 // makeBackend() has no browser parts, so tests/run.mjs tests it against tests/fake-github.mjs.
 (function () {
-  const REPO = "mboylesm-wq/pnoychess-docu", BRANCH = "main", KEY = "docu.github.key", POLL = 30000;
+  const REPO = "mboylesm-wq/pnoychess-docu", BRANCH = "main", KEY = "docu.github.key", KEEP = "docu.github.keep", POLL = 30000;
   const SAFE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}$/;
+  const sget = (s, k) => { try { return window[s].getItem(k); } catch (e) { return null; } };
+  const sset = (s, k, v) => { try { window[s].setItem(k, v); } catch (e) { /* storage is optional */ } };
+  const sdel = (s, k) => { try { window[s].removeItem(k); } catch (e) { /* storage is optional */ } };
+  const keptKey = () => sget("sessionStorage", KEY) || sget("localStorage", KEY);
+  const forgetKey = () => { sdel("sessionStorage", KEY); sdel("localStorage", KEY); sdel("localStorage", KEEP); };
+  const remember = (k, keep) => { if (keep) { sset("localStorage", KEY, k); sset("localStorage", KEEP, "1"); sdel("sessionStorage", KEY); } else { sset("sessionStorage", KEY, k); sdel("localStorage", KEY); sdel("localStorage", KEEP); } };
 
   const toB64 = (bytes) => { let s = ""; for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000)); return btoa(s); };
   const fromB64 = (b64) => Uint8Array.from(atob(String(b64).replace(/\s/g, "")), (c) => c.charCodeAt(0));
@@ -795,20 +804,21 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
   // a test server may point the page at a fake GitHub, never a published page (the key would go there)
   const local = /^(127\.0\.0\.1|localhost)$/.test(location.hostname), q = new URLSearchParams(location.search);
   const apiBase = local && q.get("api") ? new URL(q.get("api"), location.href).href.replace(/\/$/, "") : "https://api.github.com";
-  let token = null; try { token = localStorage.getItem(KEY); } catch (e) {}
+  let token = keptKey();
+  if (token && !sget("localStorage", KEEP)) { sset("sessionStorage", KEY, token); sdel("localStorage", KEY); } // an older version kept it for ever
 
   const panel = (html) => { const show = () => { const d = document.createElement("div"); d.id = "gh-panel"; d.style.cssText = "max-width:720px;margin:12px auto;padding:14px 16px;border:1px solid #c9a227;border-radius:10px;background:#1b1b1b;color:#eee;font:14px system-ui,sans-serif"; d.innerHTML = html; document.body.prepend(d); return d; };
     return document.body ? Promise.resolve(show()) : new Promise((ok) => document.addEventListener("DOMContentLoaded", () => ok(show()))); };
-  const signIn = (why) => panel(`<b>Docu Studio on GitHub</b><p style="margin:6px 0">${why || "Paste your GitHub access key to open your projects."} It is kept only in this browser.</p>
+  const signIn = (why) => panel(`<b>Docu Studio on GitHub</b><p style="margin:6px 0">${why || "Paste your GitHub access key to open your projects."} It is kept for this browser session only; tick the box to keep it on this computer.</p>
 <p style="margin:6px 0;color:#aaa;font-size:13px">Make it once: GitHub → Settings → Developer settings → Fine-grained tokens → Generate new token. Repository access: only <b>pnoychess-docu</b>. Permissions: Contents <b>Read and write</b>, Actions <b>Read and write</b>.</p>
-<input id="gh-key" type="password" autocomplete="off" placeholder="github_pat_…" style="width:100%;padding:8px;margin:4px 0;box-sizing:border-box"> <button id="gh-save" type="button">Open my projects</button> <span id="gh-msg"></span>`).then((d) => {
+<input id="gh-key" type="password" autocomplete="off" placeholder="github_pat_…" style="width:100%;padding:8px;margin:4px 0;box-sizing:border-box"> <label style="font-size:13px;color:#ccc"><input id="gh-keep" type="checkbox"> Keep me signed in on this computer</label> <button id="gh-save" type="button">Open my projects</button> <span id="gh-msg"></span>`).then((d) => {
     d.querySelector("#gh-save").onclick = async () => {
       const k = d.querySelector("#gh-key").value.trim(), msg = d.querySelector("#gh-msg"); if (!k) return;
       msg.textContent = " Checking…";
       try { const r = await fetch(`${apiBase}/repos/${REPO}`, { headers: { Authorization: "Bearer " + k, Accept: "application/vnd.github+json" } }); const j = r.ok ? await r.json() : null;
         if (!j) throw new Error(r.status === 401 ? "GitHub did not accept this key" : r.status === 404 ? "this key cannot see pnoychess-docu" : "GitHub said " + r.status);
         if (!j.permissions || !j.permissions.push) throw new Error("this key can read but not save (Contents: Read and write)");
-        localStorage.setItem(KEY, k); location.reload();
+        remember(k, d.querySelector("#gh-keep").checked); location.reload();
       } catch (e) { msg.textContent = " " + e.message; }
     };
   });
@@ -834,7 +844,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
     if (text !== told) { d.querySelector("span").textContent = text; told = text; }
   };
   const onSync = ({ ok, name, error }) => { if (ok) stale.delete(name); else stale.set(name, error); showStale(); };
-  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, progressive: true, onSync, onAuthError: () => { if (warned) return; warned = true; try { localStorage.removeItem(KEY); } catch (e) {} signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
+  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, progressive: true, onSync, onAuthError: () => { if (warned) return; warned = true; forgetKey(); signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
   const realFetch = window.fetch.bind(window);
   window.fetch = (input, init) => { const u = typeof input === "string" ? input : input && input.url; const m = /^\/_blob\/([^/?#]+)$/.exec(u || ""); return m ? backend.blob(decodeURIComponent(m[1])) : realFetch(input, init); };
   // <img src="/_blob/…"> never goes through fetch: load it with the key and show it from memory
@@ -865,7 +875,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
   }
   schedulePoll();
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") backend.refreshAll(); });
-  const out = () => panel(`<span style="color:#aaa">PnoyChess Studio on GitHub · saving to <b>${REPO}</b> · writing: Copilot in VS Code (Docu writer) or Claude</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = () => { localStorage.removeItem(KEY); location.reload(); }; });
+  const out = () => panel(`<span style="color:#aaa">PnoyChess Studio on GitHub · saving to <b>${REPO}</b> · writing: Copilot in VS Code (Docu writer) or Claude${sget("localStorage", KEY) ? " · this browser remembers the key" : " · the key goes when this tab closes"}</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = () => { forgetKey(); location.reload(); }; });
   out();
 })();
 
@@ -2135,9 +2145,13 @@ function projectEditor(p) {
         onclick: () => save(p, { narration: elVoice ? null : { kind: "elevenlabs", model: "eleven_v4", style: "documentary", name: "My ElevenLabs voice", size: 0 } }).then(render) }),
         el("button", { class: "btn" + (clVoice ? " primary" : ""), type: "button", id: "clone-voice", text: clVoice ? "Using GPT-SoVITS voice (free, on this PC) ✓" : "Use GPT-SoVITS voice (free, on this PC)", title: "Your cloned voice with GPT-SoVITS made locally on your PC GPU: 0 credits, calm or dramatic delivery per scene.",
         onclick: () => save(p, { narration: clVoice ? null : { kind: "clone", style: "auto", approved: true, name: "My cloned voice: GPT-SoVITS (local, free)", size: 0 } }).then(render) })),
-      clVoice ? el("label", { style: "max-width:420px" }, "Delivery (your voice)",
-        el("select", { "aria-label": "Cloned voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. Your PC makes the narration again at the next render (free)."); render(); }) },
-          ...[["auto", "Auto: dramatic on exclamations and your takes, calm elsewhere"], ["calm", "Calm: the Baguio opening (default documentary)"], ["dramatic", "Dramatic: the Morphy mate line, more lift"]].map(([v, t]) => el("option", { value: v, selected: (p.narration.style || "auto") === v, text: t })))) : null,
+      clVoice ? el("div", { style: "display:grid;gap:8px" },
+        el("label", { style: "max-width:460px" }, "Delivery (your voice)",
+          el("select", { "aria-label": "Cloned voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. Your PC makes the narration again at the next render (free)."); render(); }) },
+            ...[["auto", "Auto (recommended): excitement for reels and Shorts, storytelling for long-form"], ["calm", "Calm teaching: even, gentle"], ["confident", "Confident explanation: settled and certain"], ["curious", "Curious: a question the film will answer"], ["reflective", "Reflective: a closing thought, a loss, a memory"], ["suspense", "Suspense: a held breath before the move"], ["excitement", "Excitement: the mate, the upset, the finish"]].map(([v, t]) => el("option", { value: v, selected: (p.narration.style || "auto") === v, text: t })))),
+        el("label", { style: "max-width:460px" }, "Voice model (runs on your PC)",
+          el("select", { "aria-label": "Local voice model", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, localModel: e.target.value } }).then(() => { say(e.target.value ? "Model saved. Your PC makes the narration again with it at the next render (free, slower for a v2Pro/v5 candidate)." : "Back to the pinned production voice. Your PC makes the narration again at the next render (free)."); render(); }) },
+            ...[["", "Pinned production voice (the one the channel uses)"], ["v2-e12", "v2 fine-tune, matched checkpoints (audition)"], ["v2pro", "v2Pro, zero-shot from your reference clips (audition)"], ["v5turbo", "v5turbo, zero-shot from your reference clips (audition)"]].map(([v, t]) => el("option", { value: v, selected: (p.narration.localModel || "") === v, text: t })))) ) : null,
       elVoice ? el("div", { style: "display:grid;gap:8px" },
         el("label", { style: "max-width:420px" }, "Delivery (same voice, different energy)",
           el("select", { "aria-label": "Voice delivery", disabled: BUSY.includes(p.status), onchange: (e) => save(p, { narration: { ...p.narration, style: e.target.value } }).then(() => { say("Delivery saved. The narration is made again at the next render (ElevenLabs credits for the script)."); render(); }) },
@@ -2146,7 +2160,7 @@ function projectEditor(p) {
           onclick: () => save(p, { narration: { ...p.narration, model: "eleven_v4", style: "documentary" } }).then(() => { say(`Upgraded. The whole voice is made again at the next render: about ${plainScript(p).length.toLocaleString()} credits.`); render(); }) }),
           el("span", { class: "note", text: "This video keeps its older voice until you upgrade." })),
         el("div", { class: "note", text: `Your ElevenLabs clone (${p.narration.model ? "Eleven v4" : "older model"}) reads the script in the cloud (about 9,000 credits per 10 minutes) with exact caption timing. Names in the pronunciation list (FIDE = Fee-day…) are said correctly; captions keep the real spelling.` })) :
-      clVoice ? el("div", { class: "note", text: "Your own voice: GPT-SoVITS running locally on your GPU (0 credits, broadcast mastered to -14 LUFS, no internet). A changed scene is made again at the next render; the rest is reused. Names from the pronunciation list and chess moves are spoken the right way." }) :
+      clVoice ? el("div", { class: "note", text: "Your own voice: GPT-SoVITS running locally on your GPU (0 credits, broadcast mastered to -14 LUFS, no internet). A changed scene is made again at the next render; the rest is reused. Names from the pronunciation list and chess moves are spoken the right way. With Auto, a reel or a Short gets the excitement delivery and a long-form film keeps the storytelling mix; pick a delivery above to override it for this video." }) :
       null)),
     el("div", { class: "step" + (["waiting", "rendering", "review", "approved", "pc", "done"].includes(p.status) ? " done" : "") }, el("div", {}, el("h3", { text: "Render" }),
       GH() ? el("div", { class: "note", text: "Your PC makes it: the ElevenLabs voice (saved to GitHub at once), licensed photos and 3D depth maps on GitHub, then the 1080p render (about 6 minutes), description, subtitles and thumbnails. Press Render, then double-click render-pc.cmd in C:\\PnoyChess\\docu. Nothing goes to YouTube until you approve it below, unless you tick Approve automatically." })
@@ -2497,23 +2511,43 @@ async function uploadVoice(p, file) {
   } catch (e) { say("Upload failed: " + (e.code === "quota_or_state" ? "storage is full; free storage from a finished project." : (e.message || e.code))); for (const id of parts) S.assets.delete(id).catch(() => {}); }
 }
 
+// ---------- the quality check, as the page reads it (tools/qa-gate.mjs is the same rule at the upload) ----------
+// A missing check is not a passing check. A report that is absent, still running, failed, or that describes a
+// different file all block Approve, and each one says what to do about it. p.qaOverride ("Upload anyway") lets a
+// FAILED check through, never a missing one. (18 Nov 2026: the uploader refused these, but the button did not, so a
+// render nobody had checked could be approved on the page and then fail in the upload job with a message that never
+// reached Mark.)
+function qaVerdict(qa, video) {
+  const v = video || {}, list = qa && Array.isArray(qa.issues) && qa.issues.every((x) => typeof x === "string") ? qa.issues : null;
+  if (qa && (qa.state === "running" || qa.state === "pending"))
+    return { ok: false, state: "pending", why: "The quality check is still running on this render.", fix: "Wait for it to finish, then reload this page." };
+  if (!qa || !list || typeof qa.ok !== "boolean" || qa.state === "error" || (qa.ok === true && list.length > 0))
+    return { ok: false, state: "missing", why: qa && qa.state === "error" ? "The quality check could not finish." : "This render has no quality check.", fix: "Render it again: the check runs at the end of every render, and a render with no report cannot be approved." };
+  if ((Number.isFinite(qa.bytes) && Number.isFinite(v.size) && qa.bytes !== v.size) || (qa.sha256 && v.sha256 && qa.sha256 !== v.sha256))
+    return { ok: false, state: "stale", why: "The quality check describes a different video (its size or hash does not match this render).", fix: "Render it again on your PC (Re-render on my PC) so the check runs on the current file." };
+  if (qa.ok === false)
+    return { ok: false, state: "failed", count: list.length, why: "The quality check found " + list.length + " thing(s) to look at.", fix: "Watch the preview; if it is right, tick \"Upload anyway\".", issues: list };
+  if (qa.ok === true && qa.approve === false) return { ok: true, state: "pass", unverified: true, why: "The quality check passed, but a required check could not run (so it is not approved automatically).", fix: "Watch it and upload by hand, or render it again." };
+  return { ok: true, state: "pass", why: "The quality check passed on this file.", fix: "" };
+}
+
 // ---------- your decision: nothing goes to YouTube until Approve ----------
 function reviewControls(p) {
   const r = p.result || {}, titles = (p.titles || []).length ? p.titles : [p.title], approved = p.status === "approved";
   const stale = !!r.scriptKey && r.scriptKey !== scriptKey(p); // the script changed after this render: the video still has the old one
-  const qaCount = (r.qa && r.qa.issues || []).length, qaFailed = !!(r.qa && r.qa.ok === false); // a failed check is never uploaded by accident
-  const qaBad = qaFailed && !p.qaOverride;
+  const qa = qaVerdict(r.qa, { size: r.size, sha256: r.sha256 }); // never a pass without a report of this file
+  const qaCount = qa.count || 0, qaOverridden = qa.state === "failed" && !!p.qaOverride, qaBlocked = !qa.ok && !qaOverridden;
   const tsel = el("select", { "aria-label": "YouTube title", disabled: approved, onchange: (e) => save(p, { ytTitle: e.target.value }) }, ...titles.map((t) => el("option", { value: t, selected: (p.ytTitle || titles[0]) === t, text: t })));
   const thsel = (r.thumbs || []).length ? el("select", { "aria-label": "YouTube thumbnail", disabled: approved, onchange: (e) => save(p, { ytThumb: +e.target.value }) }, ...r.thumbs.map((_, i) => el("option", { value: i, selected: (p.ytThumb || 0) === i, text: "Thumbnail " + (i + 1) }))) : null;
   return el("div", { class: "panel", style: "background:var(--bg);border-color:var(--gold)" },
     el("h3", { text: approved ? "Approved" : "Your decision" }),
-    el("div", { class: "note", text: approved ? (GH() ? "GitHub is uploading it to YouTube as Private. Cancel only stops it if the upload has not started yet." : "The next cloud worker run uploads it to YouTube as Private. Cancel if you changed your mind.") : stale ? "You changed the script after this render, so this video still has the old version. Press Re-render to approve the new one." : qaBad ? `The quality check found ${qaCount} thing(s) (listed below). Watch the preview; if it is right, tick "Upload anyway".` : "Watch the preview below. Nothing goes to YouTube until you approve. To try other music, change it in the Music section, then press Re-render." }),
+    el("div", { class: "note", text: approved ? (GH() ? "GitHub is uploading it to YouTube as Private. Cancel only stops it if the upload has not started yet." : "The next cloud worker run uploads it to YouTube as Private. Cancel if you changed your mind.") : stale ? "You changed the script after this render, so this video still has the old version. Press Re-render to approve the new one." : qaBlocked ? `${qa.why} ${qa.fix}` : "Watch the preview below. Nothing goes to YouTube until you approve. To try other music, change it in the Music section, then press Re-render." }),
     el("div", { class: "grid2" }, el("label", {}, "YouTube title", tsel), thsel ? el("label", {}, "YouTube thumbnail", thsel) : null),
     approved ? null : thumbControls(p),
-    !approved && qaFailed ? el("label", { class: "note", style: "display:flex;align-items:center;gap:8px" }, el("input", { type: "checkbox", checked: !!p.qaOverride, onchange: (e) => save(p, { qaOverride: e.target.checked }).then(render) }), ` Upload it anyway (quality check found ${qaCount} thing(s))`) : null,
+    !approved && qa.state === "failed" ? el("label", { class: "note", style: "display:flex;align-items:center;gap:8px" }, el("input", { type: "checkbox", checked: !!p.qaOverride, onchange: (e) => save(p, { qaOverride: e.target.checked }).then(render) }), ` Upload it anyway (quality check found ${qaCount} thing(s))`) : null,
     el("div", { class: "row" },
       approved ? el("button", { class: "btn", type: "button", text: "Cancel approval", onclick: () => save(p, { status: "review", note: "" }).then(render) })
-        : el("button", { class: "btn primary", type: "button", disabled: !(GH() ? r.release : (r.parts || []).length) || r.freed || p.thumbsRequest === "waiting" || !factsReady(p) || stale || qaBad, title: stale ? "The script changed after this render: Re-render first" : !factsReady(p) ? "Finish Check the facts first" : p.thumbsRequest === "waiting" ? "Wait for the new thumbnails" : qaBad ? `The quality check found ${qaCount} thing(s): tick "Upload anyway" first` : "", text: "Approve for YouTube (Private)",
+        : el("button", { class: "btn primary", type: "button", disabled: !(GH() ? r.release : (r.parts || []).length) || r.freed || p.thumbsRequest === "waiting" || !factsReady(p) || stale || qaBlocked, title: stale ? "The script changed after this render: Re-render first" : !factsReady(p) ? "Finish Check the facts first" : p.thumbsRequest === "waiting" ? "Wait for the new thumbnails" : qaBlocked ? `${qa.why} ${qa.fix}` : "", text: "Approve for YouTube (Private)",
           onclick: () => approve(p, titles) }),
       approved ? null : el("button", { class: "btn", type: "button", disabled: !factsReady(p), text: GH() ? "Re-render on my PC" : "Re-render with my changes",
         onclick: () => save(p, { status: "waiting", stopRequested: null, rush: true, renderOn: GH() ? "pc" : null, requestedAt: new Date().toISOString(), note: GH() ? PC_WAIT : "Re-render requested" }).then(() => { say(GH() ? "Ready for your PC: double-click render-pc.cmd. The voice is reused, so it costs no voice credits." : "Re-render queued, first in line. The voice is reused, so it costs no voice credits."); render(); }) })));
@@ -2729,10 +2763,12 @@ function resultBox(p) {
         el("button", { class: "btn", type: "button", text: "Download " + (i + 1), onclick: async () => { try { const b = await (await fetch("/_blob/" + id)).blob(); await saveFile(`${p.id}-thumb-${i + 1}.jpg`, b, vid); } catch (e) { say("Download failed."); } } }))))) : null,
     (p.titles || []).length ? el("div", {}, el("h3", { text: "Title options" }), ...p.titles.map((t) => el("div", { class: "row" }, el("span", { text: t, style: "flex:1" }),
       el("button", { class: "btn", type: "button", text: "Copy", onclick: async (e) => { try { await navigator.clipboard.writeText(t); e.target.textContent = "Copied"; } catch (x) {} } })))) : null,
-    r.qa ? el("div", {}, el("h3", { text: r.qa.issues.length ? `Quality check: ${r.qa.issues.length} thing(s) to look at` : "Quality check: passed" }),
-      el("div", { class: "note", text: (r.qa.notes || []).join(" · ") }),
-      r.qa.issues.length ? el("ul", {}, ...r.qa.issues.map((x) => el("li", { text: x }))) : null,
-      r.contact ? el("details", {}, el("summary", { text: "Every scene at a glance" }), el("img", { src: "/_blob/" + r.contact, alt: "One frame from every scene", style: "width:100%;border-radius:8px" })) : null) : null,
+    (() => { const qv = qaVerdict(r.qa, { size: r.size, sha256: r.sha256 }); // the report panel matches the button above
+      const head = qv.state === "pass" ? "Quality check: passed" : qv.state === "failed" ? `Quality check: ${qv.count} thing(s) to look at` : qv.state === "stale" ? "Quality check: of another file" : qv.state === "pending" ? "Quality check: still running" : "Quality check: missing";
+      return el("div", {}, el("h3", { text: head }),
+        el("div", { class: "note", text: qv.ok ? (r.qa.notes || []).join(" · ") : `${qv.why} ${qv.fix}` }),
+        qv.issues && qv.issues.length ? el("ul", {}, ...qv.issues.map((x) => el("li", { text: x }))) : null,
+        r.contact ? el("details", {}, el("summary", { text: "Every scene at a glance" }), el("img", { src: "/_blob/" + r.contact, alt: "One frame from every scene", style: "width:100%;border-radius:8px" })) : null); })(),
     ["review", "approved", "done"].includes(p.status) ? shortsBox(p) : null,
     el("pre", { class: "desc", text: r.description || "" }),
     p.status !== "done" ? null : el("div", { class: "row" }, el("button", { class: "btn", type: "button", disabled: !S.assets, text: "Free storage (after it is on YouTube)", title: "Deletes the video, preview, thumbnails, recording and Shorts from Docu Studio", onclick: async () => { for (const id of [...r.parts, ...(r.previewParts || []), ...(r.thumbs || []), ...(r.contact ? [r.contact] : []), ...((p.narration && p.narration.parts) || []), ...(p.shorts || []).map((s) => s.asset).filter(Boolean)]) await S.assets.delete(id).catch(() => {}); await save(p, { result: { ...r, freed: true }, shorts: (p.shorts || []).some((s) => !s.asset) ? p.shorts.filter((s) => !s.asset) : null }); render(); } }))].forEach((x) => x != null && box.append(x));
@@ -3187,6 +3223,42 @@ function getElevenData() {
   return null;
 }
 
+// ---- keys: the daily key check, published next to the page as studio/keys.json by chess/publisher/keys.mjs.
+// No GitHub sign-in is needed and there is no value in the file: names, dates, status and the renewal steps only.
+async function loadKeys(force = false) {
+  if ((S.keysLoaded && !force) || S._keysLoading) return;
+  if (typeof fetch !== "function") { S.keysLoaded = true; S.keysError = "no fetch here"; return; }
+  S._keysLoading = true;
+  try {
+    const r = await fetch("keys.json?t=" + Math.floor(Date.now() / 60000), { cache: "no-store" });
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    S.keys = await r.json(); S.keysError = null;
+  } catch (e) { S.keys = null; S.keysError = e.message || String(e); }
+  finally { S._keysLoading = false; S.keysLoaded = true; if (S.view === "channel") render(); }
+}
+function chanKeysCard() {
+  loadKeys();
+  const k = S.keys, panel = el("section", { class: "panel", id: "chan-keys" },
+    el("div", { class: "row", style: "justify-content:space-between;align-items:center" },
+      el("h2", { text: "Keys" }),
+      el("div", { class: "row", style: "gap:8px;align-items:center" },
+        el("span", { class: "note", text: k && k.checkedOn ? "checked " + k.checkedOn : "" }),
+        el("button", { class: "btn", type: "button", text: "Refresh", onclick: () => loadKeys(true) }))));
+  panel.append(el("div", { class: "note", text: "Every key the publisher uses, tested once a day by the channel run (chess/publisher/keys.mjs). The file holds names, dates and status - never a key value. Something broken or expiring within 30 days also opens the \"Keys: action needed\" issue, which GitHub emails you, and the 7:00 morning line names it." }));
+  if (!k) { panel.append(el("div", { class: "note", text: S.keysError ? "No keys file next to the page (" + S.keysError + "). The daily channel run writes studio/keys.json." : "Loading the key check…" })); return panel; }
+  const items = k.items || [];
+  const bad = items.filter((i) => i.status === "bad").length, warn = items.filter((i) => i.status === "warn").length;
+  panel.append(el("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin:8px 0" },
+    el("span", { class: "pill" + (bad ? " warn" : " ok"), text: bad ? bad + " broken" : "nothing broken" }),
+    el("span", { class: "pill" + (warn ? " warn" : " ok"), text: warn ? warn + " to renew soon" : "nothing expiring" })));
+  items.forEach((i) => panel.append(el("div", { class: "proj" },
+    el("div", {}, el("div", { class: "t", text: (i.status === "bad" ? "❌ " : i.status === "warn" ? "⚠️ " : "✅ ") + (i.name || i.id || "") }),
+      el("div", { class: "note", text: [i.detail, i.expires && !["?", "-"].includes(i.expires) ? "expires " + i.expires : ""].filter(Boolean).join(" · ") }),
+      i.renewSteps && i.renewSteps.length ? el("div", { class: "note", style: "opacity:.85", text: "Renew: " + i.renewSteps[0] }) : null),
+    i.renewUrl ? el("a", { class: "btn", href: i.renewUrl, target: "_blank", rel: "noopener", text: "Renew" }) : null)));
+  return panel;
+}
+
 function chanElevenCard() {
   const elData = getElevenData() || {
     used: 61318,
@@ -3222,10 +3294,11 @@ function chanElevenCard() {
     onclick: async () => {
       say("Checking ElevenLabs account quota…");
       try {
-        let k = window.localStorage.getItem("docu.elevenlabs.key");
+        // the key is a paid credential: kept for this tab only (18 Nov 2026), never written to the browser's disk store
+        let k = null; try { k = window.sessionStorage.getItem("docu.elevenlabs.key"); } catch (e) {}
         if (!k) {
-          k = prompt("Enter ElevenLabs API key to check live and save in this browser (optional):");
-          if (k && k.trim()) window.localStorage.setItem("docu.elevenlabs.key", k.trim());
+          k = prompt("Enter your ElevenLabs API key to check the live quota (it is kept until you close this tab):");
+          if (k && k.trim()) { try { window.sessionStorage.setItem("docu.elevenlabs.key", k.trim()); } catch (e) {} }
         }
         if (k && k.trim()) {
           const r = await fetch("https://api.elevenlabs.io/v1/user/subscription", {
@@ -3731,6 +3804,7 @@ function viewChannel() {
   wrap.append(chanSocialCard());
   wrap.append(chanCoversCard());
   wrap.append(chanElevenCard());
+  wrap.append(chanKeysCard());
 
   // 2. Google Flow Creative Studio & B-Roll Vault
   wrap.append(chanFlowCard());
