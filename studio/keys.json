@@ -1,6 +1,6 @@
 {
- "checkedOn": "2026-11-18",
- "checkedAt": "2026-11-18T02:33:48.918Z",
+ "checkedOn": "2026-11-20",
+ "checkedAt": "2026-11-19T20:59:31.142Z",
  "summary": "all good",
  "items": [
   {
@@ -68,7 +68,7 @@
    "where": "GitHub secret THREADS_TOKEN",
    "status": "ok",
    "expires": "?",
-   "detail": "@pnoychess · raw THREADS_TOKEN: replace it by hand every 60 days · Threads posting is dry-run"
+   "detail": "@pnoychess · raw THREADS_TOKEN: replace it by hand every 60 days"
   },
   {
    "renewUrl": "https://publish.buffer.com/settings/api",
@@ -94,7 +94,7 @@
    "where": "cron-job.org jobs, GitHub key \"cronjob-pnoychess\" (no expiry, in KeePass)",
    "status": "ok",
    "expires": "no expiry",
-   "detail": "last run 2026-11-18 08:25 Manila"
+   "detail": "last run 2026-11-19 22:25 Manila"
   },
   {
    "renewUrl": "https://github.com/settings/personal-access-tokens",
