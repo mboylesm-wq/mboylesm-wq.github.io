@@ -96,7 +96,7 @@
         stat(String(st.production), "in production"),
         stat(String(st.partial), "partly shipped"),
         stat(String(st.left), "of " + st.total + " to go")),
-      el("div", { class: "note", style: "font-size:11.5px", text: "Reading the channel's playlist \u201c" + d.playlist + "\u201d and the studio's projects. Snapshotted " + ago(d.builtAt) + "." }));
+      el("div", { class: "note", style: "font-size:11.5px", text: "Reading the channel and the studio's project records (the series playlist \u201c" + d.playlist + "\u201d groups the films). Snapshotted " + ago(d.builtAt) + "." }));
     return box;
   }
 
@@ -240,8 +240,8 @@
       el("summary", { class: "note", style: "cursor:pointer;font-size:13px", text: "Where this page's numbers come from" }),
       el("div", { class: "note", style: "margin-top:8px;max-width:84ch;line-height:1.6" },
         "The topics, the scores, the posting order and each film's question are read from ", el("span", { class: "mono", style: "font-size:12px", text: d.source }),
-        " (the blueprint). Whether a film is posted is read from the channel's \u201c" + d.playlist + "\u201d playlist and the studio's project records. ",
-        "Nothing here is guessed: a film counts as posted when YouTube says so, and the views are the channel's own. Rebuild the snapshot with ", el("span", { class: "mono", style: "font-size:12px", text: "node tools/visualised.mjs" }), "."));
+        " (the blueprint). Whether a film is posted is read from the channel and the film's own upload record, not from the playlist: a film counts as posted when YouTube says it is public, even if it is not yet in \u201c" + d.playlist + "\u201d. ",
+        "Nothing here is guessed: the views are the channel's own. Rebuild the snapshot with ", el("span", { class: "mono", style: "font-size:12px", text: "node tools/visualised.mjs" }), "."));
   }
 
   // ---------- the tab ----------
