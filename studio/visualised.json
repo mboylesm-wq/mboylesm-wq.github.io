@@ -3,7 +3,7 @@
  "playlist": "Chess, Visualised",
  "channel": "https://www.youtube.com/@pnoychessofficialyt",
  "source": "docs/BLUEPRINT-3B1B.md",
- "builtAt": "2026-11-17T21:29:30.833Z",
+ "builtAt": "2026-11-18T19:36:18.545Z",
  "categories": [
   {
    "key": "A",
@@ -64,7 +64,7 @@
    "name": "Réti’s Two Hares",
    "score": 97,
    "proof": "Invariant / simultaneous distance",
-   "signature": "Two distance clocks and the diagonal; the king on the square that keeps both alive",
+   "signature": "Two route-lenses (crimson to f4, gold to d6) on the emerald diagonal h8–e5; two clocks falling together",
    "note": "next",
    "title": "The Endgame Illusion Where One King Chases Two Targets at Opposite Corners",
    "restates": false
@@ -268,7 +268,7 @@
    "minutes": "8-10",
    "proof": "Exhaustion + extremal",
    "mystery": "A chessboard looks completely flat—so why does placing a piece on d4 or e4 make it nearly twice as powerful as placing it on the edge?",
-   "signature": "two distance counters (the enemy a-pawn and White's f-pawn) and the diagonal a8-b7-c6-d5-e6; no false overlapping pawn squares.",
+   "signature": "the 2/3/4/6/8 mobility mountain and the 2.5D tier board; the rook’s flat 14 plateau and the FIDE Article 3.6 popup.",
    "status": "posted",
    "note": "why-the-centre-matters-3d, 9:44, 52 scenes, 0 QA issues. The final visuals are the 2/3/4/6/8 mobility terrain and the 2.5D tier board, the rook 14 plateau, the FIDE Article 3.6 popup and the v2 visual contract in §0.6.",
    "film": "why-the-centre-matters-3d",
@@ -662,7 +662,7 @@
    "minutes": "8-10",
    "proof": "Invariant / simultaneous distance",
    "mystery": "White's King is outside the Square of Black's passed pawn, and White's own pawn is about to be captured. Every calculation says White is dead lost—so how does walking diagonally between both corners save the game?",
-   "signature": "Two translucent geometric squares—a Crimson Square around Black's runaway h-pawn and a Gold Square around White's c6 pawn—overlap solely along the h8–a1 diagonal; as the White King walks Kh8 → Kg7 → Kf6 → Ke5, both squares pulse in unison on every step!",
+   "signature": "Two route-lenses—crimson to f4 (stop the h-pawn) and gold to d6 (escort the c-pawn)—overlap on the emerald shared road h8 → g7 → f6 → e5; two clocks fall together from 4/4 to 3/3 as the White King walks Kh8 → Kg7 → Kf6 → Ke5.",
    "status": "planned",
    "note": "",
    "film": null,
