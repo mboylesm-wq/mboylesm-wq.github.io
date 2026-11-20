@@ -3,7 +3,7 @@
  "playlist": "Chess, Visualised",
  "channel": "https://www.youtube.com/@pnoychessofficialyt",
  "source": "docs/BLUEPRINT-3B1B.md",
- "builtAt": "2026-11-18T19:36:18.545Z",
+ "builtAt": "2026-11-20T20:57:40.383Z",
  "categories": [
   {
    "key": "A",
@@ -65,7 +65,7 @@
    "score": 97,
    "proof": "Invariant / simultaneous distance",
    "signature": "Two route-lenses (crimson to f4, gold to d6) on the emerald diagonal h8–e5; two clocks falling together",
-   "note": "next",
+   "note": "SHIPPED",
    "title": "The Endgame Illusion Where One King Chases Two Targets at Opposite Corners",
    "restates": false
   },
@@ -76,7 +76,7 @@
    "score": 96,
    "proof": "Transformation",
    "signature": "The L1 diamond, the L∞ square, the knight flower from one square",
-   "note": "planned",
+   "note": "next",
    "title": "A Chessboard Has Three Different Geometries at Once",
    "restates": false
   },
@@ -279,6 +279,7 @@
     "title": "Why the Centre Matters, Seen as a 3D Landscape",
     "topic": "",
     "url": "https://youtu.be/mjt_qf8O1fw",
+    "videoId": "mjt_qf8O1fw",
     "note": "Rendered on your PC: watch it on the GitHub release, then Approve",
     "matchedByTitle": false
    },
@@ -286,10 +287,10 @@
     "id": "mjt_qf8O1fw",
     "title": "Why the Centre Matters, Seen as a 3D Landscape",
     "publishedAt": "2026-11-16T10:35:39Z",
-    "views": 185,
+    "views": 352,
     "seconds": 584,
-    "retention": 0,
-    "ctr": 0,
+    "retention": 26.87,
+    "ctr": 1.1669756789180936,
     "privacy": "public",
     "url": "https://youtu.be/mjt_qf8O1fw",
     "thumb": "https://i.ytimg.com/vi/mjt_qf8O1fw/mqdefault.jpg"
@@ -663,11 +664,32 @@
    "proof": "Invariant / simultaneous distance",
    "mystery": "White's King is outside the Square of Black's passed pawn, and White's own pawn is about to be captured. Every calculation says White is dead lost—so how does walking diagonally between both corners save the game?",
    "signature": "Two route-lenses—crimson to f4 (stop the h-pawn) and gold to d6 (escort the c-pawn)—overlap on the emerald shared road h8 → g7 → f6 → e5; two clocks fall together from 4/4 to 3/3 as the White King walks Kh8 → Kg7 → Kf6 → Ke5.",
-   "status": "planned",
-   "note": "",
-   "film": null,
-   "project": null,
-   "video": null
+   "status": "posted",
+   "note": "reti-two-hares-1921, 6:52. It went up as “The Diagonal Costs Nothing - and It Saves a Lost Endgame”; the final visuals are the two route-lenses on the emerald diagonal h8–e5 and the two clocks falling together. v2 note (16 Nov 2026; corrected 18 Nov 2026): the study is Réti's published orientation, White Kh8 and Pc6 versus Black Ka6 and Ph5, White to move: 1.Kg7 h4 2.Kf6 Kb6 3.Ke5 draws. A king's diagonal step costs one move, the same as a straight step, so the king can walk a route that is shortest to two targets at once: h8, g7, f6 and e5 are shortest to both f4 (stop the h-pawn) and d6 (escort the c-pawn). The v1 card below used the mirrored reti-1 position (Ka8/Pf6 versus Kh6/Pa5) and the \"two expanding squares\" metaphor; the v2 visual is two route-lenses on the emerald diagonal h8–e5 plus two distance clocks, not two overlapping pawn squares. Source of truth: projects/reti-two-hares-1921/brief/ (BRIEF.md §3, SCENES.md).",
+   "film": "reti-two-hares-1921",
+   "project": {
+    "id": "reti-two-hares-1921",
+    "status": "done",
+    "updatedAt": "2026-11-19T13:50:49.588Z",
+    "title": "The Diagonal Costs Nothing - and It Saves a Lost Endgame",
+    "topic": "",
+    "url": "https://youtu.be/xQxLjuNY1hs",
+    "videoId": "xQxLjuNY1hs",
+    "note": "",
+    "matchedByTitle": false
+   },
+   "video": {
+    "id": "xQxLjuNY1hs",
+    "title": "The Diagonal Costs Nothing - and It Saves a Lost Endgame",
+    "publishedAt": "2026-11-19T15:27:39Z",
+    "views": 48,
+    "seconds": 412,
+    "retention": 0,
+    "ctr": 0,
+    "privacy": "public",
+    "url": "https://youtu.be/xQxLjuNY1hs",
+    "thumb": "https://i.ytimg.com/vi/xQxLjuNY1hs/mqdefault.jpg"
+   }
   },
   {
    "id": "C3",
@@ -1559,14 +1581,27 @@
    "id": "mjt_qf8O1fw",
    "title": "Why the Centre Matters, Seen as a 3D Landscape",
    "publishedAt": "2026-11-16T10:35:39Z",
-   "views": 185,
+   "views": 352,
    "seconds": 584,
-   "retention": 0,
-   "ctr": 0,
+   "retention": 26.87,
+   "ctr": 1.1669756789180936,
    "privacy": "public",
    "url": "https://youtu.be/mjt_qf8O1fw",
    "thumb": "https://i.ytimg.com/vi/mjt_qf8O1fw/mqdefault.jpg",
    "topic": "A1"
+  },
+  {
+   "id": "xQxLjuNY1hs",
+   "title": "The Diagonal Costs Nothing - and It Saves a Lost Endgame",
+   "publishedAt": "2026-11-19T15:27:39Z",
+   "views": 48,
+   "seconds": 412,
+   "retention": 0,
+   "ctr": 0,
+   "privacy": "public",
+   "url": "https://youtu.be/xQxLjuNY1hs",
+   "thumb": "https://i.ytimg.com/vi/xQxLjuNY1hs/mqdefault.jpg",
+   "topic": "C2"
   }
  ],
  "other": [
@@ -1574,23 +1609,23 @@
    "id": "2-3KWRc4jMs",
    "title": "The Geometry of Chess Tactics",
    "publishedAt": "2026-11-13T11:22:30Z",
-   "views": 108,
+   "views": 117,
    "seconds": 424,
-   "retention": 13.699999999999998,
-   "ctr": 0.5543237250554324,
+   "retention": 16.84,
+   "ctr": 0.6539664486778505,
    "privacy": "public",
    "url": "https://youtu.be/2-3KWRc4jMs",
    "thumb": "https://i.ytimg.com/vi/2-3KWRc4jMs/mqdefault.jpg"
   }
  ],
- "next": "C2",
+ "next": "A3",
  "counts": {
   "total": 75,
-  "posted": 1,
+  "posted": 2,
   "other": 1,
   "private": 0,
   "production": 0,
   "partial": 2,
-  "left": 74
+  "left": 73
  }
 }
