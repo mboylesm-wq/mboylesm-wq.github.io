@@ -115,6 +115,9 @@
     blue: { light: "#dee3e6", dark: "#8ca2ad", frame: "#1f2a33" }, purple: { light: "#e8dff5", dark: "#8b6fb5", frame: "#2a1f3d" }, ice: { light: "#e6f7ff", dark: "#7fb3d5", frame: "#123047" },
     neon: { light: "#1a1a2e", dark: "#0f0f1a", frame: "#ff2bd6", line: "#00f0ff" }, marble: { light: "#f2f0ec", dark: "#9a9590", frame: "#3d3a36" }, coral: { light: "#f5e6da", dark: "#e07a5f", frame: "#3d1f17" },
     midnight: { light: "#4a5568", dark: "#1a202c", frame: "#0b0f17" }, gold: { light: "#f6e7b4", dark: "#c9a227", frame: "#3d2f05" }, glass: { light: "rgba(255,255,255,0.35)", dark: "rgba(255,255,255,0.12)", frame: "rgba(255,255,255,0.25)" },
+    // The four Blender boards (media/3d-pieces/build_german.py, 20 Nov 2026), as flat colours for the live 3D/2D view:
+    walnut: { light: "#e3c38f", dark: "#5a3520", frame: "#4a2a17" }, mahogany: { light: "#f0d7aa", dark: "#bc6a47", frame: "#b05f3c" },
+    rosewood: { light: "#e6c895", dark: "#5e2216", frame: "#4f1c12" }, ebony: { light: "#e2c08a", dark: "#1c1512", frame: "#15100d" },
   };
 
   // ---------- presets (what fires on which event) ----------
