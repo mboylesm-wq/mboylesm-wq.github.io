@@ -925,6 +925,7 @@ counter {"type":"counter","value":27,"label":"...","prefix":"","suffix":""}
 terrain {"type":"terrain","fen":"<legal FEN from a cited game or a textbook position>","focus":["d4","e4","d5","e5"],"title":"<question it answers>"} control of the board as a 3D landscape: who owns which squares
 beams {"type":"beams","fen":"<legal FEN>","from":["<square of the piece>"],"punch":"<4-8 word punchline>","title":"..."} a piece's reach as light: forks, pins, skewers, outposts, why a piece is strong
 tree {"type":"tree","depth":4,"title":"..."} the game tree from the start position as a galaxy (20, 400, 8,902, 197,281): complexity, why chess is unsolved, how engines search
+brain {"type":"brain","mode":"network|region|board","region":"frontal|parietal|temporal|occipital|cerebellum|face","label":"<area name>","title":"<1-3 big words>","kicker":"..."} a glowing brain drawn in code, neurons firing: the mind, memory, learning, what chess does to the brain; at most 1-2 per chapter
 space {"type":"space","mode":"stars|galaxy|pieces|warp","number":"<optional sourced figure, e.g. 10^120>","label":"...","title":"<or a short title>","kicker":"..."} 3D space made in code: cosmic or abstract ideas (the universe, infinity, AI, the mind), a hero opening, a mind-blowing number; at most 1-2 per chapter`,
   visMore: `timeline {"type":"timeline","title":"...","items":[{"year":"1974","text":"..."}],"highlight":0}
 bars {"type":"bars","title":"...","unit":"","items":[{"label":"...","value":4}],"highlight":0}
@@ -949,6 +950,7 @@ counter {"type":"counter","value":27,"label":"...","prefix":"","suffix":""} nume
 terrain {"type":"terrain","fen":"<legal FEN from a cited game or a textbook position>","focus":["d4","e4","d5","e5"],"title":"<question it answers>"} control of the board as a 3D landscape: who owns which squares
 beams {"type":"beams","fen":"<legal FEN>","from":["<square of the piece>"],"punch":"<4-8 word punchline>","title":"..."} a piece's reach as light: forks, pins, skewers, outposts, why a piece is strong
 tree {"type":"tree","depth":4,"title":"..."} the game tree from the start position as a galaxy (20, 400, 8,902, 197,281): complexity, why chess is unsolved, how engines search
+brain {"type":"brain","mode":"network|region|board","region":"frontal|parietal|temporal|occipital|cerebellum|face","label":"<area name>","title":"<1-3 big words>","kicker":"..."} a glowing brain drawn in code, neurons firing: the mind, memory, learning, what chess does to the brain; at most 1-2 per chapter
 space {"type":"space","mode":"stars|galaxy|pieces|warp","number":"<optional sourced figure, e.g. 10^120>","label":"...","title":"<or a short title>","kicker":"..."} 3D space made in code: cosmic or abstract ideas (the universe, infinity, AI, the mind), a hero opening, a mind-blowing number; at most 1-2 per chapter
 quote {"type":"quote","text":"<real quote only>","author":"...","source":"<where/when>"} verified quote card
 compare {"type":"compare","title":"...","left":{"name":"...","lines":["..."]},"right":{"name":"...","lines":["..."]}} side-by-side contrast (vector cards)
@@ -1466,6 +1468,8 @@ function saveDraft(data) {
       if (!shouldSkipRenderOnSnapshot()) render();
     }, () => {});
     db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if ((S.view === "music" || S.cur) && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("storyreels").onSnapshot((snap) => { S.stories = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.askedAt).localeCompare(String(a.askedAt))); if (S.view === "trends" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("storyrenders").onSnapshot((snap) => { S.storyRenders = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()])); if (S.view === "trends" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("trendgames").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trendGames = snap.docs[0] ? snap.docs[0].data() : null; if ((S.view === "gamereview" || S.view === "viral") && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("health").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "status"); S.sysHealth = d ? d.data() : null; if (S.view === "health" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
@@ -1568,6 +1572,7 @@ function viewTrends() {
     t ? el("span", { class: "note", text: "Updated " + new Date(t.at).toLocaleString() }) : null
   );
 
+  const stories = GH() ? lazyView("stories.js", () => window.StoryReels.box()) : null; // studio/stories.js
   const box = el("section", { class: "panel" },
     el("div", { class: "row", style: "justify-content:space-between; align-items:center;" },
       el("h2", { text: "What chess fans care about now" }),
@@ -1581,6 +1586,7 @@ function viewTrends() {
     t.topics.forEach((x) => {
       const mp = matchTrendProject(x);
       const actionRow = el("div", { class: "row" });
+      if (GH()) actionRow.append(el("button", { class: "btn", type: "button", text: "Story reel", title: "Write a 30-50 s reel about this topic (photos, clips, your voice)", onclick: () => loadOnce("stories.js").then(() => window.StoryReels.ask(x.title || x.topic, x.angle, x.sources), (e) => say(e.message)) }));
       if (mp) {
         actionRow.append(el("button", { class: "btn primary", type: "button", text: "Open project", onclick: () => { S.cur = mp; S.view = "write"; render(); } }));
         if (!hasVideo(mp) && canRender(mp)) {
@@ -1646,7 +1652,7 @@ function viewTrends() {
     box.append(studioBox);
   }
 
-  return box;
+  return stories ? el("div", {}, stories, box) : box;
 }
 
 function viewWrite() {
@@ -2091,7 +2097,7 @@ function miniBoardEl(vis) {
 function planIssues(p) {
   const issues = [];
   const scenes = (p && p.plan && p.plan.scenes) || [];
-  const VALID_TYPES = new Set(["terrain", "beams", "tree", "space", "board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
+  const VALID_TYPES = new Set(["brain", "terrain", "beams", "tree", "space", "board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
   scenes.forEach((s, idx) => {
     const v = s.visual;
     if (!v || !v.type || !VALID_TYPES.has(v.type)) {
@@ -4405,6 +4411,7 @@ function viewProjects() {
   const box = el("section", { class: "panel" }, el("div", { class: "row", style: "justify-content:space-between" }, el("h2", { text: "Create" }),
     el("div", { class: "row" },
       el("button", { class: "btn primary", type: "button", text: "New reel", title: "A chess reel, puzzle or highlight from a verified game or your PGN (made in the browser)", onclick: () => { S.reelOpen = null; S.view = "reel"; render(); } }),
+      el("button", { class: "btn primary", type: "button", text: "New story reel", title: "A reel about any chess topic with photos, clips, big numbers and your voice: the AI writes it on GitHub, your PC makes it (Ideas)", onclick: () => { S.view = "trends"; render(); } }),
       el("button", { class: "btn primary", type: "button", text: "New video", title: "A long-form video on any chess topic: documentary, explainer or essay (voice and render on your PC)", onclick: () => { S.view = "write"; S.cur = null; render(); } }),
       el("button", { class: "btn primary", type: "button", id: "new-review", text: "New game review", title: "A long-form review of one game from its PGN: Stockfish on your PC, the same voice, music, render and upload as the documentaries", onclick: () => { S.view = "gamereview"; S.cur = null; render(); } }))));
   const reels = reelList();
