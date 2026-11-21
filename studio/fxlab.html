@@ -276,7 +276,7 @@ function draw() {
   // frame + squares
   const fp = S * 0.22; ctx.fillStyle = th.frame; ctx.shadowColor = "rgba(0,0,0,.6)"; ctx.shadowBlur = S * 0.6; ctx.fillRect(g.bx - fp, g.by - fp, g.bs + fp * 2, g.bs + fp * 2); ctx.shadowBlur = 0;
   for (let r = 0; r < 8; r++) for (let f = 0; f < 8; f++) { ctx.fillStyle = (r + f) % 2 ? th.dark : th.light; ctx.fillRect(g.bx + f * S, g.by + r * S, S + 0.5, S + 0.5); if (th.line) { ctx.strokeStyle = F.rgba(th.line, 0.25); ctx.strokeRect(g.bx + f * S, g.by + r * S, S, S); } }
-  if ($("coords").checked) { ctx.font = `700 ${S * 0.17}px system-ui`; const flip = $("flip").checked; for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? th.light : th.dark; ctx.fillText("abcdefgh"[flip ? 7 - i : i], g.bx + i * S + S * 0.82, g.by + g.bs - S * 0.06); ctx.fillStyle = i % 2 ? th.dark : th.light; ctx.fillText(String(flip ? i + 1 : 8 - i), g.bx + S * 0.05, g.by + i * S + S * 0.2); } }
+  if ($("coords").checked) { ctx.font = `700 ${S * 0.17}px system-ui`; const flip = $("flip").checked; for (let i = 0; i < 8; i++) { ctx.fillStyle = i % 2 ? th.dark : th.light; ctx.fillText("abcdefgh"[flip ? 7 - i : i], g.bx + i * S + S * 0.82, g.by + g.bs - S * 0.06); ctx.fillStyle = i % 2 ? th.light : th.dark; ctx.fillText(String(flip ? i + 1 : 8 - i), g.bx + S * 0.05, g.by + i * S + S * 0.2); } }
   // under effects
   const layer = (name) => acts.forEach(({ fx, ev, age, seed }) => { if ((fx.layer || "over") === name && fx.draw) { ctx.save(); try { fx.draw(ctx, act(fx, ev, age, seed, g, p)); } catch (e) { console.warn(fx.id, e); } ctx.restore(); } });
   layer("under");
