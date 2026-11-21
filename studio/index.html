@@ -888,13 +888,15 @@ function tailSentences(t, n) { t = String(t || ""); if (t.length <= n) return t;
 // version: add 1 whenever the wording changes and say why in CHANGELOG.md. They are functions because they use
 // FORMATS and MOODS further down; `npm test` runs them through tests/page-harness.html.
 const PROMPTS = {
-  version: 8,
+  version: 9,
   // the house style, sent with the outline and every chapter
   rules: `You write narration for "PnoyChess", a Filipino chess YouTube channel making long-form videos in English: documentaries, explainers and essays about any chess topic.
 Style: stakes in the first 15 seconds, no channel intro; short spoken sentences; a new visual every 1-2 sentences; never three photos in a row; explain chess so beginners follow.
 Story: one central question is opened in the cold open and answered clearly at the end; every chapter answers a small question from before and opens a new one, ending with a reason to keep watching. Never tease what the video does not deliver.
 Voice: the narrator is Mark, a Filipino chess player and the voice of PnoyChess. In every chapter, one scene is his own take in the first person ("I think…", "Look at this move…", "For us in the Philippines…"): his view, a quick analysis, or why it matters to players; clearly an opinion, any facts in it still sourced. Mark those scenes "take": true. This personal commentary is what makes the channel original, not a template. A take scene gets a real picture like any other scene (a photo of the person or place, a board or a map); never a title card or any on-screen label saying "My take".
-Accuracy: only facts you are confident are true and can source; never invent quotes, numbers or dates; if unsure, leave it out. Never copy text from books or websites.`,
+Accuracy: only facts you are confident are true and can source; never invent quotes, numbers or dates; if unsure, leave it out. Never copy text from books or websites.
+Craft: open inside a concrete situation or puzzle, never a definition or "in this video we will…"; explain an idea in plain words before naming chess jargon; convert big numbers into human scale a viewer can picture (or cut them); vary sentence length so three sentences in a row never share the same rhythm.
+Picture and seams: say what the picture cannot (reasons, stakes, consequences) — never narrate what is already drawn ("here we see…", "looking at the chart…"). Never open a chapter with "Next, let's look at…": end each chapter on the gap or cost it creates, and open the next by naming what just happened and why this step follows.`,
   // the visuals Claude may pick: the outline gets the core ones, a chapter both
   proofRules: `PROOF FILM MODE (3Blue1Brown):
 This is one theorem, not a tour. Before scenes, fill a proof card: theorem (one sentence), misconception, counterexample, real game, visual signature, source. Then map nine beats: cold open, question, strip, measure, invariant, counterexample, real game, cost, takeaway.
@@ -2823,14 +2825,14 @@ function shortsBox(p) {
       s.posted ? el("div", { class: "row" }, el("span", { class: "note", text: "Posted:" }), ...[["facebook", "Facebook"], ["instagram", "Instagram"], ["youtube", "YouTube"]].filter(([k]) => s.posted[k]).map(([k, name]) => el("a", { class: "btn", href: safeUrl(s.posted[k]), target: "_blank", rel: "noopener", text: name }))) : null,
       el("div", { class: "note", style: "white-space:pre-wrap", text: shortCaption(s, "facebook", url) }),
       el("div", { class: "safezone-card", style: "display:none;position:relative;width:216px;height:384px;background:#141414;border-radius:16px;border:2px solid var(--line);overflow:hidden;box-shadow:0 4px 12px rgba(0,0,0,0.4);margin:8px 0;font-family:sans-serif;" },
-        el("div", { style: "position:absolute;top:0;left:0;right:0;height:48px;background:rgba(255,60,60,0.18);border-bottom:1px dashed rgba(255,100,100,0.6);display:flex;align-items:center;justify-content:center;color:#ff9999;font-size:9px;text-align:center;padding:2px 4px;" }, "Top Danger Zone (Search / Tabs)"),
-        el("div", { style: "position:absolute;top:80px;right:0;bottom:84px;width:40px;background:rgba(255,60,60,0.18);border-left:1px dashed rgba(255,100,100,0.6);display:flex;flex-direction:column;align-items:center;justify-content:space-around;color:#ff9999;font-size:10px;" },
+        el("div", { style: "position:absolute;top:0;left:0;right:0;height:58px;background:rgba(255,60,60,0.18);border-bottom:1px dashed rgba(255,100,100,0.6);display:flex;align-items:center;justify-content:center;color:#ff9999;font-size:9px;text-align:center;padding:2px 4px;" }, "Top Danger Zone (Search / Tabs)"),
+        el("div", { style: "position:absolute;top:58px;right:0;bottom:134px;width:38px;background:rgba(255,60,60,0.18);border-left:1px dashed rgba(255,100,100,0.6);display:flex;flex-direction:column;align-items:center;justify-content:space-around;color:#ff9999;font-size:10px;" },
           el("span", { text: "❤️" }), el("span", { text: "💬" }), el("span", { text: "↗️" }), el("span", { text: "🎵" })),
-        el("div", { style: "position:absolute;bottom:0;left:0;right:0;height:84px;background:rgba(255,60,60,0.18);border-top:1px dashed rgba(255,100,100,0.6);color:#ff9999;font-size:9px;padding:4px 6px;display:flex;flex-direction:column;justify-content:flex-end;" },
+        el("div", { style: "position:absolute;bottom:0;left:0;right:0;height:134px;background:rgba(255,60,60,0.18);border-top:1px dashed rgba(255,100,100,0.6);color:#ff9999;font-size:9px;padding:4px 6px;display:flex;flex-direction:column;justify-content:flex-end;" },
           el("div", { style: "font-weight:bold;color:#fff;font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;", text: `@PnoyChess · Short ${i + 1}` }),
           el("div", { style: "font-size:8px;color:#ddd;line-height:1.2;max-height:28px;overflow:hidden;", text: s.hook || s.title || "Captions" }),
           el("div", { style: "font-size:7px;color:#ffaaaa;margin-top:2px;", text: "Bottom Danger Zone (Caption/Sound)" })),
-        el("div", { style: "position:absolute;top:50px;left:6px;right:42px;bottom:86px;border:1px solid rgba(80,220,100,0.5);background:rgba(80,220,100,0.05);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#66ff88;font-size:9px;padding:4px;" },
+        el("div", { style: "position:absolute;top:58px;left:19px;right:38px;bottom:134px;border:1px solid rgba(80,220,100,0.5);background:rgba(80,220,100,0.05);display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;color:#66ff88;font-size:9px;padding:4px;" },
           el("span", { style: "font-weight:bold;font-size:10px;", text: "✓ SAFE ZONE" }),
           el("span", { style: "font-size:8px;opacity:0.85;margin-top:3px;", text: "Keep chessboards, faces & main action here" }))),
       player));
