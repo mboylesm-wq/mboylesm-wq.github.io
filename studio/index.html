@@ -1612,7 +1612,7 @@ function viewTrends() {
         el("div", { class: "row", style: "justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;" },
           el("h3", { text: x.title }),
           el("div", { class: "row", style: "gap:6px; flex-wrap:wrap;" },
-            el("span", { class: "pill" + (x.kind === "evergreen" ? " ok" : ""), text: x.kind === "evergreen" ? "Evergreen" : "Timely" }),
+            el("span", { class: "pill" + (x.kind === "evergreen" ? " ok" : ""), text: x.ask ? "People ask" : x.kind === "evergreen" ? "Evergreen" : "Timely" }),
             ...(mp ? stageBadges(mp) : [])
           )
         ),
@@ -3094,7 +3094,7 @@ function bulkSet(v, f) {
 }
 // ---- channel management (yt-channel auto, every morning): settings, playlists, the channel's own description
 // the same defaults as tools/yt-channel.mjs DEFAULTS (tests/run.mjs checks they match)
-const CHAN_DEFAULTS = { autopilot: true, footer: "Subscribe for more Filipino chess stories: https://www.youtube.com/@pnoychessofficialyt?sub_confirmation=1",
+const CHAN_DEFAULTS = { autopilot: true, footer: "Subscribe for more Filipino chess stories: https://www.youtube.com/@PnoyChess?sub_confirmation=1",
   hashtags: ["#chess", "#PnoyChess"], tags: ["chess", "PnoyChess", "Filipino chess"], lang: "en", filipino: false, protectTop: 10, budget: 3000, skip: [], autoApprove: true };
 const chanSettings = () => ({ ...CHAN_DEFAULTS, ...((S.chan2 || {}).settings || {}) });
 const AI_HINT = "Your PC's AI writes it by itself every morning at 5:00 (when the PC is on), or now: double-click channel-ai.cmd in C:\\PnoyChess\\docu.";
@@ -3429,7 +3429,7 @@ function chanProfilesPanel() {
   p.append(row("Instagram", "https://www.instagram.com/accounts/edit/", "Edit profile > Bio. Keep the one link on the YouTube channel; the last line points at it.",
     el("label", {}, "Bio (150 characters)", box(draft.instagram.bio, 3, "Instagram bio", (v) => { draft.instagram.bio = v; })),
     el("div", { class: "row" }, copy(() => draft.instagram.bio || "", "Instagram bio"), copy(() => draft.instagram.link || "", "Instagram link"))));
-  p.append(row("TikTok", "https://www.tiktok.com/@pnoychessofficialyt", "Edit profile > Bio. The plain @handle is searchable even when the link is not clickable.",
+  p.append(row("TikTok", "https://www.tiktok.com/@pnoychess", "Edit profile > Bio. The plain @handle is searchable even when the link is not clickable.",
     el("label", {}, "Bio (80 characters)", box(draft.tiktok.bio, 2, "TikTok bio", (v) => { draft.tiktok.bio = v; })),
     el("div", { class: "row" }, copy(() => draft.tiktok.bio || "", "TikTok bio"))));
   p.append(el("div", { class: "row" },
