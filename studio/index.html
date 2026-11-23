@@ -595,7 +595,9 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
   const textB64 = (t) => toB64(new TextEncoder().encode(t));
   const clone = (x) => JSON.parse(JSON.stringify(x));
 
-  function makeBackend({ fetch, token, repo = REPO, branch = BRANCH, api = "https://api.github.com", onAuthError = () => {}, onSync = null, progressive = false }) {
+  // store (the page only): { load(name), save(name, copy) } keeps each folder's last copy between visits, so the page
+  // shows it at once and then reads only the files whose sha changed (24 Nov 2026: ~500 reads on every open before)
+  function makeBackend({ fetch, token, repo = REPO, branch = BRANCH, api = "https://api.github.com", onAuthError = () => {}, onSync = null, progressive = false, store = null }) {
     const base = `${api}/repos/${repo}`;
     async function call(path, { method = "GET", body, accept = "application/vnd.github+json", etag } = {}) {
       const headers = { Authorization: "Bearer " + token, Accept: accept, "X-GitHub-Api-Version": "2022-11-28" };
@@ -661,8 +663,20 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
       return { docs: docs.map(({ id, data }) => ({ id, data })) };
     };
     const notify = (name) => { const c = collOf(name); c.subs.forEach((s) => { try { s.fn(snapshot(c, s.q)); } catch (e) { /* a listener's own error */ } }); };
+    // the last copy kept in the browser, put in once before the first listing (and shown at once); a broken or
+    // missing copy only means reading everything, as before
+    const restore = (name, c) => c.restoring || (c.restoring = (async () => {
+      try {
+        // a browser store that does not answer (the tests' headless Chrome runs on virtual time) must not hold the page
+        const kept = await Promise.race([store.load(name), new Promise((ok) => setTimeout(() => ok(null), 1500))]);
+        if (!kept || kept.v !== 1 || !Array.isArray(kept.files)) return;
+        for (const [id, sha, data] of kept.files) if (typeof id === "string" && typeof sha === "string" && !c.files.has(id) && !c.gone.has(id)) c.files.set(id, { sha, data });
+        if (c.files.size && !c.loaded) notify(name);
+      } catch (e) { /* no copy kept */ }
+    })());
     async function refresh0(name) {
       const c = collOf(name);
+      if (store) await restore(name, c);
       const list1 = async (etag) => { try { return await json(`/contents/db/${name}${ref}`, { etag }); } catch (e) { if (e.status !== 404) throw e; return { body: [], etag: null }; } };
       let list = await list1(c.etag);
       if (list.notModified && c.loaded) return;
@@ -684,14 +698,18 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
         try { c.files.set(id, { sha, data: JSON.parse(new TextDecoder().decode(fromB64(blob.content))) }); } catch (e) { /* not JSON: skipped */ }
         if (progressive && ++done % 50 === 0 && done < todo.length) notify(name); } };
       await Promise.all(Array.from({ length: Math.min(10, todo.length) }, worker));
-      for (const id of [...c.files.keys()]) { const f = c.files.get(id); if (seen.has(id)) continue; if (f.own && now - f.own < 60000) { pinned = true; continue; } c.files.delete(id); }
+      let removed = 0;
+      for (const id of [...c.files.keys()]) { const f = c.files.get(id); if (seen.has(id)) continue; if (f.own && now - f.own < 60000) { pinned = true; continue; } c.files.delete(id); removed++; }
       // only a listing read in full counts as seen: a skipped entry or a failed read is looked at again next poll
       c.etag = pinned ? null : list.etag;
       c.loaded = true; notify(name);
+      if (store && (todo.length || removed || !c.kept)) { c.kept = true; try { Promise.resolve(store.save(name, { v: 1, at: now, files: [...c.files].map(([id, f]) => [id, f.sha, f.data]) })).catch(() => {}); } catch (e) { /* keeping a copy is optional */ } }
     }
     // a poll that fails must not pass for a fresh one: the page shows the last good copy, so say when it is old
     async function refresh(name) {
-      try { await refresh0(name); if (onSync) onSync({ ok: true, name }); }
+      // a poll and a new listener at the same moment share one read of the folder, not two of every changed file
+      const c = collOf(name);
+      try { await (c.running || (c.running = refresh0(name).finally(() => { c.running = null; }))); if (onSync) onSync({ ok: true, name }); }
       catch (e) { if (onSync) onSync({ ok: false, name, error: (e && e.message) || String(e) }); throw e; }
     }
     const refreshAll = () => Promise.all([...colls].filter(([, c]) => c.subs.size).map(([n]) => refresh(n).catch(() => {})));
@@ -856,7 +874,15 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
     if (text !== told) { d.querySelector("span").textContent = text; told = text; }
   };
   const onSync = ({ ok, name, error }) => { if (ok) stale.delete(name); else stale.set(name, error); showStale(); };
-  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, progressive: true, onSync, onAuthError: () => { if (warned) return; warned = true; forgetKey(); signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
+  // each folder's last copy in this browser (IndexedDB, no size limit worth noting); Sign out and a dead key wipe it
+  const kept = (() => {
+    const ST = "folders", at = (name) => `${REPO}@${BRANCH}/${apiBase}/${name}`;
+    let dbp = null;
+    const open = () => dbp || (dbp = new Promise((ok, no) => { const r = indexedDB.open("docu.github.copy", 1); r.onupgradeneeded = () => r.result.createObjectStore(ST); r.onsuccess = () => ok(r.result); r.onerror = () => no(r.error); }));
+    const tx = async (mode, fn) => { const db = await open(); return new Promise((ok, no) => { const t = db.transaction(ST, mode), req = fn(t.objectStore(ST)); t.oncomplete = () => ok(req.result); t.onerror = t.onabort = () => no(t.error); }); };
+    return { load: (name) => tx("readonly", (s) => s.get(at(name))), save: (name, copy) => tx("readwrite", (s) => s.put(copy, at(name))), clear: () => tx("readwrite", (s) => s.clear()).catch(() => {}) };
+  })();
+  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, progressive: true, onSync, store: typeof indexedDB === "undefined" ? null : kept, onAuthError: () => { if (warned) return; warned = true; forgetKey(); kept.clear(); signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
   const realFetch = window.fetch.bind(window);
   window.fetch = (input, init) => { const u = typeof input === "string" ? input : input && input.url; const m = /^\/_blob\/([^/?#]+)$/.exec(u || ""); return m ? backend.blob(decodeURIComponent(m[1])) : realFetch(input, init); };
   // <img src="/_blob/…"> never goes through fetch: load it with the key and show it from memory
@@ -887,7 +913,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
   }
   schedulePoll();
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") backend.refreshAll(); });
-  const out = () => panel(`<span style="color:#aaa">PnoyChess Studio on GitHub · saving to <b>${REPO}</b> · writing: Copilot in VS Code (Docu writer) or Claude${sget("localStorage", KEY) ? " · this browser remembers the key" : " · the key goes when this tab closes"}</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = () => { forgetKey(); location.reload(); }; });
+  const out = () => panel(`<span style="color:#aaa">PnoyChess Studio on GitHub · saving to <b>${REPO}</b> · writing: Copilot in VS Code (Docu writer) or Claude${sget("localStorage", KEY) ? " · this browser remembers the key" : " · the key goes when this tab closes"}</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = async () => { forgetKey(); await kept.clear(); location.reload(); }; });
   out();
 })();
 
@@ -1077,7 +1103,7 @@ Reply with only a JSON array: [{"scene":"<scene id>","text":"<the fact>","risk":
 
 // tools/facts.mjs explains the gate; this block is word for word the same there (`npm test` compares them)
 // facts-gate start
-const FACT_VISUALS = ["terrain", "beams", "tree", "space", "counter", "bars", "timeline", "quote", "race", "compare", "board", "stat", "map"];
+const FACT_VISUALS = ["glow", "terrain", "beams", "tree", "space", "counter", "bars", "timeline", "quote", "race", "compare", "board", "stat", "map"];
 // the same text in the same order however it was saved (a database may give an object's keys back in another order)
 const canon = (v) => Array.isArray(v) ? "[" + v.map(canon).join(",") + "]" : v && typeof v === "object" ? "{" + Object.keys(v).sort().filter((k) => v[k] !== undefined).map((k) => JSON.stringify(k) + ":" + canon(v[k])).join(",") + "}" : JSON.stringify(v === undefined ? null : v);
 const fnv = (t) => { let h = 2166136261; for (const c of t) { h ^= c.codePointAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36); };
@@ -2115,7 +2141,7 @@ function miniBoardEl(vis) {
 function planIssues(p) {
   const issues = [];
   const scenes = (p && p.plan && p.plan.scenes) || [];
-  const VALID_TYPES = new Set(["climb", "brain", "terrain", "beams", "tree", "space", "board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
+  const VALID_TYPES = new Set(["glow", "climb", "brain", "terrain", "beams", "tree", "space", "board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
   scenes.forEach((s, idx) => {
     const v = s.visual;
     if (!v || !v.type || !VALID_TYPES.has(v.type)) {
