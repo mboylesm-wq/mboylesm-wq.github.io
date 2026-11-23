@@ -290,7 +290,7 @@
           const isApproved = item.status === "approved";
           const isVetoed = item.status === "vetoed";
           const statusTone = isApproved ? "ok" : isVetoed ? "bad" : "warn";
-          const statusLabel = isApproved ? "Approved" : isVetoed ? "Vetoed" : "Waiting Review";
+          const statusLabel = isApproved ? "Approved" : isVetoed ? "Vetoed" : item.status === "waiting" ? "Needs your OK: will not post until you approve" : "Waiting Review";
 
           // Social media posting state for this slot
           const s = (curDayData.st && curDayData.st[sk]) || {};
