@@ -194,7 +194,7 @@
     return { type: "whatif", i: o.i || 0, t: t0, land: t0, only: o.only || null,
       x: steps[0].x1, y: steps[0].y1, fx: steps[0].x0, fy: steps[0].y0, piece: steps[0].piece, san: steps[0].san,
       line: { t0: 0, endAt: o.endAt == null ? last + 1.2 : rel(o.endAt), after: o.after == null ? last + 2.5 : rel(o.after),
-        label: raw.label || "", badge: raw.badge || "", rewind: raw.rewind || "", steps } };
+        label: raw.label || "", labelSize: raw.labelSize, badge: raw.badge || "", rewind: raw.rewind || "", steps } };
   }
   // every active effect instance at time t: [{fx, ev, age}] for the given profile map
   function active(events, prof, t, opts) {
