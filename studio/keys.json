@@ -1,6 +1,6 @@
 {
- "checkedOn": "2026-11-20",
- "checkedAt": "2026-11-19T20:59:31.142Z",
+ "checkedOn": "2026-11-22",
+ "checkedAt": "2026-11-21T16:07:33.307Z",
  "summary": "all good",
  "items": [
   {
@@ -94,7 +94,7 @@
    "where": "cron-job.org jobs, GitHub key \"cronjob-pnoychess\" (no expiry, in KeePass)",
    "status": "ok",
    "expires": "no expiry",
-   "detail": "last run 2026-11-19 22:25 Manila"
+   "detail": "last run 2026-11-21 22:39 Manila"
   },
   {
    "renewUrl": "https://github.com/settings/personal-access-tokens",
