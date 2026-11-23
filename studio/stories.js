@@ -44,7 +44,9 @@
         el("video", { src: safeUrl(r.videoUrl), controls: true, preload: "none", poster: r.coverUrl ? safeUrl(r.coverUrl) : undefined, style: "width:220px; max-width:100%; border-radius:10px; background:#000;" }),
         el("a", { class: "btn", href: safeUrl(r.videoUrl), target: "_blank", rel: "noopener", text: "Download" })) : null,
       (reel.scenes || []).length ? el("ol", { style: "margin:6px 0 6px 18px; padding:0;" }, ...reel.scenes.map((sc, i) => el("li", {},
-        el("span", { class: "pill", style: "margin-right:6px;", text: (x.shown && x.shown[i]) || sc.visual.type }), sc.text))) : null,
+        el("span", { class: "pill", style: "margin-right:6px;", text: (x.shown && x.shown[i]) || sc.visual.type }), sc.text,
+        // the source sentence the fact check found for this scene (tools/story-reels.mjs checkSupport): read it before Make
+        ((x.support || {})[sc.id] || []).length ? el("div", { class: "note", style: "font-style:italic; margin:2px 0 6px;", text: "Source: “" + x.support[sc.id].join(" … ").slice(0, 300) + "”" }) : null))) : null,
       reel.caption ? el("div", { class: "note", text: "Post: " + reel.caption }) : null,
       (reel.sources || []).length ? el("div", { class: "note" }, "Sources: ", ...reel.sources.flatMap((s, i) => [i ? " · " : "", el("a", { href: safeUrl(s.url), target: "_blank", rel: "noopener", text: s.title || s.url })])) : null,
       btns);
