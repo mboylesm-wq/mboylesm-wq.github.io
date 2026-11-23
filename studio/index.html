@@ -763,7 +763,19 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
       return r.ok ? new Response(await r.blob(), { status: 200 }) : new Response("", { status: r.status });
     }
     // starts a workflow (Approve → youtube.yml); the key needs Actions: Read and write
-    const dispatch = async (workflow, inputs) => { if (!/^[a-z0-9-]+\.yml$/.test(workflow)) throw new Error("not a workflow: " + workflow); await json(`/actions/workflows/${workflow}/dispatches`, { method: "POST", body: { ref: branch, inputs } }); };
+    // Since 23 Nov 2026 Mark's PC does the page's writing, story-reel and stock-clip jobs (tools/pc-jobs.mjs) and GitHub is
+    // the backup: these buttons also leave a request in db/pcrequests/<id>.json, which the PC picks up within 10 minutes.
+    // GitHub's run checks that request first and stands aside while the PC is on (tools/pc-gate.mjs). When GitHub refuses
+    // the run (no Actions minutes left), the request still reaches the PC, so the button still works.
+    const PC_FIRST = /^(write|story|clips)\.yml$/;
+    const dispatch = async (workflow, inputs) => {
+      if (!/^[a-z0-9-]+\.yml$/.test(workflow)) throw new Error("not a workflow: " + workflow);
+      if (!PC_FIRST.test(workflow)) { await json(`/actions/workflows/${workflow}/dispatches`, { method: "POST", body: { ref: branch, inputs } }); return; }
+      const id = "r" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+      await files.saveJson(`db/pcrequests/${id}.json`, { id, workflow, inputs: inputs || {}, at: new Date().toISOString(), status: "waiting" }, "studio: request " + workflow.replace(".yml", "") + " for the PC");
+      try { await json(`/actions/workflows/${workflow}/dispatches`, { method: "POST", body: { ref: branch, inputs: { ...(inputs || {}), request: id } } }); }
+      catch (e) { console.warn("GitHub did not start " + workflow + "; the PC does the request", e); }
+    };
     // the runs of a workflow that are queued or running now (the page locks its button meanwhile); Actions: Read
     const active = async (workflow) => {
       if (!/^[a-z0-9-]+\.yml$/.test(workflow)) throw new Error("not a workflow: " + workflow);
@@ -1084,7 +1096,11 @@ const sourceBad = (c) => !!(c.check && c.check.source === c.source && (c.check.v
 // 2026-11-01) unless the source check found it dead or saying otherwise; Undo sets "doubted" so Mark decides himself
 const TRUSTED_SOURCES = ["chess.com", "lichess.org", "lichess.com", "chessbase.com", "chessbase.in", "theweekinchess.com", "wikipedia.org", "fide.com", "chessgames.com", "365chess.com", "chess24.com", "chess-results.com", "uschess.org", "newinchess.com", "worldchess.com", "chessprogramming.org", "olimpbase.org", "chessdom.com", "europechess.net"];
 const trustedSource = (u) => { const m = /^https?:\/\/([^/?#:]+)/i.exec(String(u || "").trim()), h = m ? m[1].toLowerCase() : ""; return !!h && TRUSTED_SOURCES.some((d) => h === d || h.endsWith("." + d)); };
-const autoConfirmed = (c) => (!c.status || c.status === "pending") && trustedSource(c.source);
+// ... every claim (with or without a number): auto-confirmed on a trusted site only once the source check found a
+// supporting quote in that source (Mark, 23 Nov 2026)
+const statesNumber = (c) => /\d|\b(two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety|hundred|thousand|million)\b/i.test(String(c.text || ""));
+const sourceShows = (c) => !!(c.check && c.check.source === c.source && c.check.verdict === "supports");
+const autoConfirmed = (c) => (!c.status || c.status === "pending") && trustedSource(c.source) && sourceShows(c);
 const claimDone = (c) => ((c.status === "supported" || autoConfirmed(c)) && /^https?:\/\/\S+$/.test(String(c.source || "").trim()) && (!sourceBad(c) || c.userConfirmed)) || (c.status === "waived" && !!String(c.note || "").trim());
 const factGate = (p) => {
   const required = !!p.claimsRequired || Array.isArray(p.claims), scenes = factScenes(p).filter(factText), scan = p.factScan || {};
@@ -2099,7 +2115,7 @@ function miniBoardEl(vis) {
 function planIssues(p) {
   const issues = [];
   const scenes = (p && p.plan && p.plan.scenes) || [];
-  const VALID_TYPES = new Set(["brain", "terrain", "beams", "tree", "space", "board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
+  const VALID_TYPES = new Set(["climb", "brain", "terrain", "beams", "tree", "space", "board", "photo", "title", "quote", "stat", "map", "timeline", "bracket", "words", "geo", "video", "end", "counter", "bars", "compare", "race", "chess960", "profile", "champion", "versus", "evalgraph", "portrait"]);
   scenes.forEach((s, idx) => {
     const v = s.visual;
     if (!v || !v.type || !VALID_TYPES.has(v.type)) {
