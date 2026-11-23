@@ -136,7 +136,7 @@
       const L = a.line; if (!L || !L.label) return;
       const al = clamp(Math.min(1, (a.t - L.t0) / 0.2) * (a.t > L.endAt ? 1 - (a.t - L.endAt) / FADE : 1), 0, 1);
       if (al <= 0.01) return;
-      chip(ctx, a, a.bx + a.bs / 2, a.by - a.S * 0.55, L.label, { alpha: al, border: "rgba(6,182,212,.85)", color: "#cff7ff" }); } },
+      chip(ctx, a, a.bx + a.bs / 2, a.by - a.S * 0.55, L.label, { alpha: al, size: L.labelSize, border: "rgba(6,182,212,.85)", color: "#cff7ff" }); } },
     { id: "wi-rewind", name: "Back to the puzzle chip", layer: "text", draw: (ctx, a) => {
       const L = a.line; if (!L || !L.rewind || a.t < L.endAt || atEnd(a)) return;
       const al = clamp((a.t - L.endAt) / 0.14, 0, 1);
