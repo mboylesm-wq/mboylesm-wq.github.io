@@ -188,7 +188,7 @@
   }
   // where a waiting book is in the PC's line: it builds one book a round (every ten minutes), the oldest asking first
   function waitText(a) {
-    const books = S.repBooks || {}, ahead = (S.repAsks || []).filter((x) => x.id !== a.id && state(x, books[x.id]) === "waiting" && (String(x.ask) < String(a.ask) || (String(x.ask) === String(a.ask) && x.id < a.id))).length; // the PC takes the oldest asking first, then by name
+    const books = S.repBooks || {}, ahead = (S.repAsks || []).filter((x) => x.id !== a.id && state(x, books[x.id]) === "waiting" && (String(x.ask) > String(a.ask) || (String(x.ask) === String(a.ask) && x.id < a.id))).length; // the PC takes the newest asking first, then by name
     return `Asked ${when(a.ask)}. ` + (ahead ? `${ahead} book${ahead === 1 ? " is" : "s are"} ahead of it; ` : "It is next; ") +
       `your PC builds one every ten minutes or so, so expect it in about ${10 * (ahead + 1)} to ${20 * (ahead + 1)} minutes. Free; the PC must be on and awake.`;
   }
@@ -210,11 +210,12 @@
       st === "waiting" ? el("div", { class: "note", text: waitText(a) }) : null,
       b && b.status === "done" && !ready ? el("div", { class: "note", style: "color:inherit;", text: "The board (Train, Explore, Check my games) comes with the next build: this book was made before the board existed. " + (st === "waiting" ? "Your PC is already on it." : "Press Build again.") }) : null,
       st === "failed" ? el("div", { class: "note", text: "Your PC could not build it: " + (b.why || "no reason given") }) : null,
+      b && b.engineOnly ? el("div", { class: "note", style: "color:inherit;", text: `Masters (almost) never played this opening, so Stockfish built this book alone: ${num(b.tree.ours)} moves of yours, ${num(b.tree.replies)} replies of the opponent, every one the engine's choice. No results from real games to show.` }) : null,
       b && b.imported ? el("div", { class: "note", style: "color:inherit;", text: `Brought in from a PGN: ${num(b.lines)} lines, ${num(b.tree.ours)} moves of yours to learn, ${num(b.tree.replies)} replies of the opponent.` }) : null,
-      (st === "done" || old) && !b.imported ? el("div", { class: "note", style: "color:inherit;", text: headline(a, b) }) : null,
-      (st === "done" || old) && !b.imported && coverText(b) ? el("div", { class: "note", text: coverText(b) }) : null,
+      (st === "done" || old) && !b.imported && !b.engineOnly ? el("div", { class: "note", style: "color:inherit;", text: headline(a, b) }) : null,
+      (st === "done" || old) && !b.imported && !b.engineOnly && coverText(b) ? el("div", { class: "note", text: coverText(b) }) : null,
       // one book open at a time, and it stays open when the page redraws itself
-      (st === "done" || old) && !b.imported ? el("details", { open: S.repOpen === a.id, style: "margin-top:6px;", ontoggle: (ev) => { if (ev.target.open) S.repOpen = a.id; else if (S.repOpen === a.id) S.repOpen = null; } },
+      (st === "done" || old) && !b.imported && !b.engineOnly ? el("details", { open: S.repOpen === a.id, style: "margin-top:6px;", ontoggle: (ev) => { if (ev.target.open) S.repOpen = a.id; else if (S.repOpen === a.id) S.repOpen = null; } },
         el("summary", { text: "Open the book: the numbers, the rules of thumb, the lines" }), bookBody(a, b)) : null,
       btns);
   }
@@ -242,7 +243,7 @@
       el("span", { class: "note", style: "min-width:150px;", text: g + ":" }),
       ...list.map((o) => el("button", { class: "btn" + (f.opening === o.name ? " primary" : ""), type: "button", title: `${o.eco} ${o.name}: ${o.moves.join(" ")} (${Number(o.games).toLocaleString("en-US")} games)`, text: shortName(o.name),
         onclick: () => { f.start = o.moves.join(" "); f.opening = o.name; f.find = ""; f.side = o.side === "w" ? "white" : "black"; render(); } }))));
-    const datalist = el("datalist", { id: listId }, ...matches.map((o) => el("option", { value: label(o), label: `${Number(o.games).toLocaleString("en-US")} games` })));
+    const datalist = el("datalist", { id: listId }, ...matches.map((o) => el("option", { value: label(o), label: o.games ? `${Number(o.games).toLocaleString("en-US")} games` : "no master games: Stockfish builds the book" })));
     // every opening, by family (Mark, 24 Nov 2026: "the list is not complete, I want all openings in it"): one line per
     // family, most played first; a family's variations are drawn only when it is opened, so the page stays quick
     const pickOpening = (o) => { f.start = o.moves.join(" "); f.opening = o.name; f.find = ""; f.side = o.side === "w" ? "white" : "black"; render(); window.scrollTo(0, 0); };
@@ -251,7 +252,7 @@
       el("div", { style: "max-height:520px; overflow:auto; margin-top:6px;" }, ...families().map((fam) => {
         const box = el("div", { style: "display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 10px 14px;" });
         return el("details", { style: "margin:2px 0;", ontoggle: (ev) => { if (ev.target.open && !box.childNodes.length) box.append(...fam.list.map((o) => el("button", { class: "btn" + (f.opening === o.name ? " primary" : ""), type: "button",
-          title: `${o.eco} ${o.name}: ${o.moves.join(" ")} (${num(o.games)} games)`, text: `${o.eco} ${o.name.includes(":") ? o.name.split(": ").slice(1).join(": ") : "main line"} · ${num(o.games)}`, onclick: () => pickOpening(o) }))); } },
+          title: `${o.eco} ${o.name}: ${o.moves.join(" ")} (${o.games ? num(o.games) + " games" : "no master games: Stockfish builds the book alone"})`, text: `${o.eco} ${o.name.includes(":") ? o.name.split(": ").slice(1).join(": ") : "main line"} · ${o.games ? num(o.games) : "engine only"}`, onclick: () => pickOpening(o) }))); } },
           el("summary", { text: `${fam.name} — ${fam.list.length} line${fam.list.length === 1 ? "" : "s"}, ${num(fam.games)} games${fam.side === "w" ? " (White's)" : fam.side === "b" ? " (Black's)" : ""}` }), box);
       }))) : null;
     const boardPanel = S.repTrain && window.RepertoireTrain ? window.RepertoireTrain.view() : null;
