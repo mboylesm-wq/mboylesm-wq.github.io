@@ -488,6 +488,10 @@ video { width: 100%; max-width: 100%; border-radius: 10px; background: #000; box
   .reel-stage { position: static; }
   .header-top { flex-direction: column; align-items: flex-start; }
   .proj { grid-template-columns: 1fr; }
+  /* phones: the tab row scrolls inside itself and the title wraps, instead of widening the whole page (24 Nov 2026) */
+  header, header > *, nav, main, .brand, .brand-titles { min-width: 0; max-width: 100%; }
+  .wrap { width: 100%; box-sizing: border-box; grid-template-columns: minmax(0, 1fr); }
+  .brand-titles h1 { flex-wrap: wrap; }
 }
 .empty { padding: 36px 20px; text-align: center; color: var(--dim); border: 1.5px dashed var(--line); border-radius: 12px; background: var(--panel-elevated); font-size: 14px; }
 .thumbs { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
