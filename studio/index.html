@@ -555,6 +555,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
       <button type="button" id="nav-projects" data-view="projects">Create</button>
       <button type="button" id="nav-viral" data-view="viral">Viral</button>
       <button type="button" id="nav-visualised" data-view="visualised">Visualised</button>
+      <button type="button" id="nav-cartoons" data-view="cartoons">Cartoons</button>
       <button type="button" id="nav-review" data-view="review">Review</button>
       <button type="button" id="nav-channel" data-view="channel">Channel</button>
       <button type="button" id="nav-tools" data-view="tools">Tools</button>
@@ -1513,6 +1514,8 @@ function saveDraft(data) {
     }, () => {});
     db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if ((S.view === "music" || S.cur) && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("storyreels").onSnapshot((snap) => { S.stories = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.askedAt).localeCompare(String(a.askedAt))); if (S.view === "trends" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("cartoons").onSnapshot((snap) => { S.cartoons = snap.docs.map((d) => ({ id: d.id, ...d.data() })); if (S.view === "cartoons" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("cartoonrenders").onSnapshot((snap) => { S.cartoonRenders = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()])); if (S.view === "cartoons" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("storyrenders").onSnapshot((snap) => { S.storyRenders = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()])); if (S.view === "trends" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("trendgames").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trendGames = snap.docs[0] ? snap.docs[0].data() : null; if ((S.view === "gamereview" || S.view === "viral") && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
@@ -1586,6 +1589,7 @@ function render() {
     S.view === "gamereview" ? viewGameReview() :
     S.view === "viral" ? viewViral() :
     S.view === "visualised" ? viewVisualised() :
+    S.view === "cartoons" ? viewCartoons() :
     S.view === "reel" ? viewReel() :
     S.view === "pgn" ? viewPgn() :
     S.view === "review" ? viewReview() :
@@ -3991,6 +3995,7 @@ function lazyView(src, make) {
 function viewReel() { return lazyView("reel.js", () => window.ReelStudio.view(S.reelOpen)); }
 function viewViral() { return lazyView("viral.js", () => window.ViralBoard.view()); }
 function viewVisualised() { return lazyView("visualised.js", () => window.VisualisedBoard.view()); }
+function viewCartoons() { return lazyView("cartoons.js", () => window.F7Cartoons.view()); } // studio/cartoons.js: the f7 cartoon episodes
 function viewPublish() { return lazyView("publish.js", () => window.PublishBoard.view()); }
 function viewTools(initialSub) {
   if (initialSub) S.toolTab = initialSub;
