@@ -883,16 +883,39 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
     const tx = async (mode, fn) => { const db = await open(); return new Promise((ok, no) => { const t = db.transaction(ST, mode), req = fn(t.objectStore(ST)); t.oncomplete = () => ok(req.result); t.onerror = t.onabort = () => no(t.error); }); };
     return { load: (name) => tx("readonly", (s) => s.get(at(name))), save: (name, copy) => tx("readwrite", (s) => s.put(copy, at(name))), clear: () => tx("readwrite", (s) => s.clear()).catch(() => {}) };
   })();
-  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, progressive: true, onSync, store: typeof indexedDB === "undefined" ? null : kept, onAuthError: () => { if (warned) return; warned = true; forgetKey(); kept.clear(); signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
+  const backend = makeBackend({ fetch: window.fetch.bind(window), token, api: apiBase, progressive: true, onSync, store: typeof indexedDB === "undefined" ? null : kept, onAuthError: () => { if (warned) return; warned = true; forgetKey(); kept.clear(); pics.clear(); signIn("Your GitHub key no longer works (expired or removed). Paste a new one."); } });
   const realFetch = window.fetch.bind(window);
   window.fetch = (input, init) => { const u = typeof input === "string" ? input : input && input.url; const m = /^\/_blob\/([^/?#]+)$/.exec(u || ""); return m ? backend.blob(decodeURIComponent(m[1])) : realFetch(input, init); };
-  // <img src="/_blob/…"> never goes through fetch: load it with the key and show it from memory
+  // <img src="/_blob/…"> never goes through fetch: load it with the key and show it from memory.
+  // 24 Nov 2026: the Channel tab asked GitHub for all ~290 thumbnails (56 MB, one API request each) on every visit,
+  // ahead of anything Mark clicked. Now a picture is read only when it comes near the screen, and kept in this
+  // browser (an id in db/files is never reused for another file, so a kept picture cannot go out of date).
   const shown = new Map();
+  const pics = (() => {
+    const NAME = "docu.github.pictures", at = (id) => `${location.origin}/_kept/${REPO}/${encodeURIComponent(id)}`;
+    // a store that does not answer within 1.5 s (the tests' headless Chrome runs on virtual time) is not asked again
+    // this visit, so it costs one wait at most and never holds a picture back
+    let box = typeof caches !== "undefined" && window.isSecureContext ? null : Promise.resolve(null);
+    const open = () => box || (box = Promise.race([caches.open(NAME), new Promise((r) => setTimeout(() => r(null), 1500))]).catch(() => null));
+    return {
+      get: (id) => open().then((c) => (c ? c.match(at(id)) : null)).then((r) => (r ? r.blob() : null)).catch(() => null),
+      put: (id, b) => { open().then((c) => c && c.put(at(id), new Response(b))).catch(() => {}); },
+      clear: () => (typeof caches !== "undefined" ? Promise.race([caches.delete(NAME), new Promise((r) => setTimeout(r, 1500))]).catch(() => {}) : Promise.resolve()),
+    };
+  })();
+  const fetchPic = (id) => pics.get(id).then((had) => had || backend.blob(id).then((r) => (r.ok ? r.blob() : Promise.reject(new Error("missing")))).then((b) => { pics.put(id, b); return b; }));
+  const show = (img) => {
+    const id = img.dataset.blob; if (!id) return;
+    if (!shown.has(id)) shown.set(id, fetchPic(id).then((b) => URL.createObjectURL(b)).catch((e) => { shown.delete(id); throw e; }));
+    shown.get(id).then((u) => { if (img.dataset.blob === id) img.src = u; }, () => { img.alt = (img.alt || "Picture") + " (could not load)"; });
+  };
+  // read 800 px before it scrolls into view, so it is ready; a picture in a closed box waits until the box opens
+  const near = typeof IntersectionObserver === "undefined" ? null
+    : new IntersectionObserver((es) => es.forEach((e) => { if (e.isIntersecting) { near.unobserve(e.target); show(e.target); } }), { rootMargin: "800px" });
   const swap = (img) => {
     const m = /^\/_blob\/([^/?#]+)$/.exec(img.getAttribute("src") || ""); if (!m) return;
     const id = decodeURIComponent(m[1]); img.removeAttribute("src"); img.dataset.blob = id;
-    if (!shown.has(id)) shown.set(id, backend.blob(id).then((r) => (r.ok ? r.blob() : Promise.reject(new Error("missing")))).then((b) => URL.createObjectURL(b)).catch((e) => { shown.delete(id); throw e; }));
-    shown.get(id).then((u) => { if (img.dataset.blob === id) img.src = u; }, () => { img.alt = (img.alt || "Picture") + " (could not load)"; });
+    if (shown.has(id) || !near) show(img); else near.observe(img);
   };
   const scan = (n) => { if (n.nodeType !== 1) return; if (n.matches("img[src^='/_blob/']")) swap(n); n.querySelectorAll("img[src^='/_blob/']").forEach(swap); };
   new MutationObserver((ms) => ms.forEach((m) => (m.type === "attributes" ? scan(m.target) : m.addedNodes.forEach(scan)))).observe(document.documentElement, { childList: true, subtree: true, attributes: true, attributeFilter: ["src"] });
@@ -914,7 +937,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
   }
   schedulePoll();
   document.addEventListener("visibilitychange", () => { if (document.visibilityState === "visible") backend.refreshAll(); });
-  const out = () => panel(`<span style="color:#aaa">PnoyChess Studio on GitHub · saving to <b>${REPO}</b> · writing: Copilot in VS Code (Docu writer) or Claude${sget("localStorage", KEY) ? " · this browser remembers the key" : " · the key goes when this tab closes"}</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = async () => { forgetKey(); await kept.clear(); location.reload(); }; });
+  const out = () => panel(`<span style="color:#aaa">PnoyChess Studio on GitHub · saving to <b>${REPO}</b> · writing: Copilot in VS Code (Docu writer) or Claude${sget("localStorage", KEY) ? " · this browser remembers the key" : " · the key goes when this tab closes"}</span> <button id="gh-out" type="button" style="float:right">Sign out</button>`).then((d) => { d.style.padding = "6px 12px"; d.querySelector("#gh-out").onclick = async () => { forgetKey(); await kept.clear(); await pics.clear(); location.reload(); }; });
   out();
 })();
 
@@ -1464,6 +1487,8 @@ const VISUAL_STYLES = {
 };
 
 // ---------- capabilities (the page works without them, features light up when they arrive) ----------
+// the tabs that draw nothing from db/projects (studio/publish.js, cartoons.js, reel.js and the source-PGN page)
+const NO_PROJECT_VIEWS = new Set(["publish", "pgn", "cartoons", "reel"]);
 const S = { reels: [], reelOpen: null, view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, trendGames: null, grTop: "all", grPrefill: null, viralFilter: "all", viralHideMade: true, projects: [], music: [], cur: null, busy: false, health: null, edits: [], prefill: null, draftForm: null, sysHealth: null };
 try { const d = localStorage.getItem("docu.draftForm"); if (d) S.draftForm = JSON.parse(d); } catch (e) {}
 
@@ -1504,14 +1529,16 @@ function saveDraft(data) {
       S._prevStatuses = prev;
       S.projects = newProjects;
       if (S.cur) S.cur = S.projects.find((p) => p.id === S.cur.id) || S.cur;
-      if (!shouldSkipRenderOnSnapshot()) render();
+      // tabs that show no project are not redrawn by a project change (a render's progress line arrives every few
+      // seconds; the bar at the top follows it on its own): redrawing them cost reads and lost the open reel or day
+      if (!shouldSkipRenderOnSnapshot() && !NO_PROJECT_VIEWS.has(S.view)) render();
     }, () => {});
     db.collection("music").onSnapshot((snap) => { S.music = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.requestedAt).localeCompare(String(a.requestedAt))); if ((S.view === "music" || S.cur) && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("storyreels").onSnapshot((snap) => { S.stories = snap.docs.map((d) => ({ id: d.id, ...d.data() })).sort((a, b) => String(b.askedAt).localeCompare(String(a.askedAt))); if (S.view === "trends" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("cartoons").onSnapshot((snap) => { S.cartoons = snap.docs.map((d) => ({ id: d.id, ...d.data() })); if (S.view === "cartoons" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("cartoonrenders").onSnapshot((snap) => { S.cartoonRenders = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()])); if (S.view === "cartoons" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("storyrenders").onSnapshot((snap) => { S.storyRenders = Object.fromEntries(snap.docs.map((d) => [d.id, d.data()])); if (S.view === "trends" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
-    db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; if (!shouldSkipRenderOnSnapshot()) render(); }, () => {});
+    db.collection("trends").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trends = snap.docs[0] ? snap.docs[0].data() : null; if ((S.view === "trends" || S.view === "viral") && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("trendgames").orderBy("at", "desc").limit(1).onSnapshot((snap) => { S.trendGames = snap.docs[0] ? snap.docs[0].data() : null; if ((S.view === "gamereview" || S.view === "viral") && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     db.collection("health").onSnapshot((snap) => { const d = snap.docs.find((x) => x.id === "status"); S.sysHealth = d ? d.data() : null; if (S.view === "health" && !shouldSkipRenderOnSnapshot()) render(); }, () => {});
     S._ensureChannel = () => {
@@ -1570,6 +1597,8 @@ async function save(p, patch) {
 // ---------- views ----------
 function render() {
   try { localStorage.setItem("docu.view", S.view); } catch (e) {}
+  // the tab drawn last time: a redraw of the same tab may keep what it read (studio/publish.js)
+  S.lastView = S.shownView; S.shownView = S.view;
   const tab = (S.view === "write" || S.view === "reel" || S.view === "gamereview" || S.view === "trends") ? "projects"
     : (S.view === "music" || S.view === "health" || S.view === "tools") ? "tools"
     : (S.view === "posts" || S.view === "pgn") ? "review"
@@ -4230,10 +4259,13 @@ function viewReview() {
       const files = await window.claude.use("files");
       const manilaToday = new Date(Date.now() + 8 * 3600e3).toISOString().slice(0, 10);
       const manilaTomorrow = new Date(Date.parse(manilaToday + "T00:00:00Z") + 864e5).toISOString().slice(0, 10);
-      const [todayData, tomorrowData] = await Promise.all([
+      // the two day files are kept for a minute: every redraw of this tab read them again (24 Nov 2026); Approve,
+      // Veto and Re-render change the kept copy itself, so it never shows less than was saved
+      const k = S._reviewDays;
+      const [todayData, tomorrowData] = k && k.day === manilaToday && Date.now() - k.at < 60000 ? k.data : (S._reviewDays = { day: manilaToday, at: Date.now(), data: await Promise.all([
         files.json("chess/publisher/days/" + manilaToday + ".json").catch(() => null),
         files.json("chess/publisher/days/" + manilaTomorrow + ".json").catch(() => null)
-      ]);
+      ]) }).data;
 
       const items = [];
       const collect = (d, dateStr, label) => {
