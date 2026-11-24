@@ -556,6 +556,7 @@ pre.desc { font: 12.5px/1.55 var(--mono); white-space: pre-wrap; margin: 0; max-
       <button type="button" id="nav-viral" data-view="viral">Viral</button>
       <button type="button" id="nav-visualised" data-view="visualised">Visualised</button>
       <button type="button" id="nav-cartoons" data-view="cartoons">Cartoons</button>
+      <button type="button" id="nav-repertoire" data-view="repertoire">Repertoire</button>
       <button type="button" id="nav-review" data-view="review">Review</button>
       <button type="button" id="nav-channel" data-view="channel">Channel</button>
       <button type="button" id="nav-tools" data-view="tools">Tools</button>
@@ -1488,7 +1489,7 @@ const VISUAL_STYLES = {
 
 // ---------- capabilities (the page works without them, features light up when they arrive) ----------
 // the tabs that draw nothing from db/projects (studio/publish.js, cartoons.js, reel.js and the source-PGN page)
-const NO_PROJECT_VIEWS = new Set(["publish", "pgn", "cartoons", "reel"]);
+const NO_PROJECT_VIEWS = new Set(["publish", "pgn", "cartoons", "reel", "repertoire"]);
 const S = { reels: [], reelOpen: null, view: "trends", db: null, sample: null, assets: null, downloads: null, trends: null, trendGames: null, grTop: "all", grPrefill: null, viralFilter: "all", viralHideMade: true, projects: [], music: [], cur: null, busy: false, health: null, edits: [], prefill: null, draftForm: null, sysHealth: null };
 try { const d = localStorage.getItem("docu.draftForm"); if (d) S.draftForm = JSON.parse(d); } catch (e) {}
 
@@ -1613,6 +1614,7 @@ function render() {
     S.view === "viral" ? viewViral() :
     S.view === "visualised" ? viewVisualised() :
     S.view === "cartoons" ? viewCartoons() :
+    S.view === "repertoire" ? viewRepertoire() :
     S.view === "reel" ? viewReel() :
     S.view === "pgn" ? viewPgn() :
     S.view === "review" ? viewReview() :
@@ -4019,6 +4021,7 @@ function viewReel() { return lazyView("reel.js", () => window.ReelStudio.view(S.
 function viewViral() { return lazyView("viral.js", () => window.ViralBoard.view()); }
 function viewVisualised() { return lazyView("visualised.js", () => window.VisualisedBoard.view()); }
 function viewCartoons() { return lazyView("cartoons.js", () => window.F7Cartoons.view()); } // studio/cartoons.js: the f7 cartoon episodes
+function viewRepertoire() { return lazyView("repertoire.js", () => window.RepertoireTab.view()); } // studio/repertoire.js: a repertoire by goal
 function viewPublish() { return lazyView("publish.js", () => window.PublishBoard.view()); }
 function viewTools(initialSub) {
   if (initialSub) S.toolTab = initialSub;
