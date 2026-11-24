@@ -274,7 +274,7 @@
         row === 7 ? el("span", { style: `position:absolute; right:3px; bottom:1px; font:600 10px system-ui,sans-serif; text-shadow:none; color:${dark ? "#f0d4a4" : "#a5683a"};`, text: FILES[f] }) : null));
     }
     const grid = el("div", { style: "display:grid; grid-template-columns:repeat(8,1fr); width:100%; user-select:none; touch-action:none;" }, ...cells);
-    return el("div", { style: "position:relative; width:min(92vw,440px); border:6px solid #2e1a0d; border-radius:8px; overflow:hidden;" }, grid, arrows(flip));
+    return el("div", { style: "position:relative; width:100%; max-width:440px; box-sizing:border-box; flex:1 1 300px; border:6px solid #2e1a0d; border-radius:8px; overflow:hidden;" }, grid, arrows(flip));
   }
   // the hint as an arrow (cyan, the channel's colour for the move to find), drawn over the board
   function arrows(flip) {
