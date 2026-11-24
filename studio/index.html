@@ -1435,20 +1435,14 @@ const FORMATS = {
 // the visual style that suits each format; picking a format sets it on the form (Mark can still change it)
 const FORMAT_STYLE = { story: "documentary", rivalry: "documentary", whatif: "documentary", countdown: "documentary", breakdown: "tactical", lecture: "tactical", idea: "explainer", history: "documentary", science: "explainer", myths: "explainer", proof: "proof" };
 // the writing AIs the page offers ("provider:model"); "custom" shows a provider list and a model box (any model name)
+// Mark (24 Nov 2026): "it should only be claude 5.5" for scripts; DeepSeek and the others were taken off this list
 const AI_WRITERS = [
-  ["deepseek:deepseek-chat", "DeepSeek Chat (cheapest, default)"],
-  ["deepseek:deepseek-reasoner", "DeepSeek Reasoner (thinks longer)"],
+  ["claude-code:claude-opus-5-5", "Claude Opus 5.5 on my PC (my Claude plan, default)"],
   ["claude:claude-opus-5-5", "Claude Opus 5.5 (Anthropic API key)"],
-  ["claude:claude-sonnet-5-5", "Claude Sonnet 5.5 (Anthropic API key)"],
-  ["copilot:claude-opus-5.5", "Claude Opus 5.5 via GitHub Copilot (premium requests)"],
-  ["openai:gpt-5", "OpenAI GPT-5 (OpenAI key)"],
-  ["gemini:gemini-2.5-pro", "Google Gemini 2.5 Pro (Gemini key)"],
-  ["antigravity", "Antigravity on my PC (Gemini, free)"],
-  ["custom", "Other AI / model (type it)…"],
 ];
-const AI_PROVIDERS_LIST = [["deepseek", "DeepSeek"], ["claude", "Anthropic (Claude)"], ["copilot", "GitHub Copilot"], ["openai", "OpenAI"], ["gemini", "Google Gemini"], ["openrouter", "OpenRouter (Grok, Llama, Mistral, Qwen, ...)"]];
+const AI_PROVIDERS_LIST = [["claude-code", "Claude on my PC"], ["deepseek", "DeepSeek"], ["claude", "Anthropic (Claude)"], ["copilot", "GitHub Copilot"], ["openai", "OpenAI"], ["gemini", "Google Gemini"], ["openrouter", "OpenRouter (Grok, Llama, Mistral, Qwen, ...)"]];
 // older drafts saved "github" / "copilot" / "claude" / "deepseek": the same AI in the new list
-const brainValue = (b) => ({ github: "deepseek:deepseek-chat", deepseek: "deepseek:deepseek-chat", copilot: "copilot:claude-opus-5.5", claude: "claude:claude-opus-5-5" })[b] || b || "deepseek:deepseek-chat";
+const brainValue = (b) => { const v = ({ claude: "claude:claude-opus-5-5" })[b] || b; return AI_WRITERS.some(([k]) => k === v) ? v : "claude-code:claude-opus-5-5"; };
 // "provider:model" → { provider, model, name } for the workflow and the page's "written by"
 function aiChoice(brain, customProvider, customModel) {
   const v = brainValue(brain);
