@@ -6,6 +6,7 @@
 (function () {
   "use strict";
   const PUB = "chess/publisher/";
+  const KEEP_MS = 60000, kept = { cache: null, at: 0, day: null };
   // Every publisher switch controlled by the Schedule pause toggle (all 8 must go to dry-run together so no platform slips through)
   const PAUSE_KEYS = ["mode", "igBackfill", "tiktok", "youtube", "tiktokBackfill", "tiktokExtrasPost", "docuShorts", "cards"];
   const isPostingLive = (cfg) => !!(cfg && PAUSE_KEYS.some((k) => cfg[k] === "live"));
@@ -99,13 +100,44 @@
     return el("td", {}, link ? el("a", { href: link, target: "_blank", rel: "noopener" }, pill) : pill);
   }
 
+  // reads every file the board shows (the Refresh button, a save, or a copy over a minute old)
+  async function readAll(files, today) {
+    const [cfg0, names] = await Promise.all([files.json(PUB + "config.json"), files.list(PUB + "days").catch(() => [])]);
+    const cfg = cfg0 || {};
+    // 6 days back and 3 ahead, PLUS every day file that exists up to 31 days ahead: a plan made weeks in
+    // advance (10-18 Nov) is in git and must be visible and pickable, not cut off at today+3
+    const listed = names
+      .map((f) => (/^(\d{4}-\d\d-\d\d)\.json$/.exec(f) || [])[1])
+      .filter((D) => D && D >= addDays(today, -6) && D <= addDays(today, 31));
+    const dates = dayWindow(today, listed);
+    const read = (f) => files.json(PUB + f).catch(() => null);
+    // every file at once (24 Nov 2026: each day read its four files one after another, and the two extras waited
+    // for all the days: about nine waits on GitHub in a row before the board showed)
+    const [days, shorts, log] = await Promise.all([
+      Promise.all(dates.map(async (D) => {
+        const [m, st, yt, tt, cards] = await Promise.all([read(`days/${D}.json`), read(`state/${D}.json`), read(`state/youtube-${D}.json`), read(`state/tiktok-${D}.json`), files.json(`db/cards/${D}.json`).catch(() => null)]);
+        return { D, m, st: (st || {}).slots || {}, yt: (yt || {}).slots || {}, tt: (tt || {}).slots || {}, cards };
+      })),
+      files.json("post/state.json").catch(() => null),
+      files.text(PUB + "dryrun/" + today + ".md").catch(() => null),
+    ]);
+    kept.at = Date.now();
+    return { cfg, days, dates, shorts, log };
+  }
+
   function view() {
     const box = el("section", { class: "panel" }, el("h2", { text: "Schedule" }), el("div", { class: "note", text: "Loading the schedule & 6-slot reel lineup…" }));
-    let selectedDay = null, cache = null;
+    // the page redraws the open tab on every change it hears about (a render's progress line every few seconds):
+    // the files read and the day picked are kept between redraws, so a redraw costs no reads and keeps the day
+    // (24 Nov 2026: each redraw re-read ~45 files and jumped back to today). A redraw of the open board always uses
+    // the copy, and one that comes while the files are being read waits for that read; opening the tab again
+    // re-reads them once the copy is a minute old.
+    const redraw = typeof S !== "undefined" && S.lastView === "publish";
+    let cache = kept.cache && (redraw || Date.now() - kept.at < KEEP_MS) ? kept.cache : null, selectedDay = cache ? kept.day : null;
 
     // refresh = true re-reads every file (the Refresh button, a save); false re-renders the copy already read, so
     // picking another day costs no GitHub requests
-    const load = async (refresh = true) => {
+    const load = async (refresh = true, share = false) => {
       let files;
       try { files = await window.claude.use("files"); }
       catch (e) { box.lastChild.textContent = "Sign in with your GitHub key to see the publishing board."; return; }
@@ -115,30 +147,9 @@
       // today, not tomorrow (Mark, 12 Nov 2026): the board must open on the lineup that is posting today,
       // with tomorrow one click away; the Tomorrow button and the day picker still show any planned day
       if (!selectedDay) selectedDay = today;
+      kept.day = selectedDay;
 
-      if (!cache || refresh) {
-        const cfg = (await files.json(PUB + "config.json")) || {};
-        // 6 days back and 3 ahead, PLUS every day file that exists up to 31 days ahead: a plan made weeks in
-        // advance (10-18 Nov) is in git and must be visible and pickable, not cut off at today+3
-        const listed = (await files.list(PUB + "days").catch(() => []))
-          .map((f) => (/^(\d{4}-\d\d-\d\d)\.json$/.exec(f) || [])[1])
-          .filter((D) => D && D >= addDays(today, -6) && D <= addDays(today, 31));
-        const dates = dayWindow(today, listed);
-        const read = (f) => files.json(PUB + f).catch(() => null);
-        const days = await Promise.all(dates.map(async (D) => ({
-          D,
-          m: await read(`days/${D}.json`),
-          st: ((await read(`state/${D}.json`)) || {}).slots || {},
-          yt: ((await read(`state/youtube-${D}.json`)) || {}).slots || {},
-          tt: ((await read(`state/tiktok-${D}.json`)) || {}).slots || {},
-          cards: await files.json(`db/cards/${D}.json`).catch(() => null)
-        })));
-        cache = {
-          cfg, days, dates,
-          shorts: await files.json("post/state.json").catch(() => null),
-          log: await files.text(PUB + "dryrun/" + today + ".md").catch(() => null)
-        };
-      }
+      if (!cache || refresh) kept.cache = cache = await (share && kept.reading ? kept.reading : (kept.reading = readAll(files, today).finally(() => { kept.reading = null; })));
       const { cfg, days, dates, shorts, log } = cache;
 
       let all = days.flatMap((d) => [...rows(d.D, d.m, d.st, d.yt, d.tt, cfg), ...cardRows(d.D, d.cards)]);
@@ -441,7 +452,7 @@
         el("a", { href: "https://github.com/mboylesm-wq/pnoychess-docu/actions/workflows/publish.yml", target: "_blank", rel: "noopener", text: "Publish runs on GitHub Actions" }), "."));
     };
 
-    load().catch((e) => { box.append(el("div", { class: "empty", text: "Could not read the publisher's files: " + (e.message || e) })); });
+    load(!cache, true).catch((e) => { box.append(el("div", { class: "empty", text: "Could not read the publisher's files: " + (e.message || e) })); });
     return box;
   }
 
