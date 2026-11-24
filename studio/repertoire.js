@@ -53,6 +53,16 @@
     return groups.filter(([, list]) => list.length);
   };
   const shortName = (n) => n.replace(/ (Defen[cs]e|Opening|Game)(?=$|:|,)/, "").replace(": ", ", ").replace(" Variation", "");
+  // the openings by family (the part of the name before ":"), most played family first; within a family the main line
+  // first, then by games. Worked out once per list.
+  let FAM = null;
+  const families = () => {
+    if (FAM && FAM.of === OPEN) return FAM.list;
+    const by = new Map();
+    for (const o of OPEN || []) { const k = o.name.split(":")[0]; const g = by.get(k) || { name: k, list: [], games: 0, sides: new Set() }; g.list.push(o); g.games = Math.max(g.games, o.games); g.sides.add(o.side); by.set(k, g); }
+    const list = [...by.values()].map((g) => ({ ...g, side: g.sides.size === 1 ? [...g.sides][0] : "", list: g.list.sort((a, b) => (a.name === g.name ? -1 : b.name === g.name ? 1 : b.games - a.games)) })).sort((a, b) => b.games - a.games);
+    FAM = { of: OPEN, list }; return list;
+  };
   const nameOf = (start) => { if (!OPEN || !(start || []).length) return ""; const k = start.join(" "), o = OPEN.find((x) => x.moves.join(" ") === k); return o ? o.name : ""; };
   const label = (o) => `${o.eco} ${o.name} (${o.moves.length ? o.moves.reduce((t, m, i) => t + (i % 2 ? " " : (i ? " " : "") + (i / 2 + 1) + ".") + m, "") : ""})`;
   // one rule of thumb as a sentence with both numbers (the same words as tools/repertoire-goal.mjs ruleLine)
@@ -135,12 +145,16 @@
   // put a book on the board (studio/repertoire-train.js, loaded the first time): Explore its replies or Train its lines
   function openBoard(a, title, mode) {
     S.repTrain = { id: a.id, mode };
-    loadOnce("repertoire-train.js").then(() => { const p = window.RepertoireTrain.open(a, title, mode); render(); window.scrollTo(0, 0); return p; }, (e) => say("Could not load the board: " + e.message));
+    // the page keeps a failed load for good, so a second try asks for the file under a fresh name (Mark, 24 Nov 2026:
+    // "the board doesn't show up": the board's file was still being published when the tab first asked for it)
+    const load = () => loadOnce("repertoire-train.js").catch(() => loadOnce("repertoire-train.js?try=" + Date.now()));
+    load().then(() => { const p = window.RepertoireTrain.open(a, title, mode); render(); window.scrollTo(0, 0); return p; },
+      (e) => { S.repTrain = null; say("Could not load the board (" + e.message + "). Check the internet connection and press the button again."); render(); });
   }
   // how complete the book is, from the tree the PC built (an older book has none: Build again makes it)
   function coverText(b) {
     const t = b.tree;
-    if (!t || !t.ours) return "This book was built before the board existed. Press Build again to get every reply answered, and to train it.";
+    if (!t || !t.ours) return ""; // said once, in the card's own note about the board
     return `Every reply played in at least 1 game in 200 has an answer: ${num(t.replies)} replies of the opponent (${num(t.rare)} of them rare), ${num(t.ours)} moves of yours`
       + (t.engine ? `, ${num(t.engine)} of those chosen by the engine because nobody answered that reply in the games` : "")
       + `. At each step that covers ${pct(b.cover)} of what the opponent plays` + (t.unanswered ? `; ${num(t.unanswered)} rare replies still have no answer.` : ".");
@@ -172,10 +186,17 @@
     const me = sideWord(b.side || a.side), e = b.expected || {}, av = b.base || {};
     return `${me} scores ${pct(e.score)} (the average game: ${pct(av.score)}), loses ${pct(e.loss)} (${pct(av.loss)}), reaches an endgame with both bishops ${pct(e.pair)} (${pct(av.pair)}).`;
   }
+  // where a waiting book is in the PC's line: it builds one book a round (every ten minutes), the oldest asking first
+  function waitText(a) {
+    const books = S.repBooks || {}, ahead = (S.repAsks || []).filter((x) => x.id !== a.id && state(x, books[x.id]) === "waiting" && (String(x.ask) < String(a.ask) || (String(x.ask) === String(a.ask) && x.id < a.id))).length; // the PC takes the oldest asking first, then by name
+    return `Asked ${when(a.ask)}. ` + (ahead ? `${ahead} book${ahead === 1 ? " is" : "s are"} ahead of it; ` : "It is next; ") +
+      `your PC builds one every ten minutes or so, so expect it in about ${10 * (ahead + 1)} to ${20 * (ahead + 1)} minutes. Free; the PC must be on and awake.`;
+  }
   function card(a) {
     const b = (S.repBooks || {})[a.id], st = state(a, b), [label, tone] = LABEL[st];
     const old = st === "waiting" && b && b.status === "done"; // asked again: the earlier book stays readable meanwhile
-    const ready = b && b.status === "done", onBoard = (mode) => () => openBoard(a, titleOf(a, b), mode);
+    // the board needs the book's move tree; a book built before the board existed has none until the PC builds it again
+    const ready = b && b.status === "done" && !!(b.tree && b.tree.ours), onBoard = (mode) => () => openBoard(a, titleOf(a, b), mode);
     const btns = el("div", { class: "row", style: "gap:6px; flex-wrap:wrap; margin-top:8px;" },
       ready ? el("button", { class: "btn primary", type: "button", text: "Train", title: "The opponent's moves are played for you; you find yours", onclick: onBoard("train") }) : null,
       ready ? el("button", { class: "btn", type: "button", text: "Check my games", title: "Your Chess.com or Lichess games in this opening: where you and your opponents left the book", onclick: onBoard("games") }) : null,
@@ -186,11 +207,12 @@
       el("div", { class: "row", style: "justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;" },
         el("h3", { text: titleOf(a, b) }), el("span", { class: "pill" + (tone ? " " + tone : ""), text: label })),
       el("div", { class: "note", text: goalOf(a.goal)[2] }),
-      st === "waiting" ? el("div", { class: "note", text: `Asked ${when(a.ask)}. Your PC builds it the next time its ten-minute job runs (free, a few minutes). The PC must be on.` }) : null,
+      st === "waiting" ? el("div", { class: "note", text: waitText(a) }) : null,
+      b && b.status === "done" && !ready ? el("div", { class: "note", style: "color:inherit;", text: "The board (Train, Explore, Check my games) comes with the next build: this book was made before the board existed. " + (st === "waiting" ? "Your PC is already on it." : "Press Build again.") }) : null,
       st === "failed" ? el("div", { class: "note", text: "Your PC could not build it: " + (b.why || "no reason given") }) : null,
       b && b.imported ? el("div", { class: "note", style: "color:inherit;", text: `Brought in from a PGN: ${num(b.lines)} lines, ${num(b.tree.ours)} moves of yours to learn, ${num(b.tree.replies)} replies of the opponent.` }) : null,
       (st === "done" || old) && !b.imported ? el("div", { class: "note", style: "color:inherit;", text: headline(a, b) }) : null,
-      (st === "done" || old) && !b.imported ? el("div", { class: "note", text: coverText(b) }) : null,
+      (st === "done" || old) && !b.imported && coverText(b) ? el("div", { class: "note", text: coverText(b) }) : null,
       // one book open at a time, and it stays open when the page redraws itself
       (st === "done" || old) && !b.imported ? el("details", { open: S.repOpen === a.id, style: "margin-top:6px;", ontoggle: (ev) => { if (ev.target.open) S.repOpen = a.id; else if (S.repOpen === a.id) S.repOpen = null; } },
         el("summary", { text: "Open the book: the numbers, the rules of thumb, the lines" }), bookBody(a, b)) : null,
@@ -221,6 +243,17 @@
       ...list.map((o) => el("button", { class: "btn" + (f.opening === o.name ? " primary" : ""), type: "button", title: `${o.eco} ${o.name}: ${o.moves.join(" ")} (${Number(o.games).toLocaleString("en-US")} games)`, text: shortName(o.name),
         onclick: () => { f.start = o.moves.join(" "); f.opening = o.name; f.find = ""; f.side = o.side === "w" ? "white" : "black"; render(); } }))));
     const datalist = el("datalist", { id: listId }, ...matches.map((o) => el("option", { value: label(o), label: `${Number(o.games).toLocaleString("en-US")} games` })));
+    // every opening, by family (Mark, 24 Nov 2026: "the list is not complete, I want all openings in it"): one line per
+    // family, most played first; a family's variations are drawn only when it is opened, so the page stays quick
+    const pickOpening = (o) => { f.start = o.moves.join(" "); f.opening = o.name; f.find = ""; f.side = o.side === "w" ? "white" : "black"; render(); window.scrollTo(0, 0); };
+    const allBox = OPEN ? el("details", { open: !!S.repAllOpen, style: "margin:8px 0;", ontoggle: (ev) => { S.repAllOpen = ev.target.open; } },
+      el("summary", { style: "font-weight:600;", text: `All openings (${num(OPEN.length)} in ${num(families().length)} families), by family` }),
+      el("div", { style: "max-height:520px; overflow:auto; margin-top:6px;" }, ...families().map((fam) => {
+        const box = el("div", { style: "display:flex; gap:6px; flex-wrap:wrap; margin:6px 0 10px 14px;" });
+        return el("details", { style: "margin:2px 0;", ontoggle: (ev) => { if (ev.target.open && !box.childNodes.length) box.append(...fam.list.map((o) => el("button", { class: "btn" + (f.opening === o.name ? " primary" : ""), type: "button",
+          title: `${o.eco} ${o.name}: ${o.moves.join(" ")} (${num(o.games)} games)`, text: `${o.eco} ${o.name.includes(":") ? o.name.split(": ").slice(1).join(": ") : "main line"} · ${num(o.games)}`, onclick: () => pickOpening(o) }))); } },
+          el("summary", { text: `${fam.name} — ${fam.list.length} line${fam.list.length === 1 ? "" : "s"}, ${num(fam.games)} games${fam.side === "w" ? " (White's)" : fam.side === "b" ? " (Black's)" : ""}` }), box);
+      }))) : null;
     const boardPanel = S.repTrain && window.RepertoireTrain ? window.RepertoireTrain.view() : null;
     return el("div", {},
       boardPanel,
@@ -233,6 +266,7 @@
           el("button", { class: "btn" + (f.side === "black" ? " primary" : ""), type: "button", text: "Black", onclick: pick("side", "black") })),
         picks.length ? el("div", { style: "margin:10px 0 4px;" }, el("div", { class: "note", style: "color:inherit; font-weight:600; margin-bottom:4px;", text: "Popular openings" }), ...picks) : null,
         el("div", { class: "row", style: "gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0;" }, el("span", { class: "note", text: "Or search all of them:" }), search, datalist),
+        allBox,
         f.opening ? el("div", { class: "note", style: "color:inherit; font-weight:600;", text: `${f.opening}: ${f.start}. You play ${f.side === "white" ? "White" : "Black"} (change it above if you want the other side of it).` }) : null,
         el("div", { class: "row", style: "gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0;" }, el("span", { class: "note", text: "Or type the first moves (empty = from move one):" }), input),
         el("div", { class: "row", style: "gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0;" }, el("span", { class: "note", text: "How deep:" }),
