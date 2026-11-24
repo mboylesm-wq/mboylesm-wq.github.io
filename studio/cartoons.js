@@ -23,6 +23,15 @@
     if (r.status === "done") return d.approvedSha && d.approvedSha === r.sha256 ? "approved" : "review";
     return "script";
   }
+  // where an episode is posted (Mark, 24 Nov 2026): YouTube by the PC or by hand (d.posted, the PC's never-twice guard),
+  // the others by hand with "Posted it myself" (d.postedOn.<platform>)
+  const PLATFORMS = [["youtube", "YouTube", /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//], ["facebook", "Facebook", /^https:\/\/(www\.|m\.|web\.)?(facebook\.com|fb\.watch)\//],
+    ["instagram", "Instagram", /^https:\/\/(www\.)?instagram\.com\//], ["tiktok", "TikTok", /^https:\/\/(www\.|vm\.|vt\.)?tiktok\.com\//]];
+  function postedOn(d, r) {
+    const yt = (r || {}).youtube || {}, on = d.postedOn || {};
+    return Object.fromEntries(PLATFORMS.map(([k]) => [k, k === "youtube" ? (yt.url ? { url: yt.url, at: yt.at } : d.posted && d.posted.url ? d.posted : null) : on[k] && on[k].url ? on[k] : null]));
+  }
+  const trapName = (t) => String(t || "").replace(/^trap-\w+\s*\((.*)\)$/, "$1").replace(/,\s*assets\/\S+$/, "");
   const secs = (d) => Math.round((d.beats || []).reduce((s, b) => s + (+b.d || 0), 0));
   const moves = (d) => (d.beats || []).flatMap((b) => b.m || []);
   const when = (iso) => { try { return new Date(iso).toLocaleString("en-PH", { timeZone: "Asia/Manila", weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } };
@@ -52,16 +61,26 @@
     if (st === "review") btns.append(el("button", { class: "btn primary", type: "button", text: "Approve and post",
       onclick: () => { if (confirm(`Post episode ${d.no}, "${d.title}", to YouTube Shorts? It goes public.`)) put(d, { approvedSha: r.sha256, approvedAt: new Date().toISOString() }, "Approved: your PC posts it within 10 minutes."); } }));
     if (st === "approved") btns.append(el("button", { class: "btn", type: "button", text: "Undo approval", onclick: () => put(d, { approvedSha: null, approvedAt: null }, "Not approved any more: nothing will be posted.") }));
-    if (st !== "posted" && st !== "posting") btns.append(el("button", { class: "btn", type: "button", text: "Posted it myself", title: "Already on YouTube? Add its link so it is tracked and never posted twice",
-      onclick: () => { const u = prompt("The YouTube link of this episode:"); if (u && /^https:\/\/(www\.)?(youtube\.com|youtu\.be)\//.test(u.trim())) put(d, { posted: { url: u.trim(), at: new Date().toISOString() } }, "Saved as posted."); else if (u) say("That is not a YouTube link."); } }));
-    const link = yt.url || (d.posted && d.posted.url);
+    const on = postedOn(d, r);
+    if (PLATFORMS.some(([k]) => !on[k])) btns.append(el("button", { class: "btn", type: "button", text: "Posted it myself", title: "Posted it yourself? Add its link so the page shows where it is (a YouTube link also stops your PC posting it twice)",
+      onclick: () => {
+        const u = (prompt("Paste the link where you posted this episode (YouTube, Facebook, Instagram or TikTok):") || "").trim();
+        if (!u) return;
+        const p = PLATFORMS.find(([, , re]) => re.test(u));
+        if (!p) return say("That is not a YouTube, Facebook, Instagram or TikTok link.");
+        const at = new Date().toISOString();
+        if (p[0] === "youtube") { if (st === "posting") return say("Your PC is posting it to YouTube right now: wait for it."); put(d, { posted: { url: u, at } }, "Saved: on YouTube."); }
+        else put(d, { postedOn: Object.assign({}, d.postedOn || {}, { [p[0]]: { url: u, at } }) }, "Saved: on " + p[1] + ".");
+      } }));
     return el("article", { class: "topic" },
       el("div", { class: "row", style: "justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;" },
         el("h3", { text: `Episode ${d.no || "?"} · ${d.title}` }),
         el("span", { class: "pill" + (tone ? " " + tone : ""), text: label })),
-      d.trap ? el("div", { class: "note", text: "Trap: " + d.trap }) : null,
+      d.trap ? el("div", { class: "note", text: "Trap: " + trapName(d.trap) + (d.repeatOf ? " (told before in episode " + d.repeatOf + ")" : "") }) : null,
       el("div", { class: "note", text: line }),
-      link ? el("div", { class: "note" }, "YouTube: ", el("a", { href: safeUrl(link), target: "_blank", rel: "noopener", text: link })) : null,
+      el("div", { class: "row", style: "gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0;" }, el("span", { class: "note", text: "Posted on:" }),
+        ...PLATFORMS.map(([k, name]) => on[k] ? el("a", { class: "pill ok", href: safeUrl(on[k].url), target: "_blank", rel: "noopener", title: on[k].at ? "Posted " + when(on[k].at) : "", text: name + " ✓" })
+          : el("span", { class: "pill", style: "opacity:.55;", text: name + ": not yet" }))),
       r.status === "done" && r.videoUrl ? el("div", { class: "row", style: "gap:12px; align-items:flex-start; flex-wrap:wrap; margin:8px 0;" },
         el("video", { src: safeUrl(r.videoUrl), controls: true, preload: "none", poster: r.coverUrl ? safeUrl(r.coverUrl) : undefined, style: "width:220px; max-width:100%; border-radius:10px; background:#000;" }),
         el("a", { class: "btn", href: safeUrl(r.videoUrl), target: "_blank", rel: "noopener", text: "Download" })) : null,
@@ -98,5 +117,5 @@
       shown.length ? el("div", {}, ...page.map(card)) : el("div", { class: "empty", text: all.length ? "No episode here." : "No scripts yet." }),
       pager());
   }
-  window.F7Cartoons = { view, state };
+  window.F7Cartoons = { view, state, postedOn, trapName };
 })();
