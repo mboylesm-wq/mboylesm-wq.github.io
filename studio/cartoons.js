@@ -74,7 +74,7 @@
       } }));
     return el("article", { class: "topic" },
       el("div", { class: "row", style: "justify-content:space-between; align-items:flex-start; gap:8px; flex-wrap:wrap;" },
-        el("h3", { text: `Episode ${d.no || "?"} · ${d.title}` }),
+        el("h3", { text: (d.season && d.seasonEp ? `S${d.season} E${d.seasonEp} · ` : `Episode ${d.no || "?"} · `) + d.title }),
         el("span", { class: "pill" + (tone ? " " + tone : ""), text: label })),
       d.trap ? el("div", { class: "note", text: "Trap: " + trapName(d.trap) + (d.repeatOf ? " (told before in episode " + d.repeatOf + ")" : "") }) : null,
       el("div", { class: "note", text: line }),
@@ -89,6 +89,15 @@
           b.m && b.m.length ? el("span", { class: "pill", style: "margin-right:6px;", text: b.m.join(" ") }) : null,
           [b.cap, b.sub].filter(Boolean).join(" — "))))),
       btns);
+  }
+  // a heading where a season starts on the page (Mark, 25 Nov 2026: seasons by opening, tools/cartoon-seasons.mjs)
+  function withSeasons(page, card) {
+    const out = []; let last = null;
+    for (const d of page) {
+      if (d.season && d.season !== last) out.push(el("h3", { class: "season", style: "margin:18px 0 6px;", text: `Season ${d.season}` + (d.seasonTitle ? ` · ${d.seasonTitle}` : "") }));
+      last = d.season || null; out.push(card(d));
+    }
+    return out;
   }
   function view() {
     const all = (S.cartoons || []).slice().sort((a, b) => (a.no || 0) - (b.no || 0));
@@ -114,8 +123,8 @@
         chip("all", "All", all.length), chip("render", "To render", n("script", "failed")), chip("busy", "Being made", n("queued", "rendering")),
         chip("review", "To watch", n("review")), chip("posted", "Approved and posted", n("approved", "posting", "posted"))),
       pager(),
-      shown.length ? el("div", {}, ...page.map(card)) : el("div", { class: "empty", text: all.length ? "No episode here." : "No scripts yet." }),
+      shown.length ? el("div", {}, ...withSeasons(page, card)) :el("div", { class: "empty", text: all.length ? "No episode here." : "No scripts yet." }),
       pager());
   }
-  window.F7Cartoons = { view, state, postedOn, trapName };
+  window.F7Cartoons = { view, state, postedOn, trapName, withSeasons };
 })();
