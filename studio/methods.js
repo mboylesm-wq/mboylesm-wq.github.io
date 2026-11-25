@@ -70,9 +70,9 @@
   const table = (head, rows) => el("div", { style: "overflow:auto;" }, el("table", { class: "pubtable" },
     el("thead", {}, el("tr", {}, ...head.map((h) => el("th", { text: h })))), el("tbody", {}, ...rows)));
   const td = (content, style) => el("td", style ? { style } : {}, content);
-  const bar = (v, max) => el("div", { style: `display:flex; align-items:center; gap:6px;` },
+  const bar = (v, max, label) => el("div", { style: `display:flex; align-items:center; gap:6px;` },
     el("div", { style: `height:10px; width:${Math.round(70 * Math.abs(v) / max)}px; border-radius:3px; background:${v >= 0 ? "var(--gold)" : "#EF4444"}; opacity:.85;` }),
-    el("span", { text: (v > 0 ? "+" : "") + v.toFixed(1) }));
+    el("span", { text: label || (v > 0 ? "+" : "") + v.toFixed(1) }));
   const avg = (xs) => Math.round(xs.reduce((a, b) => a + b, 0) / xs.length);
 
   function methodCard() {
@@ -173,7 +173,7 @@
   const LIGHTS = [
     ["Red", "#EF4444", "A check is possible, or one move can hit two pieces (for him or for you).", "Stop. Look at every check, then every capture, then moves near the king, even ones that give a piece away.", "87%", "37%"],
     ["Amber", "#F59E0B", "No red, but a king has fewer than two pawns in front of it.", "Look at moves that land next to that king before you play.", "7%", "25%"],
-    ["Green", "#16A34A", "None of these.", "Play the colour plan (below): find his weak colour and take it.", "6%", "38%"],
+    ["Green", "#16A34A", "None of these.", "Play the tested rulebook (below): a safe forcing move, else centralise a knight or bishop, else take space.", "6%", "38%"],
   ];
   const COLOUR_RULES = [
     ["King and queen on the same square colour", "36%", "30%", "Barely different"],
@@ -222,13 +222,61 @@
     ["Your bishop on the colour of his pawns, to attack them", -0.2, 0.6],
     ["Your pawns on the opposite colour to his", 0, 0],
   ];
+  // ---- the tested rulebook (Mark, 25 Nov 2026: "play stockfish with stockfish with different set of rules so which
+  // technique is better so the rule is conclusive"; "true is true regardless"). Two players that both avoid blunders
+  // (Stockfish, 20,000 nodes: any move within 0.8 of a pawn of the best is allowed) and have no positional sense: among
+  // the allowed moves one picks by its rule, the other at random. Full games from real master positions after 8 moves,
+  // each played with the rule on White and on Black. The yardstick is random against random: 50.9% in 1,800 games.
+  // [rule, piece, games, score %, verdict]; verdict "Proven" = clearly above the random yardstick in both rounds.
+  const RULE_TESTS = [
+    ["Forcing moves first: a safe check, then a safe capture", "All pieces", 1800, 55.5, "Proven"],
+    ["Centralise: knights and bishops towards the middle", "Knights, bishops", 1800, 54.7, "Proven"],
+    ["Take space: pawns that guard squares in his half", "Pawns", 1800, 53.8, "Proven"],
+    ["Push passed pawns", "Pawns", 1800, 52.4, "Not proven"],
+    ["Keep the bishop pair", "Bishops", 1800, 52.3, "Not proven"],
+    ["Keep pawns in front of your king", "King", 600, 51.3, "No effect"],
+    ["Pawns on the opposite colour to his pawns", "Pawns", 600, 50.6, "No effect"],
+    ["Pawns on the colour his bishop is not on", "Pawns", 600, 50.5, "No effect"],
+    ["Rook on the 7th rank", "Rooks", 1800, 50.4, "No effect"],
+    ["Alignment: line up on his king or queen", "Queen, rooks, bishops", 600, 50.3, "No effect"],
+    ["Bring pieces near his king", "All pieces", 600, 50.1, "No effect"],
+    ["Rook on an open file", "Rooks", 1800, 49.9, "No effect"],
+    ["Knight on an outpost no pawn can chase", "Knights", 600, 49.8, "No effect"],
+    ["Most moves for you, fewest for him (mobility)", "All pieces", 600, 49.7, "No effect"],
+    ["Pawns on the colour your bishop is not on", "Pawns", 600, 49.4, "No effect"],
+    ["The colour plan: take his weak colour", "Bishops, knights", 600, 48.6, "No effect"],
+    ["King to the centre once the queens are off", "King", 600, 47.4, "No effect"],
+  ];
+  const RULEBOOK = [
+    ["1", "A safe forcing move?", "Look at your checks, then your captures. If one is safe (he cannot just win the piece back with interest), play it."],
+    ["2", "Else, centralise a knight or bishop.", "Move the knight or bishop that is furthest from the middle towards it."],
+    ["3", "Else, take space with a pawn.", "Push a pawn so it guards squares in his half of the board."],
+  ];
+  // how close simple rules get to the truth: 1,500 positions from decisive master games (moves 15-40), how often each
+  // judge picks the side that went on to win
+  const JUDGES = [["A coin", 50], ["Counting material", 56.8], ["All 17 measured signs together", 67.9], ["Stockfish", 83.5]];
+  function rulebook() {
+    return el("section", { class: "panel", id: "rulebook" },
+      el("div", { class: "row", style: "justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;" },
+        el("h2", { text: "The tested rulebook: what to do when the light is green" }),
+        el("button", { class: "btn", type: "button", text: "Print this card", onclick: () => printOnly("rulebook") })),
+      el("div", { class: "note", text: "Every rule was played, not just counted: 20,400 Stockfish games, the rule against a random chooser of equal strength. Only three rules won clearly. In this order:" }),
+      el("div", { style: "display:grid; gap:10px; margin-top:10px;" }, ...RULEBOOK.map(([n, t, d]) =>
+        el("div", { style: "display:flex; gap:12px; align-items:flex-start;" },
+          el("span", { style: "flex:0 0 30px; height:30px; border-radius:50%; background:#16A34A; color:#fff; font-weight:800; display:flex; align-items:center; justify-content:center;", text: n }),
+          el("div", {}, el("div", { style: "font-weight:600;", text: t }), el("div", { class: "note", text: d }))))),
+      el("h3", { style: "margin:16px 0 6px;", text: "Every rule, tested in play (50.9% = no better than random)" }),
+      table(["Rule", "Piece", "Games", "Score", "Verdict"], RULE_TESTS.map(([r, p, g, s, v]) => el("tr", {}, td(r, "font-weight:600; min-width:200px;"), td(p), td(g.toLocaleString("en-GB")), td(s.toFixed(1) + "%", "font-weight:700;"), td(pill(v, v === "Proven" ? "ok" : v === "Not proven" ? "warn" : "bad"))))),
+      el("div", { class: "note", style: "margin-top:6px;", text: "Famous rules that did not win: the rook on the 7th, the open file, alignment, outposts and every square-colour rule. Mobility is the biggest sign of the winner in master games, yet chasing it does not win: the winner has more moves because he is winning, not the other way round." }),
+      el("h3", { style: "margin:16px 0 6px;", text: "How far rules can take you" }),
+      table(["Judge", "Picks the eventual winner"], JUDGES.map(([j, v]) => el("tr", {}, td(j, "font-weight:600;"), td(bar(v - 50, 35, v + "%"))))),
+      el("div", { class: "note", style: "margin-top:6px;", text: "1,500 positions from decisive master games. Rules get you about half the way from guessing to Stockfish; the rest is calculation: what happens after these moves in this position." }));
+  }
   function colourPlan() {
     const max = 5;
     return el("section", { class: "panel", id: "colour-plan" },
-      el("div", { class: "row", style: "justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;" },
-        el("h2", { text: "The colour plan: find his weak colour and take it" }),
-        el("button", { class: "btn", type: "button", text: "Print this card", onclick: () => printOnly("colour-plan") })),
-      el("div", { class: "note", text: "For green positions, when nobody has a tactic. It is worth about 5 points by move 30 in master games, as much as the bishop pair." }),
+      el("h2", { text: "Tested and dropped: the colour plan" }),
+      el("div", { class: "note", text: "Alone, it looked worth about 5 points in master games. Measured together with mobility and the bishop pair it adds about 1, and played as a rule it scored 48.6% against a random chooser (no effect). Kept here so nobody tests it again." }),
       el("div", { style: "display:grid; gap:10px; margin-top:10px;" }, ...COLOUR_PLAN.map(([n, t, d]) =>
         el("div", { style: "display:flex; gap:12px; align-items:flex-start;" },
           el("span", { style: "flex:0 0 30px; height:30px; border-radius:8px; background:linear-gradient(135deg, #f0d4a4 50%, #a5683a 50%); color:#1c1410; font-weight:800; display:flex; align-items:center; justify-content:center; border:1px solid var(--line);", text: n }),
@@ -259,7 +307,7 @@
           el("div", { class: "note", style: "margin-top:4px;", text: why })))),
       el("div", { style: "margin-top:14px; display:grid; gap:8px;" },
         el("div", {}, el("b", { text: "Two or more yes: stop. " }), "Look at every check first, then every capture, then every move that lands within two squares of the king, even if it gives a piece away. Most tactics start with a move that can be taken (65%, against 9% of normal moves), so never skip a move just because it hangs something."),
-        el("div", {}, el("b", { text: "None: play your plan. " }), "Get two bishops against bishop and knight, take space with a centre pawn, then improve your worst piece."),
+        el("div", {}, el("b", { text: "None: play the rulebook. " }), "A safe forcing move, else centralise a knight or bishop, else take space with a pawn."),
         el("div", {}, el("b", { text: "Before you let go: " }), "the four looks once more, on the position after your move.")),
       el("div", { class: "note", style: "margin-top:10px;", text: "Which piece starts the tactic: " + WHO.map(([p, v]) => `${p} ${v}%`).join(", ") + ". The queen joins in more than half of them (56%): when you look at his pieces, start with the queen, then the rooks and knights." }));
   }
@@ -277,7 +325,7 @@
     window.print();
   }
   function view() {
-    return el("div", {}, el("style", { text: PRINT }), verdict(), lightCard(), colourPlan(), colourTest(), easyCard(), easyEvidence(), methodCard(), signsTable(), chuzhakinTest(), systemsTable(), habitsTable(), limits());
+    return el("div", {}, el("style", { text: PRINT }), verdict(), lightCard(), rulebook(), colourPlan(), colourTest(), easyCard(), easyEvidence(), methodCard(), signsTable(), chuzhakinTest(), systemsTable(), habitsTable(), limits());
   }
-  window.MethodsTab = { view, STEPS, SIGNS, HABITS, SYSTEMS, EASY, EASY_EVIDENCE, WHO, LIGHTS, COLOUR_RULES, COLOUR_PLAN, COLOUR_PLAN_EVIDENCE };
+  window.MethodsTab = { view, STEPS, SIGNS, HABITS, SYSTEMS, EASY, EASY_EVIDENCE, WHO, LIGHTS, COLOUR_RULES, COLOUR_PLAN, COLOUR_PLAN_EVIDENCE, RULE_TESTS, RULEBOOK, JUDGES };
 })();
