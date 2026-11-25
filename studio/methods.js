@@ -164,10 +164,51 @@
     ["The king is on its back rank (not useful)", "70%", "87%"],
   ];
   const WHO = [["Rook", 26], ["Knight", 25], ["Queen", 22], ["Bishop", 17], ["Pawn", 9]];
+  // ---- the simplest method (Mark, 25 Nov 2026: "not simple enough, maybe a color method is better?"): a traffic
+  // light. Square-colour rules were tested first and do not work (two big pieces on his knight's colour: 48% of
+  // tactics, 60% of quiet positions; on his bishop's colour 48% against 63%; king and queen on one colour 36% against
+  // 30%). The light, measured on 4,937 puzzle positions against 1,420 quiet master positions: red (a check, or one
+  // move that hits two pieces) 87% of tactics, 37% of quiet positions; amber (no red, but a king with 0-1 pawns in
+  // front) 7% against 25%; green 6% against 38%.
+  const LIGHTS = [
+    ["Red", "#EF4444", "A check is possible, or one move can hit two pieces (for him or for you).", "Stop. Look at every check, then every capture, then moves near the king, even ones that give a piece away.", "87%", "37%"],
+    ["Amber", "#F59E0B", "No red, but a king has fewer than two pawns in front of it.", "Look at moves that land next to that king before you play.", "7%", "25%"],
+    ["Green", "#16A34A", "None of these.", "Play your plan: two bishops against bishop and knight, space with a centre pawn, then your worst piece.", "6%", "38%"],
+  ];
+  const COLOUR_RULES = [
+    ["King and queen on the same square colour", "36%", "30%", "Barely different"],
+    ["King and queen on the colour of his knight", "17%", "15%", "No help"],
+    ["Two big pieces on the colour of his knight", "48%", "60%", "Backwards"],
+    ["Two big pieces on the colour of his bishop", "48%", "63%", "Backwards"],
+  ];
+  function lightCard() {
+    return el("section", { class: "panel", id: "light-method" },
+      el("div", { class: "row", style: "justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;" },
+        el("h2", { text: "The simplest method: the traffic light" }),
+        el("button", { class: "btn", type: "button", text: "Print this card", onclick: () => printOnly("light-method") })),
+      el("div", { class: "note", text: "Before every move, give the position a colour. One question decides red, one decides amber." }),
+      el("div", { style: "display:grid; gap:10px; margin-top:10px;" }, ...LIGHTS.map(([name, hex, when, what, t, q]) =>
+        el("div", { style: `display:flex; gap:14px; align-items:flex-start; padding:12px 14px; border-radius:12px; border:1px solid var(--line); border-left:8px solid ${hex};` },
+          el("span", { "aria-hidden": "true", style: `flex:0 0 34px; height:34px; border-radius:50%; background:${hex}; box-shadow:0 0 0 3px rgba(0,0,0,.08);` }),
+          el("div", { style: "flex:1;" },
+            el("div", { style: "font-size:20px; font-weight:800;", text: name }),
+            el("div", { style: "font-weight:600; margin-top:2px;", text: when }),
+            el("div", { style: "margin-top:4px;", text: what }),
+            el("div", { class: "note", style: "margin-top:4px;", text: `${t} of tactics were ${name.toLowerCase()}; ${q} of quiet master positions.` }))))),
+      el("div", { style: "margin-top:12px; padding:12px 14px; border-radius:10px; background:var(--gold-bg); border:1px solid var(--gold-border);" },
+        el("div", { style: "font-weight:700;", text: "The two questions: \"Can anyone check, or hit two pieces with one move?\" and \"Has a king fewer than two pawns in front of it?\"" }),
+        el("div", { class: "note", text: "Ask them for both sides, and again on the position after your move before you let go." })));
+  }
+  function colourTest() {
+    return el("section", { class: "panel" },
+      el("h2", { text: "Why not a square-colour rule?" }),
+      el("div", { class: "note", text: "Tested on the same positions: where the pieces stand by square colour does not tell tactics from quiet positions; some rules even point the wrong way. A colour rule only works as a traffic light built from the signs that do." }),
+      table(["Rule", "In tactics", "In quiet positions", "Verdict"], COLOUR_RULES.map(([r, t, q, v]) => el("tr", {}, td(r, "font-weight:600; min-width:200px;"), td(t), td(q), td(pill(v, v === "Backwards" ? "bad" : "warn"))))));
+  }
   function easyCard() {
     return el("section", { class: "panel", id: "easy-method" },
       el("div", { class: "row", style: "justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;" },
-        el("h2", { text: "The easy method: Check plus 2-2-2" }),
+        el("h2", { text: "More detail: Check plus 2-2-2" }),
         el("button", { class: "btn", type: "button", text: "Print this card", onclick: () => printOnly("easy-method") })),
       el("div", { class: "note", text: "Four looks, about five seconds, every move. Do them for his king (to attack) and for yours (to defend)." }),
       el("div", { style: "display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:10px; margin-top:10px;" }, ...EASY.map(([big, what, why]) =>
@@ -195,7 +236,7 @@
     window.print();
   }
   function view() {
-    return el("div", {}, el("style", { text: PRINT }), verdict(), easyCard(), easyEvidence(), methodCard(), signsTable(), chuzhakinTest(), systemsTable(), habitsTable(), limits());
+    return el("div", {}, el("style", { text: PRINT }), verdict(), lightCard(), colourTest(), easyCard(), easyEvidence(), methodCard(), signsTable(), chuzhakinTest(), systemsTable(), habitsTable(), limits());
   }
-  window.MethodsTab = { view, STEPS, SIGNS, HABITS, SYSTEMS, EASY, EASY_EVIDENCE, WHO };
+  window.MethodsTab = { view, STEPS, SIGNS, HABITS, SYSTEMS, EASY, EASY_EVIDENCE, WHO, LIGHTS, COLOUR_RULES };
 })();
