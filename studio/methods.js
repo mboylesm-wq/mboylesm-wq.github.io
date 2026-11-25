@@ -78,9 +78,9 @@
   function methodCard() {
     return el("section", { class: "panel", id: "our-method" },
       el("div", { class: "row", style: "justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;" },
-        el("h2", { text: "Our method: last move, check, double hit" }),
-        el("button", { class: "btn", type: "button", text: "Print this card", onclick: () => window.print() })),
-      el("div", { class: "note", text: "Run it before every move. The order follows the evidence: the strongest warning sign first." }),
+        el("h2", { text: "The full method: last move, check, double hit" }),
+        el("button", { class: "btn", type: "button", text: "Print this card", onclick: () => printOnly("our-method") })),
+      el("div", { class: "note", text: "The same idea with more detail, for slower games. The order follows the evidence: the strongest warning sign first." }),
       el("ol", { style: "margin:10px 0 0 0; padding:0; list-style:none; display:grid; gap:10px;" }, ...STEPS.map(([n, t, d]) =>
         el("li", { style: "display:flex; gap:12px; align-items:flex-start;" },
           el("span", { style: "flex:0 0 30px; height:30px; border-radius:50%; background:var(--gold-gradient); color:#fff; font-weight:700; display:flex; align-items:center; justify-content:center;", text: n }),
@@ -140,10 +140,62 @@
         el("li", { text: "No method is proven to win more games; this one is ordered by which signs actually separate tactics from quiet positions in your own library." }),
         el("li", {}, "Sources: ", el("a", { href: "https://www.chess.com/blog/Chuzhakin/chuzhakins-system", target: "_blank", rel: "noopener", text: "Chuzhakin's System (his own summary)" }), "; Kotov, Think Like a Grandmaster (1971); Silman, How to Reassess Your Chess; Smith and Tikkanen, The Woodpecker Method.")));
   }
-  // printing prints only the method card, on white paper with dark text
-  const PRINT = "@media print { body * { visibility: hidden !important; } #our-method, #our-method * { visibility: visible !important; color: #111 !important; } #our-method { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; box-shadow: none !important; border: 0 !important; } #our-method button { display: none !important; } }";
-  function view() {
-    return el("div", {}, el("style", { text: PRINT }), verdict(), methodCard(), signsTable(), chuzhakinTest(), systemsTable(), habitsTable(), limits());
+  // ---- the easy version (Mark, 25 Nov 2026: "make an easy much more specific method"): "Check plus 2-2-2".
+  // Measured on 4,922 puzzle positions against 1,420 quiet master positions (25 Nov 2026):
+  //   the tactic's first move lands within 2 squares of the enemy king: 59%; only 5% of all legal moves do, and 2% of
+  //   the moves masters played in quiet positions; the defender's king has 0-1 pawns in front of it: 66% against 42%;
+  //   the first move puts a piece where it can be taken (an offer): 65% against 9% of moves played in quiet positions;
+  //   a check is there: 79-99% against 35%; one safe move hits two targets: 17-38% against 4%.
+  //   Not useful: the king on its back rank (70% in tactics, 87% in quiet positions).
+  //   The first move is made by a rook 26%, a knight 25%, the queen 22%, a bishop 17%, a pawn 9%; the queen moves
+  //   somewhere in 56% of the solutions. 41% start with a check, 41% with a capture. 36% end in mate.
+  const EASY = [
+    ["Check", "Can a check be given, by him or by me?", "In 79-99% of tactics a check was there; in quiet positions 35%."],
+    ["2 squares", "Look at the squares within two of each king. Which pieces can land there next move?", "59% of tactics start with a move that lands within two squares of the king; only 5% of all possible moves do."],
+    ["2 pawns", "Count the pawns in front of each king. Fewer than two means that king is the target.", "66% of tactics hit a king with 0 or 1 pawns in front of it; in quiet positions 42%."],
+    ["2 targets", "Can one move hit two things: a knight on the colour of two big pieces, or a rook, bishop or queen on a line with two?", "17-38% of tactics against 4% of quiet positions."],
+  ];
+  const EASY_EVIDENCE = [
+    ["The first move lands within 2 squares of the enemy king", "59%", "5% of all legal moves"],
+    ["The first move offers a piece (it can be taken)", "65%", "9% of moves played"],
+    ["The king being hit has 0 or 1 pawns in front of it", "66%", "42%"],
+    ["A check is there", "79-99%", "35%"],
+    ["One safe move hits two targets", "17-38%", "4%"],
+    ["The king is on its back rank (not useful)", "70%", "87%"],
+  ];
+  const WHO = [["Rook", 26], ["Knight", 25], ["Queen", 22], ["Bishop", 17], ["Pawn", 9]];
+  function easyCard() {
+    return el("section", { class: "panel", id: "easy-method" },
+      el("div", { class: "row", style: "justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;" },
+        el("h2", { text: "The easy method: Check plus 2-2-2" }),
+        el("button", { class: "btn", type: "button", text: "Print this card", onclick: () => printOnly("easy-method") })),
+      el("div", { class: "note", text: "Four looks, about five seconds, every move. Do them for his king (to attack) and for yours (to defend)." }),
+      el("div", { style: "display:grid; grid-template-columns:repeat(auto-fit, minmax(210px, 1fr)); gap:10px; margin-top:10px;" }, ...EASY.map(([big, what, why]) =>
+        el("div", { style: "padding:12px 14px; border-radius:12px; border:1px solid var(--gold-border); background:var(--gold-bg);" },
+          el("div", { style: "font-size:24px; font-weight:800; color:var(--gold); line-height:1.1;", text: big }),
+          el("div", { style: "font-weight:600; margin-top:6px;", text: what }),
+          el("div", { class: "note", style: "margin-top:4px;", text: why })))),
+      el("div", { style: "margin-top:14px; display:grid; gap:8px;" },
+        el("div", {}, el("b", { text: "Two or more yes: stop. " }), "Look at every check first, then every capture, then every move that lands within two squares of the king, even if it gives a piece away. Most tactics start with a move that can be taken (65%, against 9% of normal moves), so never skip a move just because it hangs something."),
+        el("div", {}, el("b", { text: "None: play your plan. " }), "Get two bishops against bishop and knight, take space with a centre pawn, then improve your worst piece."),
+        el("div", {}, el("b", { text: "Before you let go: " }), "the four looks once more, on the position after your move.")),
+      el("div", { class: "note", style: "margin-top:10px;", text: "Which piece starts the tactic: " + WHO.map(([p, v]) => `${p} ${v}%`).join(", ") + ". The queen joins in more than half of them (56%): when you look at his pieces, start with the queen, then the rooks and knights." }));
   }
-  window.MethodsTab = { view, STEPS, SIGNS, HABITS, SYSTEMS };
+  function easyEvidence() {
+    return el("section", { class: "panel" },
+      el("h2", { text: "Why 2-2-2: where tactics really come from" }),
+      el("div", { class: "note", text: "4,922 positions from the puzzle books against 1,420 quiet master positions." }),
+      table(["Sign", "In tactics", "In quiet positions"], EASY_EVIDENCE.map(([s, t, q]) => el("tr", {}, td(s, "font-weight:600; min-width:200px;"), td(t, "font-weight:700;"), td(q)))));
+  }
+  // printing prints only the card whose button was pressed, on white paper with dark text
+  const PRINT = "@media print { body * { visibility: hidden !important; } .print-me, .print-me * { visibility: visible !important; color: #111 !important; } .print-me { position: absolute; left: 0; top: 0; width: 100%; background: #fff !important; box-shadow: none !important; border: 0 !important; } .print-me button { display: none !important; } }";
+  function printOnly(id) {
+    for (const n of document.querySelectorAll(".print-me")) n.classList.remove("print-me");
+    const card = document.getElementById(id); if (card) card.classList.add("print-me");
+    window.print();
+  }
+  function view() {
+    return el("div", {}, el("style", { text: PRINT }), verdict(), easyCard(), easyEvidence(), methodCard(), signsTable(), chuzhakinTest(), systemsTable(), habitsTable(), limits());
+  }
+  window.MethodsTab = { view, STEPS, SIGNS, HABITS, SYSTEMS, EASY, EASY_EVIDENCE, WHO };
 })();
