@@ -272,6 +272,41 @@
       table(["Judge", "Picks the eventual winner"], JUDGES.map(([j, v]) => el("tr", {}, td(j, "font-weight:600;"), td(bar(v - 50, 35, v + "%"))))),
       el("div", { class: "note", style: "margin-top:6px;", text: "1,500 positions from decisive master games. Rules get you about half the way from guessing to Stockfish; the rest is calculation: what happens after these moves in this position." }));
   }
+  // ---- what masters do in each opening (Mark, 25 Nov 2026: "yes, add them labelled"). The numbers live in
+  // methods-openings.js (made by .cache/research/rule-tests/make-opening-notes.mjs), loaded only when this card is
+  // drawn. NOT proven: the Caro-Kann notes, played as a plan, scored 49.0% against 47.5% for a random chooser in
+  // 3,546 games (inside the +-2.1 margin).
+  const OPENING_TEST = { games: 3546, plan: 49.0, random: 47.5, margin: 2.1 };
+  function openingNotes() {
+    const holder = el("div", {}, el("div", { class: "note", text: "Loading the opening notes…" }));
+    let pick = 0, side = "White";
+    const draw = () => {
+      const D = window.MethodsOpenings; if (!D) return;
+      const o = D.openings[pick], s = (o.sides || {})[side] || { aim: [], avoid: [] };
+      const list = (rows) => rows.length
+        ? el("div", { style: "display:grid; gap:6px;" }, ...rows.map(([what, gap, games]) => el("div", { style: "display:flex; gap:10px; align-items:baseline; justify-content:space-between; border-bottom:1px solid var(--line); padding:4px 0;" },
+          el("span", { style: "font-weight:600;", text: what }),
+          el("span", { class: "note", style: "white-space:nowrap;", text: `${gap > 0 ? "+" : ""}${gap} · ${games.toLocaleString("en-GB")} games` }))))
+        : el("div", { class: "note", text: "Nothing stood out clearly." });
+      holder.replaceChildren(
+        el("div", { class: "row", style: "gap:8px; flex-wrap:wrap; align-items:center; margin-top:8px;" },
+          el("select", { "aria-label": "Opening", onchange: (e) => { pick = +e.target.value; draw(); } },
+            ...D.openings.map((x, i) => el("option", { value: String(i), text: `${x.name} (${x.games.toLocaleString("en-GB")})`, ...(i === pick ? { selected: "selected" } : {}) }))),
+          ...["White", "Black"].map((sd) => el("button", { class: "btn" + (sd === side ? " primary" : ""), type: "button", text: "As " + sd, onclick: () => { side = sd; draw(); } }))),
+        el("div", { style: "display:grid; grid-template-columns:repeat(auto-fit, minmax(260px, 1fr)); gap:14px; margin-top:12px;" },
+          el("div", {}, el("h3", { style: "margin:0 0 6px;", text: "Masters who did well had" }), list(s.aim)),
+          el("div", {}, el("h3", { style: "margin:0 0 6px;", text: "Masters who did badly had" }), list(s.avoid))),
+        el("div", { class: "note", style: "margin-top:8px;", text: `${o.games.toLocaleString("en-GB")} master games in this opening, level on material at move 20. A number is how many points in 100 better (or worse) the side scored with it than without it, beyond what the two players' ratings predicted.` }));
+    };
+    if (window.MethodsOpenings) draw();
+    else if (typeof loadOnce === "function") loadOnce("methods-openings.js").then(draw, (e) => holder.replaceChildren(el("div", { class: "empty", text: "The opening notes did not load: " + e.message })));
+    return el("section", { class: "panel", id: "opening-notes" },
+      el("h2", { text: "Each opening: what masters do (not proven in play)" }),
+      el("div", { style: "margin-top:6px; padding:10px 12px; border-radius:10px; border:1px solid #F59E0B; background:rgba(245,158,11,.10);" },
+        el("div", { style: "font-weight:700;", text: "These are habits of winners, not rules that win." }),
+        el("div", { class: "note", text: `We turned the Caro-Kann notes into a plan and played it: ${OPENING_TEST.plan.toFixed(1)}% against ${OPENING_TEST.random.toFixed(1)}% for a random chooser in ${OPENING_TEST.games.toLocaleString("en-GB")} games, inside the ±${OPENING_TEST.margin} margin of luck. Use these to know the typical positions of your opening; to win, the rulebook above comes first.` })),
+      holder);
+  }
   function colourPlan() {
     const max = 5;
     return el("section", { class: "panel", id: "colour-plan" },
@@ -325,7 +360,7 @@
     window.print();
   }
   function view() {
-    return el("div", {}, el("style", { text: PRINT }), verdict(), lightCard(), rulebook(), colourPlan(), colourTest(), easyCard(), easyEvidence(), methodCard(), signsTable(), chuzhakinTest(), systemsTable(), habitsTable(), limits());
+    return el("div", {}, el("style", { text: PRINT }), verdict(), lightCard(), rulebook(), openingNotes(), colourPlan(), colourTest(), easyCard(), easyEvidence(), methodCard(), signsTable(), chuzhakinTest(), systemsTable(), habitsTable(), limits());
   }
-  window.MethodsTab = { view, STEPS, SIGNS, HABITS, SYSTEMS, EASY, EASY_EVIDENCE, WHO, LIGHTS, COLOUR_RULES, COLOUR_PLAN, COLOUR_PLAN_EVIDENCE, RULE_TESTS, RULEBOOK, JUDGES };
+  window.MethodsTab = { view, STEPS, SIGNS, HABITS, SYSTEMS, EASY, EASY_EVIDENCE, WHO, LIGHTS, COLOUR_RULES, COLOUR_PLAN, COLOUR_PLAN_EVIDENCE, RULE_TESTS, RULEBOOK, JUDGES, OPENING_TEST };
 })();
