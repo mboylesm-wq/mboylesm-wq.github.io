@@ -173,7 +173,7 @@
   const LIGHTS = [
     ["Red", "#EF4444", "A check is possible, or one move can hit two pieces (for him or for you).", "Stop. Look at every check, then every capture, then moves near the king, even ones that give a piece away.", "87%", "37%"],
     ["Amber", "#F59E0B", "No red, but a king has fewer than two pawns in front of it.", "Look at moves that land next to that king before you play.", "7%", "25%"],
-    ["Green", "#16A34A", "None of these.", "Play your plan: two bishops against bishop and knight, space with a centre pawn, then your worst piece.", "6%", "38%"],
+    ["Green", "#16A34A", "None of these.", "Play the colour plan (below): find his weak colour and take it.", "6%", "38%"],
   ];
   const COLOUR_RULES = [
     ["King and queen on the same square colour", "36%", "30%", "Barely different"],
@@ -198,6 +198,47 @@
       el("div", { style: "margin-top:12px; padding:12px 14px; border-radius:10px; background:var(--gold-bg); border:1px solid var(--gold-border);" },
         el("div", { style: "font-weight:700;", text: "The two questions: \"Can anyone check, or hit two pieces with one move?\" and \"Has a king fewer than two pawns in front of it?\"" }),
         el("div", { class: "note", text: "Ask them for both sides, and again on the position after your move before you let go." })));
+  }
+  // ---- the colour plan (Mark, 25 Nov 2026: "I will just look at the opposing side color to know what I need to do
+  // ... his pawns occupy light squares ... gain the dark squares"). Measured on 49,649 master games (both 2300+),
+  // positions with EQUAL material after move 20 and move 30, each side's score with the feature minus without it:
+  //   his pawns mostly on one colour and no bishop of the other colour (a weak colour): +2.8 / +4.7
+  //   ... and I have a bishop of that colour or a knight standing on it: +2.7 / +4.6
+  //   my single bishop on the other colour from my pawns (good bishop): +2.1 / +5.0
+  //   his single bishop on the colour of his pawns (bad bishop for him): +2.1 / +5.0
+  //   my bishop on the colour of his pawns, to attack them: -0.2 / +0.6 (no help)
+  //   my pawns opposite in colour to his: 0 / 0 (shared by both sides, gives nobody an edge)
+  const COLOUR_PLAN = [
+    ["1", "Which colour are his pawns on?", "Count them. The OTHER colour is his weak colour: his pawns cannot guard those squares."],
+    ["2", "Has he lost the bishop of that weak colour?", "Then those squares are holes. Aim there: a knight on one of them, your bishop of that colour, your queen and rooks coming in on them."],
+    ["3", "Keep your bishop of his weak colour; trade his.", "The bishop that lives on his weak colour is your best piece. If he still has his bishop of that colour, offer to trade it."],
+    ["4", "Put your own pawns on the other colour from your bishop.", "Then your bishop is free and your pawns guard the squares it cannot."],
+  ];
+  const COLOUR_PLAN_EVIDENCE = [
+    ["His pawns on one colour, his bishop of the other colour gone (a weak colour)", 2.8, 4.7],
+    ["...and you own that colour (its bishop, or a knight on it)", 2.7, 4.6],
+    ["Your bishop on the other colour from your pawns (a good bishop)", 2.1, 5.0],
+    ["His bishop on the colour of his pawns (a bad bishop for him)", 2.1, 5.0],
+    ["Your bishop on the colour of his pawns, to attack them", -0.2, 0.6],
+    ["Your pawns on the opposite colour to his", 0, 0],
+  ];
+  function colourPlan() {
+    const max = 5;
+    return el("section", { class: "panel", id: "colour-plan" },
+      el("div", { class: "row", style: "justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap;" },
+        el("h2", { text: "The colour plan: find his weak colour and take it" }),
+        el("button", { class: "btn", type: "button", text: "Print this card", onclick: () => printOnly("colour-plan") })),
+      el("div", { class: "note", text: "For green positions, when nobody has a tactic. It is worth about 5 points by move 30 in master games, as much as the bishop pair." }),
+      el("div", { style: "display:grid; gap:10px; margin-top:10px;" }, ...COLOUR_PLAN.map(([n, t, d]) =>
+        el("div", { style: "display:flex; gap:12px; align-items:flex-start;" },
+          el("span", { style: "flex:0 0 30px; height:30px; border-radius:8px; background:linear-gradient(135deg, #f0d4a4 50%, #a5683a 50%); color:#1c1410; font-weight:800; display:flex; align-items:center; justify-content:center; border:1px solid var(--line);", text: n }),
+          el("div", {}, el("div", { style: "font-weight:600;", text: t }), el("div", { class: "note", text: d }))))),
+      el("div", { style: "margin-top:12px; padding:12px 14px; border-radius:10px; background:var(--gold-bg); border:1px solid var(--gold-border);" },
+        el("div", { style: "font-weight:700;", text: "Example: his pawns stand on light squares (d5, e4, c4) and his light-squared bishop is gone." }),
+        el("div", { class: "note", text: "The dark squares are his weak colour. Keep your dark-squared bishop, put a knight on a dark hole such as d6 or f6 (d3 or f3 for Black), bring your queen in on the dark squares, and put your own pawns on light squares so your dark bishop runs free." })),
+      el("h3", { style: "margin:16px 0 6px;", text: "The evidence (49,649 master games, equal material)" }),
+      table(["Colour idea", "After move 20", "After move 30"], COLOUR_PLAN_EVIDENCE.map(([name, a, b]) => el("tr", {}, td(name, "min-width:220px;"), td(bar(a, max)), td(bar(b, max))))),
+      el("div", { class: "note", style: "margin-top:6px;", text: "Two ideas do not help: aiming your bishop at his pawns' colour, and simply putting your pawns opposite his (both sides then have it, so nobody gains). What wins is the colour his pawns leave empty, when his bishop of that colour is gone." }));
   }
   function colourTest() {
     return el("section", { class: "panel" },
@@ -236,7 +277,7 @@
     window.print();
   }
   function view() {
-    return el("div", {}, el("style", { text: PRINT }), verdict(), lightCard(), colourTest(), easyCard(), easyEvidence(), methodCard(), signsTable(), chuzhakinTest(), systemsTable(), habitsTable(), limits());
+    return el("div", {}, el("style", { text: PRINT }), verdict(), lightCard(), colourPlan(), colourTest(), easyCard(), easyEvidence(), methodCard(), signsTable(), chuzhakinTest(), systemsTable(), habitsTable(), limits());
   }
-  window.MethodsTab = { view, STEPS, SIGNS, HABITS, SYSTEMS, EASY, EASY_EVIDENCE, WHO, LIGHTS, COLOUR_RULES };
+  window.MethodsTab = { view, STEPS, SIGNS, HABITS, SYSTEMS, EASY, EASY_EVIDENCE, WHO, LIGHTS, COLOUR_RULES, COLOUR_PLAN, COLOUR_PLAN_EVIDENCE };
 })();
