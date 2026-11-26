@@ -8,14 +8,16 @@
 (function () {
   "use strict";
   const LABEL = {
-    script: ["Script ready", ""], queued: ["Waiting for the PC", ""], rendering: ["Rendering", ""], failed: ["Render failed", "bad"],
+    script: ["Not made yet", ""], queued: ["Waiting for the PC", ""], rendering: ["Rendering", ""], failed: ["Render failed", "bad"],
     review: ["Watch and approve", "warn"], approved: ["Approved", "ok"], posting: ["Posting", "ok"], posted: ["On YouTube", "ok"],
   };
   // where one episode stands, from its script record and the PC's render record
+  // the PC's list (tools/cartoons.mjs writeList, db/cartoonrenders/_list.json): posts and the video's place on the PC
+  const listRow = (id) => (((typeof S !== "undefined" && S.cartoonRenders) || {})._list || {}).rows ? S.cartoonRenders._list.rows.find((x) => x.id === id) || null : null;
   function state(d, r) {
     r = r || {};
-    const yt = r.youtube || {};
-    if (yt.url || (d.posted && d.posted.url)) return "posted";
+    const yt = r.youtube || {}, row = listRow(d.id);
+    if (yt.url || (d.posted && d.posted.url) || (row && row.youtube && row.youtube.url)) return "posted";
     if (yt.startedAt && !yt.failedAt) return "posting";
     if (d.renderAsk && r.forAsk !== d.renderAsk) return "queued";
     if (r.status === "rendering") return "rendering";
@@ -27,9 +29,10 @@
   // the others by hand with "Posted it myself" (d.postedOn.<platform>)
   const PLATFORMS = [["youtube", "YouTube", /^https:\/\/(www\.|m\.)?(youtube\.com|youtu\.be)\//], ["facebook", "Facebook", /^https:\/\/(www\.|m\.|web\.)?(facebook\.com|fb\.watch)\//],
     ["instagram", "Instagram", /^https:\/\/(www\.)?instagram\.com\//], ["tiktok", "TikTok", /^https:\/\/(www\.|vm\.|vt\.)?tiktok\.com\//]];
-  function postedOn(d, r) {
-    const yt = (r || {}).youtube || {}, on = d.postedOn || {};
-    return Object.fromEntries(PLATFORMS.map(([k]) => [k, k === "youtube" ? (yt.url ? { url: yt.url, at: yt.at } : d.posted && d.posted.url ? d.posted : null) : on[k] && on[k].url ? on[k] : null]));
+  function postedOn(d, r, row) {
+    const yt = (r || {}).youtube || {}, on = d.postedOn || {}, L = row || {};
+    const mine = (k) => (k === "youtube" ? (yt.url ? { url: yt.url, at: yt.at } : d.posted && d.posted.url ? d.posted : null) : on[k] && on[k].url ? on[k] : null);
+    return Object.fromEntries(PLATFORMS.map(([k]) => [k, mine(k) || (L[k] && (L[k].url || L[k].scheduled) ? L[k] : null)]));
   }
   const trapName = (t) => String(t || "").replace(/^trap-\w+\s*\((.*)\)$/, "$1").replace(/,\s*assets\/\S+$/, "");
   const secs = (d) => Math.round((d.beats || []).reduce((s, b) => s + (+b.d || 0), 0));
@@ -44,25 +47,22 @@
   function card(d) {
     const r = (S.cartoonRenders || {})[d.id] || {}, st = state(d, r), yt = r.youtube || {}, [label, tone] = LABEL[st];
     const line = {
-      script: `About ${secs(d)} seconds, ${moves(d).length} moves. Press Render: your PC makes it in about 35 minutes (free).`,
+      script: `About ${secs(d)} seconds, ${moves(d).length} moves. Your PC makes it by itself, in order, a few each night (free, about 35 minutes each).`,
       queued: "Your PC makes it the next time render-pc.cmd runs, or tonight at 20:35 (about 35 minutes each).",
       rendering: "Your PC is making it now" + (r.startedAt ? " (started " + when(r.startedAt) + ")" : "") + ". About 35 minutes.",
-      failed: "Your PC could not make it: " + (r.why || "no reason given") + ". Press Render to try again.",
-      review: `Made ${when(r.doneAt)}, ${r.seconds || "?"} seconds. Watch it, then Approve to post it.`,
+      failed: "Your PC could not make it: " + (r.why || "no reason given") + ((r.tries || 1) < 3 ? ". It tries again tonight." : ". It tried three times and stopped: tell Claude."),
+      review: (r.adopted ? `Already made on your PC, ${r.seconds || "?"} seconds.` : `Made ${when(r.doneAt)}, ${r.seconds || "?"} seconds.`) + " Watch it, then Approve to post it on YouTube.",
       approved: "Your PC posts it to YouTube Shorts within 10 minutes (two a day at most, so it may wait for tomorrow).",
       posting: "Your PC is sending it to YouTube now.",
       posted: "Posted" + (yt.at ? " " + when(yt.at) : d.posted && d.posted.at ? " " + when(d.posted.at) : "") + ".",
     }[st];
     const btns = el("div", { class: "row", style: "gap:6px; flex-wrap:wrap;" });
-    if (!["queued", "rendering", "posting", "posted"].includes(st)) btns.append(el("button", { class: "btn" + (st === "script" || st === "failed" ? " primary" : ""), type: "button",
-      text: r.status === "done" ? "Render again" : "Render",
-      onclick: () => put(d, { renderAsk: new Date().toISOString(), approvedSha: null, approvedAt: null }, `Episode ${d.no} is waiting for your PC (free, about 35 minutes once it starts).`) }));
-    if (st === "queued") btns.append(el("button", { class: "btn", type: "button", text: "Cancel render", onclick: () => put(d, { renderAsk: null }, "Render cancelled.") }));
+    // no Render button (Mark, 26 Nov 2026: "it should be auto rendered I just need a list here"): the PC makes them itself
     if (st === "review") btns.append(el("button", { class: "btn primary", type: "button", text: "Approve and post",
       onclick: () => { if (confirm(`Post episode ${d.no}, "${d.title}", to YouTube Shorts? It goes public.`)) put(d, { approvedSha: r.sha256, approvedAt: new Date().toISOString() }, "Approved: your PC posts it within 10 minutes."); } }));
     if (st === "approved") btns.append(el("button", { class: "btn", type: "button", text: "Undo approval", onclick: () => put(d, { approvedSha: null, approvedAt: null }, "Not approved any more: nothing will be posted.") }));
-    const on = postedOn(d, r);
-    if (PLATFORMS.some(([k]) => !on[k])) btns.append(el("button", { class: "btn", type: "button", text: "Posted it myself", title: "Posted it yourself? Add its link so the page shows where it is (a YouTube link also stops your PC posting it twice)",
+    const row = listRow(d.id), on = postedOn(d, r, row);
+    if (PLATFORMS.some(([k]) => !(on[k] && on[k].url))) btns.append(el("button", { class: "btn", type: "button", text: "Posted it myself", title: "Posted it yourself? Add its link so the page shows where it is (a YouTube link also stops your PC posting it twice)",
       onclick: () => {
         const u = (prompt("Paste the link where you posted this episode (YouTube, Facebook, Instagram or TikTok):") || "").trim();
         if (!u) return;
@@ -79,8 +79,10 @@
       d.trap ? el("div", { class: "note", text: "Trap: " + trapName(d.trap) + (d.repeatOf ? " (told before in episode " + d.repeatOf + ")" : "") }) : null,
       el("div", { class: "note", text: line }),
       el("div", { class: "row", style: "gap:6px; flex-wrap:wrap; align-items:center; margin:6px 0;" }, el("span", { class: "note", text: "Posted on:" }),
-        ...PLATFORMS.map(([k, name]) => on[k] ? el("a", { class: "pill ok", href: safeUrl(on[k].url), target: "_blank", rel: "noopener", title: on[k].at ? "Posted " + when(on[k].at) : "", text: name + " ✓" })
+        ...PLATFORMS.map(([k, name]) => on[k] && on[k].url ? el("a", { class: "pill ok", href: safeUrl(on[k].url), target: "_blank", rel: "noopener", title: on[k].at ? "Posted " + when(on[k].at) : "", text: name + " ✓" })
+          : on[k] && on[k].scheduled ? el("span", { class: "pill warn", text: name + ": " + on[k].scheduled.replace(/^d{4}-/, "") })
           : el("span", { class: "pill", style: "opacity:.55;", text: name + ": not yet" }))),
+      el("div", { class: "note", style: "word-break:break-all;", text: row && row.file ? "Saved on your PC: " + row.file : "Saved on your PC: not made yet" }),
       r.status === "done" && r.videoUrl ? el("div", { class: "row", style: "gap:12px; align-items:flex-start; flex-wrap:wrap; margin:8px 0;" },
         el("video", { src: safeUrl(r.videoUrl), controls: true, preload: "none", poster: r.coverUrl ? safeUrl(r.coverUrl) : undefined, style: "width:220px; max-width:100%; border-radius:10px; background:#000;" }),
         el("a", { class: "btn", href: safeUrl(r.videoUrl), target: "_blank", rel: "noopener", text: "Download" })) : null,
