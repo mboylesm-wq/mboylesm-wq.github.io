@@ -9,7 +9,7 @@
   "use strict";
   const LABEL = {
     script: ["Not made yet", ""], queued: ["Waiting for the PC", ""], rendering: ["Rendering", ""], failed: ["Render failed", "bad"],
-    review: ["Watch and approve", "warn"], approved: ["Approved", "ok"], posting: ["Posting", "ok"], posted: ["On YouTube", "ok"],
+    review: ["Watch and approve", "warn"], approved: ["Approved", "ok"], posting: ["Posting", "ok"], posted: ["Posted", "ok"], booked: ["Booked for 9 pm", "ok"],
   };
   // where one episode stands, from its script record and the PC's render record
   // the PC's list (tools/cartoons.mjs writeList, db/cartoonrenders/_list.json): posts and the video's place on the PC
@@ -18,6 +18,8 @@
     r = r || {};
     const yt = r.youtube || {}, row = listRow(d.id);
     if (yt.url || (d.posted && d.posted.url) || (row && row.youtube && row.youtube.url)) return "posted";
+    // in the posting system's 9 pm slot (booked by the PC after Approve, or 1-10 by hand): posted once any app has it
+    if (row && row.planned) return ["facebook", "instagram", "tiktok"].some((k) => row[k] && row[k].url) ? "posted" : "booked";
     if (yt.startedAt && !yt.failedAt) return "posting";
     if (d.renderAsk && r.forAsk !== d.renderAsk) return "queued";
     if (r.status === "rendering") return "rendering";
@@ -45,23 +47,24 @@
     render();
   }
   function card(d) {
-    const r = (S.cartoonRenders || {})[d.id] || {}, st = state(d, r), yt = r.youtube || {}, [label, tone] = LABEL[st];
+    const r = (S.cartoonRenders || {})[d.id] || {}, st = state(d, r), yt = r.youtube || {}, [label, tone] = LABEL[st], row = listRow(d.id);
     const line = {
       script: `About ${secs(d)} seconds, ${moves(d).length} moves. Your PC makes it by itself, in order, a few each night (free, about 35 minutes each).`,
       queued: "Your PC makes it the next time render-pc.cmd runs, or tonight at 20:35 (about 35 minutes each).",
       rendering: "Your PC is making it now" + (r.startedAt ? " (started " + when(r.startedAt) + ")" : "") + ". About 35 minutes.",
       failed: "Your PC could not make it: " + (r.why || "no reason given") + ((r.tries || 1) < 3 ? ". It tries again tonight." : ". It tried three times and stopped: tell Claude."),
       review: (r.adopted ? `Already made on your PC, ${r.seconds || "?"} seconds.` : `Made ${when(r.doneAt)}, ${r.seconds || "?"} seconds.`) + " Watch it, then Approve to post it on YouTube.",
-      approved: "Your PC posts it to YouTube Shorts within 10 minutes (two a day at most, so it may wait for tomorrow).",
+      approved: "Approved: within 10 minutes your PC books it into the next free 9 pm (Facebook, Instagram, TikTok and YouTube Shorts).",
+      booked: "Posts at 9 pm on " + String((row || {}).planned || "").slice(0, 10) + " to Facebook, Instagram, TikTok and YouTube Shorts.",
       posting: "Your PC is sending it to YouTube now.",
-      posted: "Posted" + (yt.at ? " " + when(yt.at) : d.posted && d.posted.at ? " " + when(d.posted.at) : "") + ".",
+      posted: "Posted" + (yt.at ? " " + when(yt.at) : d.posted && d.posted.at ? " " + when(d.posted.at) : row && row.planned ? " (the 9 pm slot of " + String(row.planned).slice(0, 10) + ")" : "") + ".",
     }[st];
     const btns = el("div", { class: "row", style: "gap:6px; flex-wrap:wrap;" });
     // no Render button (Mark, 26 Nov 2026: "it should be auto rendered I just need a list here"): the PC makes them itself
-    if (st === "review") btns.append(el("button", { class: "btn primary", type: "button", text: "Approve and post",
-      onclick: () => { if (confirm(`Post episode ${d.no}, "${d.title}", to YouTube Shorts? It goes public.`)) put(d, { approvedSha: r.sha256, approvedAt: new Date().toISOString() }, "Approved: your PC posts it within 10 minutes."); } }));
+    if (st === "review") btns.append(el("button", { class: "btn primary", type: "button", text: "Approve",
+      onclick: () => { if (confirm(`Approve episode ${d.no}, "${d.title}"? Your PC books it into the next free 9 pm: Facebook, Instagram, TikTok and YouTube Shorts, public.`)) put(d, { approvedSha: r.sha256, approvedAt: new Date().toISOString() }, "Approved: your PC books it into the next free 9 pm within 10 minutes."); } }));
     if (st === "approved") btns.append(el("button", { class: "btn", type: "button", text: "Undo approval", onclick: () => put(d, { approvedSha: null, approvedAt: null }, "Not approved any more: nothing will be posted.") }));
-    const row = listRow(d.id), on = postedOn(d, r, row);
+    const on = postedOn(d, r, row);
     if (PLATFORMS.some(([k]) => !(on[k] && on[k].url))) btns.append(el("button", { class: "btn", type: "button", text: "Posted it myself", title: "Posted it yourself? Add its link so the page shows where it is (a YouTube link also stops your PC posting it twice)",
       onclick: () => {
         const u = (prompt("Paste the link where you posted this episode (YouTube, Facebook, Instagram or TikTok):") || "").trim();
